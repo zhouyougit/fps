@@ -1,0 +1,222 @@
+{
+  "id": "breaker12",
+  "short": "破门锤",
+  "name": "几猫·破门锤 12 号霰弹枪",
+  "nameKey": "weapon.breaker12.name",
+  "class": "shotgun",
+  "slot": "primary",
+  "fire": {
+    "mode": "pump",
+    "rpm": 78,
+    "burst": 0,
+    "pellets": 9,
+    "pelletSpread": 1.35
+  },
+  "damage": 11,
+  "headMul": 1.3,
+  "limbMul": 0.8,
+  "range": 90,
+  "falloff": {
+    "start": 8,
+    "end": 22,
+    "minMul": 0.3
+  },
+  "penetration": 0.1,
+  "penetrationMul": 0.6,
+  "mag": 8,
+  "reserve": 48,
+  "chamber": true,
+  "reload": {
+    "tactical": {
+      "time": 2.85
+    },
+    "empty": {
+      "time": 3.4
+    },
+    "perShell": {
+      "insert": 0.52,
+      "start": 0.35,
+      "end": 0.4,
+      "pumpIfEmpty": 0.45
+    }
+  },
+  "spread": {
+    "hip": 0.05,
+    "ads": 0.036,
+    "move": [
+      0.012,
+      0.004
+    ],
+    "bloomPerShot": 0.22,
+    "bloom": [
+      0.008,
+      0.003
+    ],
+    "air": 0.024,
+    "scale": 1
+  },
+  "spreadScale": 1,
+  "recoilPattern": {
+    "pattern": [
+      [
+        0,
+        1
+      ],
+      [
+        0.1,
+        1
+      ],
+      [
+        -0.14,
+        0.9
+      ],
+      [
+        0.18,
+        0.8
+      ],
+      [
+        0.12,
+        0.7
+      ]
+    ],
+    "loopFrom": 2,
+    "unit": [
+      0.01,
+      0.02
+    ],
+    "jitter": [
+      0.25,
+      0.15
+    ],
+    "adsMul": 0.78,
+    "crouchMul": 0.9,
+    "moveMul": 1.1,
+    "recover": {
+      "delay": 0.12,
+      "rate": 5.2,
+      "keep": 0.35
+    }
+  },
+  "ads": {
+    "time": 0.22,
+    "fov": 60
+  },
+  "handling": {
+    "draw": 0.5,
+    "holster": 0.34,
+    "sprintOut": 0.24,
+    "swapT": 0.4
+  },
+  "moveMul": 0.97,
+  "audio": {
+    "shot": "sg_shot",
+    "tail": "sg_tail",
+    "mech": "sg_pump",
+    "alertRadius": 55
+  },
+  "attachments": {
+    "muzzle": [
+      "std",
+      "choke",
+      "brake"
+    ],
+    "mag": [
+      "std",
+      "ext"
+    ],
+    "optic": [
+      "dot",
+      "iron"
+    ]
+  },
+  "cfg": {
+    "id": "breaker12",
+    "name": "几猫·破门锤 12 号霰弹枪",
+    "short": "破门锤",
+    "muzzle": [
+      0,
+      0.024,
+      -0.605
+    ],
+    "eject": [
+      0.033,
+      0.012,
+      -0.015
+    ],
+    "sightY": 0.088,
+    "lensF": 0.075,
+    "window": [
+      [
+        -0.0135,
+        0.077
+      ],
+      [
+        0.0135,
+        0.077
+      ],
+      [
+        0.0135,
+        0.094
+      ],
+      [
+        0.009,
+        0.099
+      ],
+      [
+        -0.009,
+        0.099
+      ],
+      [
+        -0.0135,
+        0.094
+      ]
+    ],
+    "magPos": [
+      0,
+      -0.062,
+      -0.028
+    ],
+    "boltTravel": 0.07,
+    "grip": [
+      0,
+      -0.104,
+      0.098
+    ],
+    "handguard": [
+      0,
+      -0.026,
+      -0.302
+    ],
+    "handguardR": 0.028,
+    "handlePos": [
+      -0.03,
+      -0.02,
+      -0.3
+    ],
+    "squeeze": 1,
+    "magSize": 8,
+    "reserve": 48,
+    "rpm": 78,
+    "damage": 11,
+    "range": 90,
+    "reloadT": 2.85,
+    "reloadEmptyT": 3.4,
+    "recoil": 2.35,
+    "scale": 0.82,
+    "hipPos": [
+      0.112,
+      -0.108,
+      -0.3
+    ],
+    "hipRot": [
+      0.014,
+      0.07,
+      -0.016
+    ],
+    "pellets": 9,
+    "pelletSpread": 1.35,
+    "adsFov": 60,
+    "spreadScale": 1,
+    "semi": false
+  }
+}

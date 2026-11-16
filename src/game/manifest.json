@@ -1,0 +1,56 @@
+{
+  "source": "V41 src/game.js（拆分校验通过后已移除，构建只读下列片段）",
+  "generatedBy": "V42 one-time split; 拼接契约由 tools/build.cjs 与 tools/game_bundle.mjs 使用",
+  "lineCount": 72918,
+  "parts": [
+    {
+      "file": "src/game/00_engine.js",
+      "lines": [
+        1,
+        35289
+      ],
+      "title": "three.js 引擎 + 几何工具（vendor 片段）"
+    },
+    {
+      "file": "src/game/10_render.js",
+      "lines": [
+        35290,
+        37951
+      ],
+      "title": "渲染管线"
+    },
+    {
+      "file": "src/game/20_world.js",
+      "lines": [
+        37952,
+        55178
+      ],
+      "title": "世界构建"
+    },
+    {
+      "file": "src/game/25_fx.js",
+      "lines": [
+        55179,
+        58805
+      ],
+      "title": "特效与天气"
+    },
+    {
+      "file": "src/game/30_gameplay.js",
+      "lines": [
+        58806,
+        71301
+      ],
+      "title": "玩法运行时"
+    },
+    {
+      "file": "src/game/40_ui_boot.js",
+      "lines": [
+        71302,
+        72918
+      ],
+      "title": "菜单与启动"
+    }
+  ],
+  "note": "按整行切分，拼接后与拆分前逐字节一致（不含每片首行注释）。"
+}

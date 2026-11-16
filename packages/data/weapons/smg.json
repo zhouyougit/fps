@@ -1,0 +1,243 @@
+{
+  "id": "smg",
+  "short": "短哨",
+  "name": "几猫·短哨 冲锋枪",
+  "nameKey": "weapon.smg.name",
+  "class": "smg",
+  "slot": "primary",
+  "fire": {
+    "mode": "auto",
+    "rpm": 900,
+    "burst": 0,
+    "pellets": 1
+  },
+  "damage": 18,
+  "headMul": 1.6,
+  "limbMul": 0.8,
+  "range": 120,
+  "falloff": {
+    "start": 15,
+    "end": 40,
+    "minMul": 0.5
+  },
+  "penetration": 0.25,
+  "penetrationMul": 0.7,
+  "mag": 32,
+  "reserve": 192,
+  "chamber": true,
+  "reload": {
+    "tactical": {
+      "time": 1.9
+    },
+    "empty": {
+      "time": 2.3
+    }
+  },
+  "spread": {
+    "hip": 0.0105,
+    "ads": 0.002,
+    "move": [
+      0.013,
+      0.004
+    ],
+    "bloomPerShot": 0.18,
+    "bloom": [
+      0.007,
+      0.0024
+    ],
+    "air": 0.024,
+    "scale": 1.25
+  },
+  "spreadScale": 1.25,
+  "recoilPattern": {
+    "pattern": [
+      [
+        0,
+        1
+      ],
+      [
+        0.22,
+        1
+      ],
+      [
+        -0.26,
+        0.95
+      ],
+      [
+        0.3,
+        0.9
+      ],
+      [
+        -0.32,
+        0.86
+      ],
+      [
+        0.28,
+        0.82
+      ],
+      [
+        -0.24,
+        0.8
+      ],
+      [
+        0.18,
+        0.78
+      ],
+      [
+        -0.14,
+        0.76
+      ],
+      [
+        0.1,
+        0.74
+      ]
+    ],
+    "loopFrom": 8,
+    "unit": [
+      0.0035,
+      0.0044
+    ],
+    "jitter": [
+      0.24,
+      0.14
+    ],
+    "adsMul": 0.7,
+    "crouchMul": 0.85,
+    "moveMul": 1.25,
+    "recover": {
+      "delay": 0.09,
+      "rate": 7,
+      "keep": 0.35
+    }
+  },
+  "ads": {
+    "time": 0.14,
+    "fov": 58
+  },
+  "handling": {
+    "draw": 0.28,
+    "holster": 0.24,
+    "sprintOut": 0.12,
+    "swapT": 0.24
+  },
+  "moveMul": 1.05,
+  "suppressor": true,
+  "audio": {
+    "shot": "smg_shot",
+    "tail": "smg_tail",
+    "mech": "smg_mech",
+    "alertRadius": 14
+  },
+  "attachments": {
+    "muzzle": [
+      "std",
+      "supp"
+    ],
+    "mag": [
+      "std",
+      "ext",
+      "fast"
+    ],
+    "optic": [
+      "dot",
+      "holo"
+    ]
+  },
+  "cfg": {
+    "id": "smg",
+    "name": "几猫·短哨 冲锋枪",
+    "short": "短哨",
+    "muzzle": [
+      0,
+      0.022,
+      -0.318
+    ],
+    "eject": [
+      0.03,
+      0.01,
+      -0.012
+    ],
+    "sightY": 0.081,
+    "lensF": 0.06,
+    "window": [
+      [
+        -0.014,
+        0.081
+      ],
+      [
+        -0.0099,
+        0.0711
+      ],
+      [
+        0,
+        0.0674
+      ],
+      [
+        0.0099,
+        0.0711
+      ],
+      [
+        0.014,
+        0.081
+      ],
+      [
+        0.0099,
+        0.0909
+      ],
+      [
+        0,
+        0.0946
+      ],
+      [
+        -0.0099,
+        0.0909
+      ]
+    ],
+    "magPos": [
+      0,
+      -0.03,
+      -0.04
+    ],
+    "boltTravel": 0.055,
+    "grip": [
+      0,
+      -0.098,
+      0.062
+    ],
+    "handguard": [
+      0,
+      -0.028,
+      -0.2
+    ],
+    "handguardR": 0.026,
+    "handlePos": [
+      -0.026,
+      0.012,
+      -0.07
+    ],
+    "squeeze": 0.8,
+    "magSize": 32,
+    "reserve": 192,
+    "rpm": 900,
+    "damage": 18,
+    "range": 120,
+    "reloadT": 1.9,
+    "reloadEmptyT": 2.3,
+    "recoil": 0.5,
+    "scale": 0.88,
+    "hipPos": [
+      0.105,
+      -0.112,
+      -0.25
+    ],
+    "hipRot": [
+      0.03,
+      0.075,
+      -0.028
+    ],
+    "adsFov": 58,
+    "spreadScale": 1.25,
+    "semi": false,
+    "suppressor": true
+  }
+}

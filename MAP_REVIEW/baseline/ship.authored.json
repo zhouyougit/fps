@@ -1,0 +1,413 @@
+{
+  "id": "ship",
+  "version": 1,
+  "bounds": {
+    "min": [
+      -27,
+      0,
+      -10.5
+    ],
+    "max": [
+      27,
+      12,
+      10.5
+    ]
+  },
+  "ground": {
+    "y": 0.3,
+    "seaY": -1.6,
+    "quayX": null
+  },
+  "spawns": {
+    "player": {
+      "pos": [
+        0,
+        0.32,
+        5.2
+      ],
+      "yaw": 0
+    },
+    "enemy": [
+      {
+        "pos": [
+          -20.18,
+          0.3,
+          -5.18
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          -10,
+          0.3,
+          -6
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          10,
+          0.3,
+          -6
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          19.82,
+          0.3,
+          -5.18
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          -20,
+          0.3,
+          1
+        ],
+        "type": "ground",
+        "zone": "deck_mid"
+      },
+      {
+        "pos": [
+          20,
+          0.3,
+          1
+        ],
+        "type": "ground",
+        "zone": "deck_mid"
+      },
+      {
+        "pos": [
+          -10,
+          0.3,
+          4
+        ],
+        "type": "ground",
+        "zone": "deck_mid"
+      },
+      {
+        "pos": [
+          10,
+          0.3,
+          4
+        ],
+        "type": "ground",
+        "zone": "deck_mid"
+      },
+      {
+        "pos": [
+          0,
+          0.53,
+          0
+        ],
+        "type": "ground",
+        "zone": "deck_mid"
+      },
+      {
+        "pos": [
+          -0.38,
+          0.3,
+          5.35
+        ],
+        "type": "ground",
+        "zone": "deck_mid"
+      },
+      {
+        "pos": [
+          13.5,
+          0.3,
+          -3
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          22.5,
+          0.3,
+          -0.5
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      }
+    ],
+    "air": [
+      {
+        "pos": [
+          -22,
+          4,
+          -6
+        ],
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          0,
+          4,
+          -6
+        ],
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          22,
+          4,
+          -6
+        ],
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          0,
+          4,
+          4
+        ],
+        "zone": "deck_mid"
+      }
+    ],
+    "team": [
+      {
+        "team": 0,
+        "pos": [
+          0,
+          0.3,
+          5.2
+        ],
+        "yaw": 0,
+        "radius": 8
+      },
+      {
+        "team": 1,
+        "pos": [
+          0,
+          0.3,
+          -8.4
+        ],
+        "yaw": 3.141592653589793,
+        "radius": 8
+      }
+    ],
+    "boss": [
+      {
+        "pos": [
+          0,
+          0.3,
+          -5
+        ],
+        "yaw": 0
+      },
+      {
+        "pos": [
+          0,
+          0.3,
+          5
+        ],
+        "yaw": 0
+      },
+      {
+        "pos": [
+          9,
+          0.3,
+          0
+        ],
+        "yaw": 0
+      }
+    ]
+  },
+  "pickups": [
+    {
+      "kind": "medkit",
+      "pos": [
+        -22,
+        0.3,
+        -5
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        -10,
+        0.3,
+        -6
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "armor",
+      "pos": [
+        10,
+        0.3,
+        -6
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "grenade",
+      "pos": [
+        22,
+        0.3,
+        -5
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "medkit",
+      "pos": [
+        -18.18,
+        0.3,
+        3.82
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        -0.38,
+        0.3,
+        5.35
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "armor",
+      "pos": [
+        17.82,
+        0.3,
+        3.82
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "medkit",
+      "pos": [
+        0,
+        0.3,
+        -6
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        12,
+        0.3,
+        0
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "armor",
+      "pos": [
+        -12.2,
+        0.3,
+        -0.98
+      ],
+      "respawn": 0
+    }
+  ],
+  "relays": [
+    {
+      "id": "ship_r1",
+      "pos": [
+        -18,
+        0.32,
+        -6.2
+      ],
+      "labelKey": "map.ship.relay.ship_r1",
+      "label": "系泊绞车中继"
+    },
+    {
+      "id": "ship_r2",
+      "pos": [
+        0,
+        0.32,
+        3.2
+      ],
+      "labelKey": "map.ship.relay.ship_r2",
+      "label": "货舱门中继"
+    },
+    {
+      "id": "ship_r3",
+      "pos": [
+        18,
+        0.32,
+        -6.2
+      ],
+      "labelKey": "map.ship.relay.ship_r3",
+      "label": "驾驶台中继"
+    }
+  ],
+  "zones": [
+    {
+      "id": "deck_bow",
+      "min": [
+        -27,
+        0.3,
+        -10.5
+      ],
+      "max": [
+        27,
+        6,
+        0
+      ],
+      "interior": false,
+      "reverb": "deck"
+    },
+    {
+      "id": "deck_mid",
+      "min": [
+        -27,
+        0.3,
+        0
+      ],
+      "max": [
+        27,
+        6,
+        6
+      ],
+      "interior": false,
+      "reverb": "deck"
+    },
+    {
+      "id": "bridge",
+      "min": [
+        -6,
+        0.3,
+        6
+      ],
+      "max": [
+        6,
+        8,
+        10.5
+      ],
+      "interior": true,
+      "reverb": "bridge"
+    },
+    {
+      "id": "deck_stern",
+      "min": [
+        -27,
+        0.3,
+        6
+      ],
+      "max": [
+        27,
+        6,
+        10.5
+      ],
+      "interior": false,
+      "reverb": "deck"
+    }
+  ],
+  "nav": {
+    "cell": 0.5,
+    "agentRadius": 0.5
+  }
+}

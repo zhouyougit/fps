@@ -1,0 +1,250 @@
+{
+ "tag": "v42_medium",
+ "quality": "medium",
+ "url": "file:///Users/zhouyou/codex_workspace/fps/game.html?q=medium&noaudio=1&autostart=1&dynres=0",
+ "viewport": [
+  1600,
+  900,
+  2
+ ],
+ "gpu": "metal",
+ "maps": {
+  "harbor": {
+   "switchMs": 11587,
+   "cpu": {
+    "avg": 3.18,
+    "p50": 3.1,
+    "p95": 4.6,
+    "max": 4.9
+   },
+   "total": {
+    "avg": 12.06,
+    "p50": 11.6,
+    "p95": 15.1,
+    "max": 15.4
+   },
+   "calls": {
+    "p50": 360,
+    "max": 810
+   },
+   "tris": {
+    "p50": 2010503,
+    "max": 2902703
+   },
+   "res": [
+    1633,
+    919
+   ],
+   "lights": {
+    "version": "V42.1",
+    "pool": 8,
+    "map": "harbor",
+    "records": 10,
+    "totalRecords": 10,
+    "indexed": 10,
+    "harvested": 5,
+    "switches": 0,
+    "enabled": true,
+    "sceneLights": 10,
+    "litLights": 8,
+    "visible": 10,
+    "budget": 11,
+    "failed": null
+   },
+   "lightCurve": {
+    "min": 10,
+    "max": 10
+   },
+   "mem": {
+    "geos": 426,
+    "tex": 174,
+    "programs": 154
+   }
+  },
+  "depot": {
+   "switchMs": 13931,
+   "cpu": {
+    "avg": 3.94,
+    "p50": 4,
+    "p95": 5,
+    "max": 5.3
+   },
+   "total": {
+    "avg": 13.54,
+    "p50": 13.9,
+    "p95": 15.4,
+    "max": 16.1
+   },
+   "calls": {
+    "p50": 436,
+    "max": 573
+   },
+   "tris": {
+    "p50": 1497637,
+    "max": 2209965
+   },
+   "res": [
+    1633,
+    919
+   ],
+   "lights": {
+    "version": "V42.1",
+    "pool": 8,
+    "map": "depot",
+    "records": 48,
+    "totalRecords": 58,
+    "indexed": 58,
+    "harvested": 5,
+    "switches": 1,
+    "enabled": true,
+    "sceneLights": 10,
+    "litLights": 7,
+    "visible": 10,
+    "budget": 11,
+    "failed": null
+   },
+   "lightCurve": {
+    "min": 10,
+    "max": 10
+   },
+   "mem": {
+    "geos": 785,
+    "tex": 241,
+    "programs": 194
+   }
+  },
+  "ship": {
+   "switchMs": 2626,
+   "cpu": {
+    "avg": 3,
+    "p50": 3,
+    "p95": 3.6,
+    "max": 3.7
+   },
+   "total": {
+    "avg": 9.75,
+    "p50": 9.8,
+    "p95": 10.5,
+    "max": 11.4
+   },
+   "calls": {
+    "p50": 307,
+    "max": 410
+   },
+   "tris": {
+    "p50": 432547,
+    "max": 625295
+   },
+   "res": [
+    1633,
+    919
+   ],
+   "lights": {
+    "version": "V42.1",
+    "pool": 8,
+    "map": "ship",
+    "records": 22,
+    "totalRecords": 80,
+    "indexed": 80,
+    "harvested": 5,
+    "switches": 2,
+    "enabled": true,
+    "sceneLights": 10,
+    "litLights": 8,
+    "visible": 10,
+    "budget": 11,
+    "failed": null
+   },
+   "lightCurve": {
+    "min": 10,
+    "max": 10
+   },
+   "mem": {
+    "geos": 1053,
+    "tex": 256,
+    "programs": 201
+   }
+  },
+  "core": {
+   "switchMs": 2522,
+   "cpu": {
+    "avg": 2.83,
+    "p50": 2.8,
+    "p95": 3.4,
+    "max": 3.6
+   },
+   "total": {
+    "avg": 9.85,
+    "p50": 9.9,
+    "p95": 10.6,
+    "max": 11
+   },
+   "calls": {
+    "p50": 279,
+    "max": 383
+   },
+   "tris": {
+    "p50": 361417,
+    "max": 516165
+   },
+   "res": [
+    1633,
+    919
+   ],
+   "lights": {
+    "version": "V42.1",
+    "pool": 8,
+    "map": "core",
+    "records": 33,
+    "totalRecords": 113,
+    "indexed": 113,
+    "harvested": 5,
+    "switches": 3,
+    "enabled": true,
+    "sceneLights": 10,
+    "litLights": 8,
+    "visible": 10,
+    "budget": 11,
+    "failed": null
+   },
+   "lightCurve": {
+    "min": 10,
+    "max": 10
+   },
+   "mem": {
+    "geos": 1325,
+    "tex": 283,
+    "programs": 203
+   }
+  }
+ },
+ "errors": [],
+ "readyMs": 16714,
+ "env": {
+  "label": "V42 · 架构",
+  "build": {
+   "version": "0.42.0",
+   "profile": "v42",
+   "target": "game.html",
+   "commit": "local"
+  },
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Max, Unspecified Version)",
+  "quality": "medium",
+  "lights": {
+   "version": "V42.1",
+   "pool": 8,
+   "map": "harbor",
+   "records": 10,
+   "totalRecords": 10,
+   "indexed": 10,
+   "harvested": 5,
+   "switches": 0,
+   "enabled": true,
+   "sceneLights": 10,
+   "litLights": 0,
+   "visible": 10,
+   "budget": 11,
+   "failed": null
+  }
+ }
+}

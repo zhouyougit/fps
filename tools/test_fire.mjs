@@ -1,0 +1,34 @@
+
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ headless:true, executablePath: process.env.CHROME_EXE, args:['--enable-unsafe-swiftshader','--use-angle=swiftshader','--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport:{width:1024,height:576} });
+const logs=[]; page.on('console',m=>logs.push('['+m.type()+'] '+m.text())); page.on('pageerror',e=>logs.push('[pageerror] '+e.message));
+await page.goto('http://127.0.0.1:3311/game.html?shot=1&autostart=1&q=low&noaudio=1',{waitUntil:'load',timeout:180000});
+await page.waitForFunction(()=>window.__ready===true||window.__fatal,null,{timeout:180000});
+await page.waitForTimeout(1500);
+const res = await page.evaluate(async ()=>{
+  const G=window.__G, S=window.__SX;
+  const wh=(ms)=>new Promise(r=>setTimeout(r,ms));
+  S.god();
+  G.weapon.select(1);
+  await wh(6000);
+  const st1 = G.weapon.state;
+  G.player.yaw = Math.PI; G.player.pitch = -0.02;
+  const before = {shots:G.combat.stats.shots, ammo:G.weapon.ammo};
+  G.input.fire = true;
+  await wh(2500);
+  G.input.fire = false;
+  await wh(500);
+  const after = {shots:G.combat.stats.shots, hits:G.combat.stats.hits, ammo:G.weapon.ammo, state:G.weapon.state};
+  G.weapon.reloadNow();
+  await wh(8000);
+  const afterReload = {ammo:G.weapon.ammo, reserve:G.weapon.reserve, state:G.weapon.state};
+  G.weapon.select(0);
+  await wh(4000);
+  return {st1,before,after,afterReload,back:{name:G.weapon.name, ammo:G.weapon.ammo, active:G.weapon.activeIndex}};
+});
+console.log(JSON.stringify(res));
+await page.screenshot({path:'tools/v2_switch.png',timeout:120000});
+console.log(JSON.stringify(await page.evaluate(()=>({err:(window.__errors||[]).slice(0,5), slots:window.__SX.S.grenades}))));
+console.log(logs.filter(l=>!l.includes('GPU stall')).slice(-6).join('\n'));
+await browser.close();

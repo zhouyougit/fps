@@ -1,0 +1,41 @@
+
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ headless:true, executablePath: process.env.CHROME_EXE, args:['--enable-unsafe-swiftshader','--use-angle=swiftshader','--ignore-gpu-blocklist','--allow-file-access-from-files'] });
+const page = await browser.newPage({ viewport:{width:1000,height:560} });
+const errs=[]; page.on('pageerror',e=>errs.push(e.message));
+let fails=0; const ok=(n,c,d)=>{ if(!c) fails++; console.log((c?'PASS':'FAIL')+' · '+n+(d?' — '+JSON.stringify(d):'')); };
+await page.goto('file:///Users/zhouyou/codex_workspace/fps/game.html?q=low&noaudio=1&autostart=1&dt=0.1',{waitUntil:'load',timeout:180000});
+await page.waitForFunction(()=>window.__ready===true,null,{timeout:240000});
+await page.waitForTimeout(700);
+await page.evaluate(()=>{ window.__SX.unlockAll(); window.__SX.openMissions(); });
+await page.waitForTimeout(300);
+const cards=await page.evaluate(()=>({all:document.querySelectorAll('.x-mcard').length, missions:document.querySelectorAll('.x-mcard[data-idx]').length}));
+ok('V18 行动卡', cards.missions===5 && cards.all===6, cards);
+async function click(sel){ const b=await page.locator(sel).first().boundingBox(); if(!b) return false; await page.mouse.click(b.x+b.width/2,b.y+b.height/2); return true; }
+await click('.x-mcard[data-idx="4"]'); await page.waitForTimeout(200);
+await click('.x-camp-actions [data-x="go"]'); await page.waitForTimeout(300);
+const brief=await page.evaluate(()=>({title:document.querySelector('.x-br-h').textContent, speaker:(document.querySelector('.x-br-k')||{}).textContent, rows:document.querySelectorAll('.x-br-chal li').length}));
+ok('V18 行动5 简报', brief.title==='外锚地' && brief.rows===3, brief);
+await click('.x-br-actions [data-x="brief-go"]'); await page.waitForTimeout(1000);
+await page.evaluate(()=>window.__G.game.start({skipIntro:true}));
+await page.waitForTimeout(2500);
+const live=await page.evaluate(()=>({map:window.__SX.mapId(), start:window.__G.player.pos.toArray().map(v=>+v.toFixed(2)), backdrop:window.__G.backdrop.root.visible, sea:window.__G.ground.root.getObjectByName('sea').visible, apron:window.__G.ground.root.getObjectByName('apron').visible}));
+ok('V18 货轮甲板进入', live.map==='ship' && live.sea && !live.apron, live);
+await page.evaluate(()=>{ const G=window.__G; window.__SX.god(); G.enemies.clear(); G.player.pos.set(-18,0.32,-7.9); G.player.yaw=Math.PI; });
+await page.waitForTimeout(2000);
+await page.keyboard.down('e'); await page.waitForTimeout(14000); await page.keyboard.up('e');
+const cut=await page.evaluate(()=>({cut:window.__G.game.run.cut, prompt:(document.querySelector('.h-prompt')||{}).textContent}));
+ok('V18 船上中继可切断', cut.cut>=1, cut);
+await page.evaluate(()=>{ window.__SX.cutAll(); window.__G.game.run.evacT=0.01; });
+await page.waitForTimeout(1200);
+await page.evaluate(()=>{ const G=window.__G,e=G.level.extraction.pos; G.player.pos.set(e.x,e.y,e.z); });
+let st='';
+for(let i=0;i<12;i++){ await page.waitForTimeout(2000); st=await page.evaluate(()=>window.__G.game.state); if(st==='complete') break; }
+await page.waitForTimeout(2000);
+const done=await page.evaluate(()=>({state:window.__G.game.state, best:JSON.parse(localStorage.getItem('saltline.campaign.v1')||'{}').best, final:(document.querySelector('.x-final')||{}).textContent}));
+ok('V18 行动5 可完成', done.state==='complete' && !!done.best.m5, done);
+ok('V18 无错误', errs.length===0, errs.slice(0,2));
+console.log('backdrop', live.backdrop);
+await browser.close();
+console.log(fails?fails+' 项失败':'全部通过');
+process.exit(fails?1:0);

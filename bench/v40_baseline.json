@@ -1,0 +1,221 @@
+{
+ "version": "V40 · 地图深化",
+ "capturedAt": "2026-11-13",
+ "machine": "Apple M1 Max / 64GB / macOS 27.0.1",
+ "viewport": "1600x900 @ DPR2 / ANGLE Metal / medium / dynres=0",
+ "method": "tools/perf/bench.mjs --frames 60 (60 预热 + 60 同步 gl.finish 帧)",
+ "four_maps_ms": {
+  "harbor": 15.5,
+  "depot": 111.36,
+  "ship": 24.62,
+  "core": 45.05
+ },
+ "draw_calls": {
+  "harbor": 416,
+  "depot": 452,
+  "ship": 325,
+  "core": 299
+ },
+ "visible_point_lights": {
+  "harbor": 16,
+  "depot": 55,
+  "ship": 29,
+  "core": 40
+ },
+ "plan_reference": {
+  "fps_rAF_6s": {
+   "harbor": {
+    "low": 60,
+    "medium": 59.5,
+    "high": 52.7
+   },
+   "depot": {
+    "low": 15,
+    "medium": 7.9,
+    "high": 5.1
+   },
+   "ship": {
+    "low": 53,
+    "medium": 41.7,
+    "high": 28.6
+   },
+   "core": {
+    "low": 38.1,
+    "medium": 20.4,
+    "high": 14.4
+   }
+  },
+  "sync_frame_ms_medium": {
+   "harbor": 15.7,
+   "depot": 119.1,
+   "ship": 26.1,
+   "core": 46.5
+  },
+  "lights_curve_depot_ms": {
+   "0": 11.4,
+   "8": 12.6,
+   "12": 13.4,
+   "16": 16.4,
+   "20": 21.1,
+   "24": 27.5,
+   "32": 39.4,
+   "40": 58.8,
+   "55": 96.1
+  }
+ },
+ "targets_v41": {
+  "sync_frame_ms_medium": 16.7,
+  "visible_point_lights_max": 12,
+  "depot_core_improvement_pct_min": 50
+ },
+ "raw": {
+  "harbor": {
+   "switchMs": 5032,
+   "cpu": {
+    "avg": 3.26,
+    "p50": 2.9,
+    "p95": 4.9,
+    "max": 5.3
+   },
+   "total": {
+    "avg": 15.5,
+    "p50": 15.1,
+    "p95": 19.9,
+    "max": 20.2
+   },
+   "calls": {
+    "p50": 416,
+    "max": 886
+   },
+   "tris": {
+    "p50": 2548721,
+    "max": 3726153
+   },
+   "res": [
+    1633,
+    919
+   ],
+   "lights": null,
+   "lightCurve": {
+    "min": null,
+    "max": null
+   },
+   "mem": {
+    "geos": 426,
+    "tex": 174,
+    "programs": 143
+   }
+  },
+  "depot": {
+   "switchMs": 47847,
+   "cpu": {
+    "avg": 4.69,
+    "p50": 4.7,
+    "p95": 5.9,
+    "max": 6.3
+   },
+   "total": {
+    "avg": 111.36,
+    "p50": 111,
+    "p95": 146.2,
+    "max": 155.9
+   },
+   "calls": {
+    "p50": 452,
+    "max": 666
+   },
+   "tris": {
+    "p50": 2199237,
+    "max": 2920525
+   },
+   "res": [
+    1633,
+    919
+   ],
+   "lights": null,
+   "lightCurve": {
+    "min": null,
+    "max": null
+   },
+   "mem": {
+    "geos": 785,
+    "tex": 241,
+    "programs": 200
+   }
+  },
+  "ship": {
+   "switchMs": 9538,
+   "cpu": {
+    "avg": 3.2,
+    "p50": 3.2,
+    "p95": 4,
+    "max": 4.1
+   },
+   "total": {
+    "avg": 24.62,
+    "p50": 24.7,
+    "p95": 27.4,
+    "max": 28.5
+   },
+   "calls": {
+    "p50": 325,
+    "max": 478
+   },
+   "tris": {
+    "p50": 598799,
+    "max": 808627
+   },
+   "res": [
+    1633,
+    919
+   ],
+   "lights": null,
+   "lightCurve": {
+    "min": null,
+    "max": null
+   },
+   "mem": {
+    "geos": 1053,
+    "tex": 256,
+    "programs": 224
+   }
+  },
+  "core": {
+   "switchMs": 23448,
+   "cpu": {
+    "avg": 3.39,
+    "p50": 3.4,
+    "p95": 4.1,
+    "max": 4.3
+   },
+   "total": {
+    "avg": 45.05,
+    "p50": 45.1,
+    "p95": 52.2,
+    "max": 53.1
+   },
+   "calls": {
+    "p50": 299,
+    "max": 447
+   },
+   "tris": {
+    "p50": 508753,
+    "max": 668933
+   },
+   "res": [
+    1633,
+    919
+   ],
+   "lights": null,
+   "lightCurve": {
+    "min": null,
+    "max": null
+   },
+   "mem": {
+    "geos": 1325,
+    "tex": 283,
+    "programs": 263
+   }
+  }
+ }
+}

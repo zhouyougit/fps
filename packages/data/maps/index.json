@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "source": "server/maps.json + packages/data/maps/<id>.authored.json",
+  "exporter": "tools/export_maps_data.mjs",
+  "fields": [
+    "bounds",
+    "ground",
+    "boxes",
+    "spawns",
+    "cover",
+    "pickups",
+    "relays",
+    "zones",
+    "triggers",
+    "probes",
+    "nav",
+    "validated"
+  ],
+  "maps": {
+    "harbor": {
+      "file": "harbor.map.json",
+      "boxes": 781,
+      "bounds": {
+        "min": [
+          -40,
+          0,
+          -30
+        ],
+        "max": [
+          40,
+          30,
+          30
+        ]
+      },
+      "ground": {
+        "y": 0,
+        "seaY": -1.6,
+        "quayX": 30
+      },
+      "spawns": {
+        "player": 1,
+        "enemy": 14,
+        "air": 6,
+        "team": 2,
+        "boss": 3
+      },
+      "pickups": 14,
+      "relays": 3,
+      "zones": 4,
+      "cover": 32,
+      "validated": true
+    },
+    "depot": {
+      "file": "depot.map.json",
+      "boxes": 727,
+      "bounds": {
+        "min": [
+          -39,
+          0,
+          -29
+        ],
+        "max": [
+          39,
+          12,
+          29
+        ]
+      },
+      "ground": {
+        "y": 0,
+        "seaY": null,
+        "quayX": null
+      },
+      "spawns": {
+        "player": 1,
+        "enemy": 15,
+        "air": 5,
+        "team": 2,
+        "boss": 2
+      },
+      "pickups": 16,
+      "relays": 3,
+      "zones": 13,
+      "cover": 80,
+      "validated": true
+    },
+    "ship": {
+      "file": "ship.map.json",
+      "boxes": 572,
+      "bounds": {
+        "min": [
+          -34.75,
+          0,
+          -14.95
+        ],
+        "max": [
+          34.75,
+          12,
+          27.8
+        ]
+      },
+      "ground": {
+        "y": 0.3,
+        "seaY": -1.6,
+        "quayX": null
+      },
+      "spawns": {
+        "player": 1,
+        "enemy": 16,
+        "air": 4,
+        "team": 2,
+        "boss": 3
+      },
+      "pickups": 14,
+      "relays": 3,
+      "zones": 5,
+      "cover": 40,
+      "validated": true
+    },
+    "core": {
+      "file": "core.map.json",
+      "boxes": 705,
+      "bounds": {
+        "min": [
+          -38,
+          0,
+          -28
+        ],
+        "max": [
+          38,
+          10,
+          28
+        ]
+      },
+      "ground": {
+        "y": 0.4,
+        "seaY": null,
+        "quayX": null
+      },
+      "spawns": {
+        "player": 1,
+        "enemy": 16,
+        "air": 0,
+        "team": 2,
+        "boss": 4
+      },
+      "pickups": 16,
+      "relays": 3,
+      "zones": 9,
+      "cover": 72,
+      "validated": true
+    }
+  }
+}

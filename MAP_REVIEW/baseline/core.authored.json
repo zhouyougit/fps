@@ -1,0 +1,363 @@
+{
+  "id": "core",
+  "version": 1,
+  "bounds": {
+    "min": [
+      -19,
+      0,
+      -13
+    ],
+    "max": [
+      19,
+      10,
+      13
+    ]
+  },
+  "ground": {
+    "y": 0.4,
+    "seaY": null,
+    "quayX": null
+  },
+  "spawns": {
+    "player": {
+      "pos": [
+        0,
+        0.42,
+        9.6
+      ],
+      "yaw": 0
+    },
+    "enemy": [
+      {
+        "pos": [
+          -14,
+          0.4,
+          -8
+        ],
+        "type": "ground",
+        "zone": "west"
+      },
+      {
+        "pos": [
+          14,
+          0.4,
+          -8
+        ],
+        "type": "ground",
+        "zone": "east"
+      },
+      {
+        "pos": [
+          -14,
+          0.4,
+          8
+        ],
+        "type": "ground",
+        "zone": "west"
+      },
+      {
+        "pos": [
+          14,
+          0.4,
+          8
+        ],
+        "type": "ground",
+        "zone": "east"
+      },
+      {
+        "pos": [
+          -8,
+          0.4,
+          0
+        ],
+        "type": "ground",
+        "zone": "west"
+      },
+      {
+        "pos": [
+          8,
+          0.4,
+          0
+        ],
+        "type": "ground",
+        "zone": "east"
+      },
+      {
+        "pos": [
+          0,
+          0.4,
+          -8
+        ],
+        "type": "ground",
+        "zone": "south"
+      },
+      {
+        "pos": [
+          0,
+          0.4,
+          8
+        ],
+        "type": "ground",
+        "zone": "north"
+      },
+      {
+        "pos": [
+          -16,
+          0.4,
+          4
+        ],
+        "type": "ground",
+        "zone": "west"
+      },
+      {
+        "pos": [
+          16,
+          0.4,
+          4
+        ],
+        "type": "ground",
+        "zone": "east"
+      },
+      {
+        "pos": [
+          -1.5,
+          0.4,
+          -10.5
+        ],
+        "type": "ground",
+        "zone": "south"
+      },
+      {
+        "pos": [
+          11,
+          0.4,
+          -4.5
+        ],
+        "type": "ground",
+        "zone": "east"
+      }
+    ],
+    "air": [],
+    "team": [
+      {
+        "team": 0,
+        "pos": [
+          0,
+          0.4,
+          9.6
+        ],
+        "yaw": 0,
+        "radius": 7
+      },
+      {
+        "team": 1,
+        "pos": [
+          0,
+          0.4,
+          -9.6
+        ],
+        "yaw": 3.141592653589793,
+        "radius": 7
+      }
+    ],
+    "boss": [
+      {
+        "pos": [
+          -4.5,
+          0.4,
+          0
+        ],
+        "yaw": 0
+      },
+      {
+        "pos": [
+          5.5,
+          0.4,
+          0
+        ],
+        "yaw": 0
+      },
+      {
+        "pos": [
+          0,
+          0.4,
+          -9
+        ],
+        "yaw": 0
+      },
+      {
+        "pos": [
+          0,
+          0.4,
+          9
+        ],
+        "yaw": 0
+      }
+    ]
+  },
+  "pickups": [
+    {
+      "kind": "medkit",
+      "pos": [
+        -14,
+        0.4,
+        -8
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "armor",
+      "pos": [
+        0,
+        0.4,
+        -8
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        14,
+        0.4,
+        -8
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "grenade",
+      "pos": [
+        -14,
+        0.4,
+        0
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "medkit",
+      "pos": [
+        14,
+        0.4,
+        0
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "armor",
+      "pos": [
+        0,
+        0.4,
+        8
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        -8.75,
+        0.4,
+        8
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "medkit",
+      "pos": [
+        11.25,
+        0.4,
+        -8
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        8,
+        0.4,
+        2.5
+      ],
+      "respawn": 0
+    }
+  ],
+  "relays": [],
+  "zones": [
+    {
+      "id": "reactor",
+      "min": [
+        -8,
+        0.4,
+        -8
+      ],
+      "max": [
+        8,
+        8,
+        8
+      ],
+      "interior": true,
+      "reverb": "reactor"
+    },
+    {
+      "id": "west",
+      "min": [
+        -19,
+        0.4,
+        -13
+      ],
+      "max": [
+        -8,
+        8,
+        13
+      ],
+      "interior": true,
+      "reverb": "metal"
+    },
+    {
+      "id": "east",
+      "min": [
+        8,
+        0.4,
+        -13
+      ],
+      "max": [
+        19,
+        8,
+        13
+      ],
+      "interior": true,
+      "reverb": "metal"
+    },
+    {
+      "id": "north",
+      "min": [
+        -8,
+        0.4,
+        8
+      ],
+      "max": [
+        8,
+        8,
+        13
+      ],
+      "interior": true,
+      "reverb": "metal"
+    },
+    {
+      "id": "south",
+      "min": [
+        -8,
+        0.4,
+        -13
+      ],
+      "max": [
+        8,
+        8,
+        -8
+      ],
+      "interior": true,
+      "reverb": "metal"
+    }
+  ],
+  "nav": {
+    "cell": 0.5,
+    "agentRadius": 0.5
+  }
+}

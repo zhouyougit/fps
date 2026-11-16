@@ -1,0 +1,217 @@
+{
+  "id": "sidearm",
+  "short": "侧牙",
+  "name": "几猫·侧牙 手枪",
+  "nameKey": "weapon.sidearm.name",
+  "class": "pistol",
+  "slot": "secondary",
+  "fire": {
+    "mode": "semi",
+    "rpm": 420,
+    "burst": 0,
+    "pellets": 1
+  },
+  "damage": 38,
+  "headMul": 2,
+  "limbMul": 0.8,
+  "range": 90,
+  "falloff": {
+    "start": 18,
+    "end": 45,
+    "minMul": 0.55
+  },
+  "penetration": 0.2,
+  "penetrationMul": 0.65,
+  "mag": 12,
+  "reserve": 60,
+  "chamber": true,
+  "reload": {
+    "tactical": {
+      "time": 1.4
+    },
+    "empty": {
+      "time": 1.75
+    }
+  },
+  "spread": {
+    "hip": 0.009,
+    "ads": 0.0015,
+    "move": [
+      0.013,
+      0.004
+    ],
+    "bloomPerShot": 0.2,
+    "bloom": [
+      0.0075,
+      0.0026
+    ],
+    "air": 0.026,
+    "scale": 0.7
+  },
+  "spreadScale": 0.7,
+  "recoilPattern": {
+    "pattern": [
+      [
+        0,
+        1
+      ],
+      [
+        0.08,
+        0.92
+      ],
+      [
+        -0.1,
+        0.86
+      ],
+      [
+        0.12,
+        0.8
+      ]
+    ],
+    "loopFrom": 2,
+    "unit": [
+      0.006,
+      0.01
+    ],
+    "jitter": [
+      0.16,
+      0.1
+    ],
+    "adsMul": 0.78,
+    "crouchMul": 0.85,
+    "moveMul": 1.1,
+    "recover": {
+      "delay": 0.08,
+      "rate": 7.2,
+      "keep": 0.35
+    }
+  },
+  "ads": {
+    "time": 0.12,
+    "fov": 60
+  },
+  "handling": {
+    "draw": 0.2,
+    "holster": 0.16,
+    "sprintOut": 0.1,
+    "swapT": 0.18
+  },
+  "moveMul": 1,
+  "audio": {
+    "shot": "pistol_shot",
+    "tail": "pistol_tail",
+    "mech": "pistol_mech",
+    "alertRadius": 40
+  },
+  "attachments": {
+    "muzzle": [
+      "std",
+      "supp"
+    ],
+    "mag": [
+      "std",
+      "ext"
+    ],
+    "optic": [
+      "iron",
+      "dot"
+    ]
+  },
+  "cfg": {
+    "id": "sidearm",
+    "name": "几猫·侧牙 手枪",
+    "short": "侧牙",
+    "muzzle": [
+      0,
+      0.014,
+      -0.235
+    ],
+    "eject": [
+      0.018,
+      0.02,
+      -0.03
+    ],
+    "sightY": 0.045,
+    "lensF": 0.02,
+    "window": [
+      [
+        -0.008,
+        0.045
+      ],
+      [
+        -0.0057,
+        0.0383
+      ],
+      [
+        0,
+        0.035
+      ],
+      [
+        0.0057,
+        0.0383
+      ],
+      [
+        0.008,
+        0.045
+      ],
+      [
+        0.0057,
+        0.0517
+      ],
+      [
+        0,
+        0.055
+      ],
+      [
+        -0.0057,
+        0.0517
+      ]
+    ],
+    "magPos": [
+      0,
+      -0.075,
+      0.045
+    ],
+    "boltTravel": 0.045,
+    "grip": [
+      0,
+      -0.078,
+      0.035
+    ],
+    "handguard": [
+      0,
+      -0.058,
+      0.02
+    ],
+    "handguardR": 0.02,
+    "handlePos": [
+      0.022,
+      0.03,
+      -0.02
+    ],
+    "squeeze": 0.7,
+    "magSize": 12,
+    "reserve": 60,
+    "rpm": 420,
+    "damage": 38,
+    "range": 90,
+    "reloadT": 1.4,
+    "reloadEmptyT": 1.75,
+    "recoil": 0.9,
+    "scale": 0.95,
+    "hipPos": [
+      0.085,
+      -0.095,
+      -0.18
+    ],
+    "hipRot": [
+      0.02,
+      0.06,
+      -0.02
+    ],
+    "adsFov": 60,
+    "spreadScale": 0.7,
+    "semi": true,
+    "swapT": 0.18
+  }
+}

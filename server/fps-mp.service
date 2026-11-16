@@ -1,0 +1,26 @@
+[Unit]
+Description=JiMao FPS multiplayer server (V31.1)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/zhouyou/fps-net
+Environment=PORT=9100
+Environment=HOST=0.0.0.0
+Environment=TICK_HZ=60
+Environment=MAX_PLAYERS=12
+# dev 指令默认关闭：只有显式配置 MP_DEV_TOKEN 且客户端 token 匹配才生效。
+# 需要联调时用 EnvironmentFile 注入，不要把令牌写进版本库或本 unit：
+# EnvironmentFile=-/home/zhouyou/fps-net/mp-dev.env
+Environment=MAP_FILE=/home/zhouyou/fps-net/map_boxes.json
+ExecStart=/usr/local/bin/node /home/zhouyou/fps-net/server.cjs
+Restart=always
+RestartSec=2
+LimitNOFILE=65535
+SyslogIdentifier=fps-mp
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

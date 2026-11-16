@@ -1,0 +1,483 @@
+{
+  "id": "harbor",
+  "version": 1,
+  "bounds": {
+    "min": [
+      -40,
+      0,
+      -30
+    ],
+    "max": [
+      40,
+      30,
+      30
+    ]
+  },
+  "ground": {
+    "y": 0,
+    "seaY": -1.6,
+    "quayX": 30
+  },
+  "spawns": {
+    "player": {
+      "pos": [
+        -32,
+        0,
+        6
+      ],
+      "yaw": -1.5707963267948966
+    },
+    "enemy": [
+      {
+        "pos": [
+          -19,
+          0,
+          -1.4
+        ],
+        "type": "ground",
+        "zone": "yard"
+      },
+      {
+        "pos": [
+          3.5,
+          0,
+          -1.6
+        ],
+        "type": "ground",
+        "zone": "yard"
+      },
+      {
+        "pos": [
+          4.2,
+          0,
+          -5.12
+        ],
+        "type": "ground",
+        "zone": "yard"
+      },
+      {
+        "pos": [
+          -7.8,
+          0,
+          21.4
+        ],
+        "type": "ground",
+        "zone": "yard"
+      },
+      {
+        "pos": [
+          -3.2,
+          0,
+          16.6
+        ],
+        "type": "ground",
+        "zone": "yard"
+      },
+      {
+        "pos": [
+          14.2,
+          0,
+          16.4
+        ],
+        "type": "ground",
+        "zone": "yard"
+      },
+      {
+        "pos": [
+          -12.4,
+          0.03,
+          -24.8
+        ],
+        "type": "ground",
+        "zone": "shed"
+      },
+      {
+        "pos": [
+          9.6,
+          0.03,
+          -25.3
+        ],
+        "type": "ground",
+        "zone": "shed"
+      },
+      {
+        "pos": [
+          -13.4,
+          0.03,
+          -19.6
+        ],
+        "type": "ground",
+        "zone": "shed"
+      },
+      {
+        "pos": [
+          4.6,
+          0.03,
+          -13.8
+        ],
+        "type": "ground",
+        "zone": "shed"
+      },
+      {
+        "pos": [
+          28.74,
+          0,
+          -18.29
+        ],
+        "type": "ground",
+        "zone": "quay"
+      },
+      {
+        "pos": [
+          18.3,
+          0,
+          -25.4
+        ],
+        "type": "ground",
+        "zone": "quay"
+      },
+      {
+        "pos": [
+          27.2,
+          0,
+          -12.6
+        ],
+        "type": "ground",
+        "zone": "quay"
+      },
+      {
+        "pos": [
+          23.4,
+          0,
+          23.2
+        ],
+        "type": "ground",
+        "zone": "quay"
+      }
+    ],
+    "air": [
+      {
+        "pos": [
+          10,
+          11,
+          23.5
+        ],
+        "zone": "yard"
+      },
+      {
+        "pos": [
+          -4,
+          12.5,
+          -4.5
+        ],
+        "zone": "yard"
+      },
+      {
+        "pos": [
+          -8,
+          5.4,
+          -20.5
+        ],
+        "zone": "shed"
+      },
+      {
+        "pos": [
+          14.5,
+          10,
+          -22
+        ],
+        "zone": "shed"
+      },
+      {
+        "pos": [
+          35,
+          8.5,
+          16
+        ],
+        "zone": "quay"
+      },
+      {
+        "pos": [
+          24,
+          12.5,
+          10.5
+        ],
+        "zone": "quay"
+      }
+    ],
+    "team": [
+      {
+        "team": 0,
+        "pos": [
+          -32,
+          0,
+          6
+        ],
+        "yaw": -1.5707963267948966,
+        "radius": 9
+      },
+      {
+        "team": 1,
+        "pos": [
+          28,
+          0,
+          20
+        ],
+        "yaw": 1.5707963267948966,
+        "radius": 9
+      }
+    ],
+    "boss": [
+      {
+        "pos": [
+          10,
+          0,
+          16
+        ],
+        "yaw": 0
+      },
+      {
+        "pos": [
+          18,
+          0,
+          1
+        ],
+        "yaw": 0
+      },
+      {
+        "pos": [
+          -2,
+          0,
+          16
+        ],
+        "yaw": 0
+      }
+    ]
+  },
+  "pickups": [
+    {
+      "kind": "ammo",
+      "pos": [
+        -29.5,
+        0,
+        9.6
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "medkit",
+      "pos": [
+        -25.94,
+        0,
+        2.43
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "armor",
+      "pos": [
+        4.6,
+        0,
+        16.1
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        9.2,
+        0,
+        4.4
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "medkit",
+      "pos": [
+        -8.1,
+        0,
+        15.4
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "armor",
+      "pos": [
+        -12,
+        0.03,
+        -25.4
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        -7.9,
+        0.03,
+        -13.9
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "medkit",
+      "pos": [
+        9.6,
+        0.03,
+        -21.9
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "grenade",
+      "pos": [
+        4.6,
+        0.03,
+        -14.9
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        25.3,
+        0,
+        4.4
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "armor",
+      "pos": [
+        21,
+        0,
+        14.8
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "medkit",
+      "pos": [
+        26.8,
+        0,
+        14.4
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "grenade",
+      "pos": [
+        27.4,
+        0,
+        -15.8
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        20.2,
+        0,
+        -15.4
+      ],
+      "respawn": 0
+    }
+  ],
+  "relays": [
+    {
+      "id": "a",
+      "pos": [
+        1.5,
+        0,
+        7.5
+      ],
+      "labelKey": "map.harbor.relay.a",
+      "label": "甲号中继 · 堆场"
+    },
+    {
+      "id": "b",
+      "pos": [
+        -2,
+        0.03,
+        -19.5
+      ],
+      "labelKey": "map.harbor.relay.b",
+      "label": "乙号中继 · 仓库"
+    },
+    {
+      "id": "c",
+      "pos": [
+        23,
+        0,
+        0
+      ],
+      "labelKey": "map.harbor.relay.c",
+      "label": "丙号中继 · 码头"
+    }
+  ],
+  "zones": [
+    {
+      "id": "gate",
+      "min": [
+        -40,
+        0,
+        -30
+      ],
+      "max": [
+        -24,
+        12,
+        30
+      ],
+      "interior": false,
+      "reverb": "yard"
+    },
+    {
+      "id": "yard",
+      "min": [
+        -24,
+        0,
+        -10
+      ],
+      "max": [
+        16,
+        12,
+        30
+      ],
+      "interior": false,
+      "reverb": "yard"
+    },
+    {
+      "id": "shed",
+      "min": [
+        -24,
+        0,
+        -30
+      ],
+      "max": [
+        16,
+        8.4,
+        -10
+      ],
+      "interior": true,
+      "reverb": "shed"
+    },
+    {
+      "id": "quay",
+      "min": [
+        16,
+        0,
+        -30
+      ],
+      "max": [
+        40,
+        12,
+        30
+      ],
+      "interior": false,
+      "reverb": "quay"
+    }
+  ],
+  "nav": {
+    "cell": 0.5,
+    "agentRadius": 0.5
+  }
+}

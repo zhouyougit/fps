@@ -1,0 +1,242 @@
+{
+  "id": "lmg",
+  "short": "重锚",
+  "name": "几猫·重锚 轻机枪",
+  "nameKey": "weapon.lmg.name",
+  "class": "lmg",
+  "slot": "primary",
+  "fire": {
+    "mode": "auto",
+    "rpm": 520,
+    "burst": 0,
+    "pellets": 1
+  },
+  "damage": 34,
+  "headMul": 1.8,
+  "limbMul": 0.8,
+  "range": 200,
+  "falloff": {
+    "start": 40,
+    "end": 100,
+    "minMul": 0.7
+  },
+  "penetration": 0.7,
+  "penetrationMul": 0.78,
+  "mag": 80,
+  "reserve": 240,
+  "chamber": true,
+  "reload": {
+    "tactical": {
+      "time": 4.2
+    },
+    "empty": {
+      "time": 5
+    }
+  },
+  "spread": {
+    "hip": 0.018,
+    "ads": 0.0018,
+    "move": [
+      0.013,
+      0.004
+    ],
+    "bloomPerShot": 0.14,
+    "bloom": [
+      0.006,
+      0.002
+    ],
+    "air": 0.022,
+    "scale": 1.1
+  },
+  "spreadScale": 1.1,
+  "recoilPattern": {
+    "pattern": [
+      [
+        0,
+        1
+      ],
+      [
+        0.1,
+        1.05
+      ],
+      [
+        -0.14,
+        1.12
+      ],
+      [
+        0.18,
+        1.2
+      ],
+      [
+        -0.22,
+        1.28
+      ],
+      [
+        0.26,
+        1.32
+      ],
+      [
+        -0.3,
+        1.3
+      ],
+      [
+        0.32,
+        1.24
+      ],
+      [
+        -0.28,
+        1.16
+      ],
+      [
+        0.24,
+        1.08
+      ]
+    ],
+    "loopFrom": 9,
+    "unit": [
+      0.0075,
+      0.0115
+    ],
+    "jitter": [
+      0.2,
+      0.12
+    ],
+    "adsMul": 0.8,
+    "crouchMul": 0.6,
+    "moveMul": 1.2,
+    "recover": {
+      "delay": 0.12,
+      "rate": 5,
+      "keep": 0.35
+    }
+  },
+  "ads": {
+    "time": 0.34,
+    "fov": 50
+  },
+  "handling": {
+    "draw": 0.62,
+    "holster": 0.46,
+    "sprintOut": 0.32,
+    "swapT": 0.56
+  },
+  "moveMul": 0.85,
+  "audio": {
+    "shot": "lmg_shot",
+    "tail": "lmg_tail",
+    "mech": "lmg_mech",
+    "alertRadius": 60
+  },
+  "attachments": {
+    "muzzle": [
+      "std",
+      "comp",
+      "supp"
+    ],
+    "mag": [
+      "std",
+      "ext"
+    ],
+    "optic": [
+      "dot",
+      "x2"
+    ]
+  },
+  "cfg": {
+    "id": "lmg",
+    "name": "几猫·重锚 轻机枪",
+    "short": "重锚",
+    "muzzle": [
+      0,
+      0.03,
+      -0.72
+    ],
+    "eject": [
+      0.037,
+      0.014,
+      -0.005
+    ],
+    "sightY": 0.1,
+    "lensF": 0.07,
+    "window": [
+      [
+        -0.016,
+        0.1
+      ],
+      [
+        -0.0113,
+        0.0887
+      ],
+      [
+        0,
+        0.085
+      ],
+      [
+        0.0113,
+        0.0887
+      ],
+      [
+        0.016,
+        0.1
+      ],
+      [
+        0.0113,
+        0.1113
+      ],
+      [
+        0,
+        0.115
+      ],
+      [
+        -0.0113,
+        0.1113
+      ]
+    ],
+    "magPos": [
+      0,
+      -0.06,
+      -0.03
+    ],
+    "boltTravel": 0.07,
+    "grip": [
+      0,
+      -0.11,
+      0.1
+    ],
+    "handguard": [
+      0,
+      -0.008,
+      -0.34
+    ],
+    "handguardR": 0.03,
+    "handlePos": [
+      -0.034,
+      0.018,
+      -0.06
+    ],
+    "squeeze": 1,
+    "magSize": 80,
+    "reserve": 240,
+    "rpm": 520,
+    "damage": 34,
+    "range": 200,
+    "reloadT": 4.2,
+    "reloadEmptyT": 5,
+    "recoil": 2,
+    "scale": 1,
+    "hipPos": [
+      0.13,
+      -0.14,
+      -0.32
+    ],
+    "hipRot": [
+      0.03,
+      0.08,
+      -0.03
+    ],
+    "adsFov": 50,
+    "spreadScale": 1.1,
+    "moveMul": 0.85,
+    "semi": false
+  }
+}

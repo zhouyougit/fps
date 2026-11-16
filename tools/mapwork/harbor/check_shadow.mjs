@@ -1,0 +1,20 @@
+import { chromium } from 'playwright';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+const target = path.resolve(process.cwd(), 'tools/mapwork/harbor/preview.html');
+const exe = process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const browser = await chromium.launch({ headless: true, executablePath: exe, args: ['--enable-unsafe-swiftshader','--use-angle=swiftshader','--ignore-gpu-blocklist','--allow-file-access-from-files'] });
+const page = await browser.newPage({ viewport: { width: 320, height: 200 } });
+await page.goto(pathToFileURL(target).href + '?q=medium&noaudio=1&autostart=1&dt=0.1', { waitUntil: 'load', timeout: 240000 });
+await page.waitForFunction(() => window.__ready === true || !!window.__fatal, null, { timeout: 300000 });
+await page.evaluate(() => { window.__SX.applyMission(0); window.__G.game.start({ skipIntro: true }); window.__G.game.pause(); });
+await page.waitForTimeout(500);
+const out = await page.evaluate(() => {
+  const G = window.__G;
+  const g = G.level.root.getObjectByName('sx_harbor_extras');
+  let n = 0, cast = 0, list = [];
+  g.traverse((o) => { if (o.isMesh) { n++; if (o.castShadow) cast++; if (o.material && o.material.name === 'label') list.push(o.material.map.image.width); } });
+  return { n, cast, labels: list.length, sample: list.slice(0, 3), groups: g.children.length };
+});
+console.log(JSON.stringify(out));
+await browser.close();

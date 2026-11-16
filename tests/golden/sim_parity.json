@@ -1,0 +1,272 @@
+{
+  "generatedAt": "2026-11-13T02:06:51.478Z",
+  "gameUrl": "file:///Users/zhouyou/codex_workspace/fps/game.html?q=low&noaudio=1&autostart=1&dt=0.1",
+  "threshold": 0.0001,
+  "pass": true,
+  "results": [
+    {
+      "id": "harbor",
+      "switched": false,
+      "boxes": {
+        "countSim": 566,
+        "countEngine": 566,
+        "sameCount": true,
+        "minMaxErr": 0.0000018686100986542442,
+        "surfaceMismatch": [],
+        "surfaceMismatchCount": 0,
+        "flagMismatch": [],
+        "flagMismatchCount": 0,
+        "noNavMismatch": [
+          [
+            275,
+            0,
+            4
+          ],
+          [
+            276,
+            0,
+            4
+          ],
+          [
+            277,
+            0,
+            4
+          ],
+          [
+            278,
+            0,
+            4
+          ],
+          [
+            334,
+            0,
+            4
+          ]
+        ],
+        "noNavMismatchCount": 26
+      },
+      "rays": {
+        "samples": 300,
+        "hits": 300,
+        "hitMismatch": 0,
+        "maxT": 0.000005796650021316907,
+        "avgT": 1.7857400489346143e-7,
+        "maxPoint": 0.000005796650021123745,
+        "avgPoint": 1.7857400487059074e-7,
+        "maxNormal": 0,
+        "boxMismatch": 0,
+        "surfaceMismatch": 0
+      },
+      "groundHeight": {
+        "samples": 200,
+        "max": 2.2888183615066282e-7,
+        "avg": 1.3384670003724342e-8
+      },
+      "moveCapsule": {
+        "samples": 100,
+        "max": 1.716613766689079e-7,
+        "avg": 1.7673522216543612e-8,
+        "onGroundMismatch": 0,
+        "wallMismatch": 0
+      }
+    },
+    {
+      "id": "depot",
+      "switched": true,
+      "boxes": {
+        "countSim": 236,
+        "countEngine": 236,
+        "sameCount": true,
+        "minMaxErr": 0.0000012207031261368684,
+        "surfaceMismatch": [],
+        "surfaceMismatchCount": 0,
+        "flagMismatch": [],
+        "flagMismatchCount": 0,
+        "noNavMismatch": [
+          [
+            6,
+            0,
+            4
+          ],
+          [
+            7,
+            0,
+            4
+          ],
+          [
+            8,
+            0,
+            4
+          ],
+          [
+            9,
+            0,
+            4
+          ],
+          [
+            10,
+            0,
+            4
+          ]
+        ],
+        "noNavMismatchCount": 102
+      },
+      "rays": {
+        "samples": 300,
+        "hits": 300,
+        "hitMismatch": 0,
+        "maxT": 0.0000030234155852237876,
+        "avgT": 9.150583828258322e-8,
+        "maxPoint": 0.0000030234155852381834,
+        "avgPoint": 9.150583828553313e-8,
+        "maxNormal": 0,
+        "boxMismatch": 0,
+        "surfaceMismatch": 0
+      },
+      "groundHeight": {
+        "samples": 200,
+        "max": 1.9073486345888568e-7,
+        "avg": 4.243850708629537e-9
+      },
+      "moveCapsule": {
+        "samples": 100,
+        "max": 0,
+        "avg": 0,
+        "onGroundMismatch": 0,
+        "wallMismatch": 0
+      }
+    },
+    {
+      "id": "ship",
+      "switched": true,
+      "boxes": {
+        "countSim": 90,
+        "countEngine": 90,
+        "sameCount": true,
+        "minMaxErr": 9.155273446026513e-7,
+        "surfaceMismatch": [],
+        "surfaceMismatchCount": 0,
+        "flagMismatch": [],
+        "flagMismatchCount": 0,
+        "noNavMismatch": [
+          [
+            8,
+            0,
+            4
+          ],
+          [
+            9,
+            0,
+            4
+          ],
+          [
+            10,
+            0,
+            4
+          ],
+          [
+            12,
+            0,
+            4
+          ],
+          [
+            13,
+            0,
+            4
+          ]
+        ],
+        "noNavMismatchCount": 40
+      },
+      "rays": {
+        "samples": 300,
+        "hits": 300,
+        "hitMismatch": 0,
+        "maxT": 0.000002907519068395814,
+        "avgT": 3.67329841255426e-8,
+        "maxPoint": 0.0000029075190681641794,
+        "avgPoint": 3.673298410315049e-8,
+        "maxNormal": 0,
+        "boxMismatch": 0,
+        "surfaceMismatch": 0
+      },
+      "groundHeight": {
+        "samples": 200,
+        "max": 2.0980835024886346e-7,
+        "avg": 5.674362181240511e-9
+      },
+      "moveCapsule": {
+        "samples": 100,
+        "max": 2.0980835024886346e-7,
+        "avg": 5.626678480918912e-9,
+        "onGroundMismatch": 0,
+        "wallMismatch": 0
+      }
+    },
+    {
+      "id": "core",
+      "switched": true,
+      "boxes": {
+        "countSim": 108,
+        "countEngine": 108,
+        "sameCount": true,
+        "minMaxErr": 7.629394538355427e-7,
+        "surfaceMismatch": [],
+        "surfaceMismatchCount": 0,
+        "flagMismatch": [],
+        "flagMismatchCount": 0,
+        "noNavMismatch": [
+          [
+            6,
+            0,
+            4
+          ],
+          [
+            7,
+            0,
+            4
+          ],
+          [
+            8,
+            0,
+            4
+          ],
+          [
+            9,
+            0,
+            4
+          ],
+          [
+            10,
+            0,
+            4
+          ]
+        ],
+        "noNavMismatchCount": 86
+      },
+      "rays": {
+        "samples": 300,
+        "hits": 300,
+        "hitMismatch": 0,
+        "maxT": 0.0000029921296441637324,
+        "avgT": 1.1083514320997523e-7,
+        "maxPoint": 0.0000029921296444595104,
+        "avgPoint": 1.10835143211129e-7,
+        "maxNormal": 0,
+        "boxMismatch": 0,
+        "surfaceMismatch": 0
+      },
+      "groundHeight": {
+        "samples": 200,
+        "max": 3.8146972691777137e-7,
+        "avg": 3.099441530762803e-8
+      },
+      "moveCapsule": {
+        "samples": 100,
+        "max": 3.8146972691777137e-7,
+        "avg": 1.0299682626779826e-7,
+        "onGroundMismatch": 0,
+        "wallMismatch": 0
+      }
+    }
+  ]
+}

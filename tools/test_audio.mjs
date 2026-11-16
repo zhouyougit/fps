@@ -1,0 +1,31 @@
+
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ headless:true, executablePath: process.env.CHROME_EXE, args:['--enable-unsafe-swiftshader','--use-angle=swiftshader','--ignore-gpu-blocklist','--allow-file-access-from-files'] });
+const page=await browser.newPage({ viewport:{width:900,height:500} });
+const errs=[]; page.on('pageerror',e=>errs.push(e.message));
+let fails=0; const ok=(n,c,d)=>{ if(!c) fails++; console.log((c?'PASS':'FAIL')+' · '+n+(d?' — '+JSON.stringify(d):'')); };
+await page.goto('file:///Users/zhouyou/codex_workspace/fps/game.html?q=low&noaudio=1&autostart=1&dt=0.1',{waitUntil:'load',timeout:180000});
+await page.waitForFunction(()=>window.__ready===true,null,{timeout:240000});
+await page.waitForTimeout(600);
+const boot=await page.evaluate(()=>{ window.__SX.audioKick(); return window.__SX.audio(); });
+ok('音频层启动', boot.started && boot.loops.length>=7, boot);
+await page.evaluate(()=>window.__G.events.emit('weapon:fire',{dir:{x:0,y:0,z:-1},weapon:'pac9'}));
+await page.waitForTimeout(400);
+const combat=await page.evaluate(()=>window.__SX.audio());
+ok('战斗音乐切换', combat.mode==='combat', combat);
+await page.evaluate(()=>{ const G=window.__G; window.__SX.applyMission(3); G.game.start({skipIntro:true}); });
+await page.waitForTimeout(900);
+const depot=await page.evaluate(()=>window.__SX.audio());
+ok('冷库环境声', depot.map==='depot', depot);
+await page.evaluate(()=>window.__G.events.emit('sx:boss-phase',{phase:1}));
+await page.waitForTimeout(300);
+const boss=await page.evaluate(()=>window.__SX.audio());
+ok('BOSS 音乐切换', boss.mode==='boss', boss);
+await page.evaluate(()=>window.__MP.join('ws://172.16.17.189:9100','A','audio-'+Date.now(),'harbor'));
+for(let i=0;i<8;i++){ await new Promise(r=>setTimeout(r,1000)); if(await page.evaluate(()=>window.__MP.state().active)) break; }
+const mp=await page.evaluate(()=>window.__SX.audio());
+ok('联机音乐状态', mp.mode==='mp' && mp.map==='harbor', mp);
+ok('无音频错误', errs.length===0, errs.slice(0,2));
+await browser.close();
+console.log(fails?fails+' 项失败':'全部通过');
+process.exit(fails?1:0);

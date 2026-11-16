@@ -1,0 +1,12 @@
+
+import { chromium } from 'playwright';
+const b=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--enable-unsafe-swiftshader','--use-angle=swiftshader','--ignore-gpu-blocklist','--allow-file-access-from-files']});
+const p=await b.newPage({viewport:{width:1000,height:560}});
+await p.goto('file:///Users/zhouyou/codex_workspace/fps/game.html?q=low&noaudio=1&autostart=1&dt=0.1',{waitUntil:'load',timeout:240000});
+await p.waitForFunction(()=>window.__ready===true&&window.__SX,null,{timeout:420000});
+await p.waitForFunction(()=>window.__G.game.state==='playing',null,{timeout:30000});
+await p.waitForTimeout(500);
+const ui=await p.evaluate(()=>({heads:[...document.querySelectorAll('.panel-b h3')].map(x=>x.textContent),premise:(document.querySelector('.m-title .m-premise')||{}).textContent}));
+console.log(JSON.stringify(ui));
+try{await Promise.race([b.close(),new Promise(r=>setTimeout(r,2000))]);}catch(e){}
+process.exit(0);

@@ -1,0 +1,31 @@
+
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ headless:true, executablePath: process.env.CHROME_EXE, args:['--enable-unsafe-swiftshader','--use-angle=swiftshader','--ignore-gpu-blocklist','--allow-file-access-from-files'] });
+const page=await browser.newPage({ viewport:{width:1280,height:720} });
+const errs=[]; page.on('pageerror',e=>errs.push(e.message));
+let fails=0; const ok=(n,c,d)=>{ if(!c) fails++; console.log((c?'PASS':'FAIL')+' · '+n+(d?' — '+JSON.stringify(d):'')); };
+await page.goto('file:///Users/zhouyou/codex_workspace/fps/game.html?q=low&noaudio=1&autostart=1&dt=0.1',{waitUntil:'load',timeout:180000});
+await page.waitForFunction(()=>window.__ready===true,null,{timeout:240000});
+await page.waitForTimeout(700);
+await page.evaluate(()=>{ window.__SX.unlockAll(); window.__SX.openMissions(); });
+await page.waitForTimeout(400);
+const cards=await page.evaluate(()=>({n:document.querySelectorAll('.x-mcard[data-idx]').length, chapters:[...document.querySelectorAll('.x-mcard .code')].map(x=>x.textContent)}));
+ok('V24 章节化行动卡', cards.n===6 && cards.chapters.some(x=>x.includes('第一幕')) && cards.chapters.some(x=>x.includes('第三幕')), cards);
+async function click(sel){ const b=await page.locator(sel).first().boundingBox(); if(!b) return false; await page.mouse.click(b.x+b.width/2,b.y+b.height/2); return true; }
+await click('[data-x="archive"]'); await page.waitForTimeout(400);
+const arch=await page.evaluate(()=>({on:document.querySelector('.x-archive').classList.contains('on'), rows:document.querySelectorAll('.x-ar-row').length}));
+ok('V24 剧情档案', arch.on && arch.rows===6, arch);
+await page.screenshot({path:'tools/v24_archive.png',timeout:120000});
+await click('.x-ar-actions [data-ar-back]'); await page.waitForTimeout(300);
+await page.evaluate(()=>window.__SX.interlude(0,1));
+await page.waitForTimeout(300);
+const int=await page.evaluate(()=>({on:document.querySelector('.x-interlude').classList.contains('on'), h:document.querySelector('[data-int-h]').textContent, lines:document.querySelectorAll('.x-int-lines p').length, k:document.querySelector('[data-int-k]').textContent}));
+ok('V24 关间过场', int.on && int.h==='仓库区' && int.lines===2 && /第一幕/.test(int.k), int);
+await page.screenshot({path:'tools/v24_interlude.png',timeout:120000});
+await click('[data-int-go]'); await page.waitForTimeout(500);
+const brief=await page.evaluate(()=>({brief:document.querySelector('.x-brief').classList.contains('on'), title:document.querySelector('.x-br-h').textContent}));
+ok('V24 过场接简报', brief.brief && brief.title==='仓库区', brief);
+ok('V24 无错误', errs.length===0, errs.slice(0,2));
+await browser.close();
+console.log(fails?fails+' 项失败':'全部通过');
+process.exit(fails?1:0);

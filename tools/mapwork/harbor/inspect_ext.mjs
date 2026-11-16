@@ -1,0 +1,21 @@
+import { chromium } from 'playwright';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+const target = path.resolve(process.cwd(), 'tools/mapwork/harbor/preview.html');
+const exe = process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const browser = await chromium.launch({ headless: true, executablePath: exe, args: ['--enable-unsafe-swiftshader','--use-angle=swiftshader','--ignore-gpu-blocklist','--allow-file-access-from-files'] });
+const page = await browser.newPage({ viewport: { width: 320, height: 200 } });
+await page.goto(pathToFileURL(target).href + '?q=low&noaudio=1&autostart=1&dt=0.1', { waitUntil: 'load', timeout: 240000 });
+await page.waitForFunction(() => window.__ready === true || !!window.__fatal, null, { timeout: 300000 });
+await page.evaluate(() => { window.__SX.applyMission(0); window.__G.game.start({ skipIntro: true }); window.__G.game.pause(); });
+const out = await page.evaluate(() => {
+  const G = window.__G;
+  let ex = null;
+  G.level.root.traverse((o) => { if (o.name === 'sx_harbor_extras') ex = o; });
+  const meshes = [];
+  let tris = 0;
+  ex.traverse((o) => { if (o.isMesh) { const g = o.geometry; const t = (g.index ? g.index.count : g.attributes.position.count) / 3; tris += t; meshes.push({ n: o.parent && o.parent.name, m: o.material && (o.material.name || o.material.type + '#' + o.material.color.getHexString()), t: Math.round(t), uv: !!g.attributes.uv, vc: !!o.material.vertexColors }); } });
+  return { count: meshes.length, tris: Math.round(tris), meshes: meshes.slice(0, 200) };
+});
+console.log(JSON.stringify(out, null, 1));
+await browser.close();

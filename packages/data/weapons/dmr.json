@@ -1,0 +1,218 @@
+{
+  "id": "dmr",
+  "short": "长眼",
+  "name": "几猫·长眼 精确射手步枪",
+  "nameKey": "weapon.dmr.name",
+  "class": "dmr",
+  "slot": "primary",
+  "fire": {
+    "mode": "semi",
+    "rpm": 240,
+    "burst": 0,
+    "pellets": 1
+  },
+  "damage": 62,
+  "headMul": 2.4,
+  "limbMul": 0.8,
+  "range": 320,
+  "falloff": {
+    "start": 60,
+    "end": 140,
+    "minMul": 0.8
+  },
+  "penetration": 0.9,
+  "penetrationMul": 0.85,
+  "mag": 10,
+  "reserve": 90,
+  "chamber": true,
+  "reload": {
+    "tactical": {
+      "time": 2.6
+    },
+    "empty": {
+      "time": 3.15
+    }
+  },
+  "spread": {
+    "hip": 0.0056,
+    "ads": 0.0005,
+    "move": [
+      0.013,
+      0.004
+    ],
+    "bloomPerShot": 0.16,
+    "bloom": [
+      0.0065,
+      0.0022
+    ],
+    "air": 0.022,
+    "scale": 0.45
+  },
+  "spreadScale": 0.45,
+  "recoilPattern": {
+    "pattern": [
+      [
+        0,
+        1
+      ],
+      [
+        0.06,
+        0.92
+      ],
+      [
+        -0.05,
+        0.85
+      ],
+      [
+        0.08,
+        0.8
+      ]
+    ],
+    "loopFrom": 2,
+    "unit": [
+      0.006,
+      0.011
+    ],
+    "jitter": [
+      0.2,
+      0.12
+    ],
+    "adsMul": 0.68,
+    "crouchMul": 0.82,
+    "moveMul": 1.2,
+    "recover": {
+      "delay": 0.1,
+      "rate": 6,
+      "keep": 0.35
+    }
+  },
+  "ads": {
+    "time": 0.3,
+    "fov": 30
+  },
+  "handling": {
+    "draw": 0.55,
+    "holster": 0.38,
+    "sprintOut": 0.26,
+    "swapT": 0.46
+  },
+  "moveMul": 0.94,
+  "audio": {
+    "shot": "dmr_shot",
+    "tail": "dmr_tail",
+    "mech": "dmr_mech",
+    "alertRadius": 60
+  },
+  "attachments": {
+    "muzzle": [
+      "std",
+      "comp",
+      "supp"
+    ],
+    "mag": [
+      "std",
+      "ext"
+    ],
+    "optic": [
+      "x3",
+      "x45"
+    ]
+  },
+  "cfg": {
+    "id": "dmr",
+    "name": "几猫·长眼 精确射手步枪",
+    "short": "长眼",
+    "muzzle": [
+      0,
+      0.026,
+      -0.79
+    ],
+    "eject": [
+      0.031,
+      0.012,
+      -0.01
+    ],
+    "sightY": 0.108,
+    "lensF": 0.1,
+    "window": [
+      [
+        -0.019,
+        0.108
+      ],
+      [
+        -0.0134,
+        0.0946
+      ],
+      [
+        0,
+        0.089
+      ],
+      [
+        0.0134,
+        0.0946
+      ],
+      [
+        0.019,
+        0.108
+      ],
+      [
+        0.0134,
+        0.1214
+      ],
+      [
+        0,
+        0.127
+      ],
+      [
+        -0.0134,
+        0.1214
+      ]
+    ],
+    "magPos": [
+      0,
+      -0.062,
+      -0.028
+    ],
+    "boltTravel": 0.055,
+    "grip": [
+      0,
+      -0.106,
+      0.1
+    ],
+    "handguard": [
+      0,
+      -0.004,
+      -0.36
+    ],
+    "handguardR": 0.024,
+    "handlePos": [
+      -0.03,
+      0.014,
+      -0.06
+    ],
+    "squeeze": 1,
+    "magSize": 10,
+    "reserve": 90,
+    "rpm": 240,
+    "damage": 62,
+    "range": 320,
+    "reloadT": 2.6,
+    "reloadEmptyT": 3.15,
+    "recoil": 1.7,
+    "scale": 0.93,
+    "hipPos": [
+      0.135,
+      -0.118,
+      -0.3
+    ],
+    "hipRot": [
+      0.02,
+      0.072,
+      -0.02
+    ],
+    "semi": true,
+    "scope": true,
+    "adsFov": 30,
+    "spreadScale": 0.45
+  }
+}

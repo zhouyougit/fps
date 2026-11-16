@@ -1,0 +1,500 @@
+{
+  "id": "ship",
+  "version": 1,
+  "bounds": {
+    "min": [
+      -34.75,
+      0,
+      -14.95
+    ],
+    "max": [
+      34.75,
+      12,
+      27.8
+    ]
+  },
+  "ground": {
+    "y": 0.3,
+    "seaY": -1.6,
+    "quayX": null
+  },
+  "spawns": {
+    "player": {
+      "pos": [
+        0,
+        0.32,
+        5.2
+      ],
+      "yaw": 0
+    },
+    "enemy": [
+      {
+        "pos": [
+          -16,
+          0.3,
+          -7.4
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          16,
+          0.3,
+          -7.4
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          -8,
+          0.3,
+          -7
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          8,
+          0.3,
+          -7
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          -24.33,
+          0.3,
+          -7.55
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          4,
+          0.3,
+          -6
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          -23.67,
+          0.3,
+          -6.69
+        ],
+        "type": "ground",
+        "zone": "deck_mid"
+      },
+      {
+        "pos": [
+          17.16,
+          0.3,
+          -6.84
+        ],
+        "type": "ground",
+        "zone": "deck_mid"
+      },
+      {
+        "pos": [
+          0,
+          0.3,
+          6
+        ],
+        "type": "ground",
+        "zone": "deck_stern"
+      },
+      {
+        "pos": [
+          -5.56,
+          0.3,
+          7.81
+        ],
+        "type": "ground",
+        "zone": "deck_stern"
+      },
+      {
+        "pos": [
+          14.93,
+          0.3,
+          6.73
+        ],
+        "type": "ground",
+        "zone": "deck_stern"
+      },
+      {
+        "pos": [
+          -7.87,
+          0.3,
+          6.95
+        ],
+        "type": "ground",
+        "zone": "deck_stern"
+      },
+      {
+        "pos": [
+          13.5,
+          0.3,
+          8.2
+        ],
+        "type": "ground",
+        "zone": "deck_stern"
+      },
+      {
+        "pos": [
+          0,
+          0.3,
+          -5.9
+        ],
+        "type": "ground",
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          12,
+          0.3,
+          8.2
+        ],
+        "type": "ground",
+        "zone": "deck_stern"
+      },
+      {
+        "pos": [
+          13.15,
+          0.3,
+          7.87
+        ],
+        "type": "ground",
+        "zone": "deck_stern"
+      }
+    ],
+    "air": [
+      {
+        "pos": [
+          -22,
+          4,
+          -6
+        ],
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          0,
+          4,
+          -6
+        ],
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          22,
+          4,
+          -6
+        ],
+        "zone": "deck_bow"
+      },
+      {
+        "pos": [
+          0,
+          4,
+          4
+        ],
+        "zone": "deck_mid"
+      }
+    ],
+    "team": [
+      {
+        "team": 0,
+        "pos": [
+          0,
+          0.3,
+          5.2
+        ],
+        "yaw": 0,
+        "radius": 8
+      },
+      {
+        "team": 1,
+        "pos": [
+          0,
+          0.3,
+          -8.4
+        ],
+        "yaw": 3.141592653589793,
+        "radius": 8
+      }
+    ],
+    "boss": [
+      {
+        "pos": [
+          0,
+          0.3,
+          -6.9
+        ],
+        "yaw": 0
+      },
+      {
+        "pos": [
+          0,
+          0.3,
+          6.2
+        ],
+        "yaw": 0
+      },
+      {
+        "pos": [
+          0.5,
+          0.3,
+          0.5
+        ],
+        "yaw": 0
+      }
+    ]
+  },
+  "pickups": [
+    {
+      "kind": "medkit",
+      "pos": [
+        -24.2,
+        0.3,
+        -7.05
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        -10,
+        0.3,
+        -7.4
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "armor",
+      "pos": [
+        9,
+        0.3,
+        -7
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "grenade",
+      "pos": [
+        6,
+        0.3,
+        -4
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "medkit",
+      "pos": [
+        -24,
+        0.3,
+        -7.32
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        -0.38,
+        0.3,
+        5.35
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "armor",
+      "pos": [
+        7,
+        0.3,
+        7.6
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "medkit",
+      "pos": [
+        0,
+        0.3,
+        -6
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        3,
+        0.3,
+        0.5
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "armor",
+      "pos": [
+        -4,
+        0.3,
+        -1.5
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        -21.65,
+        0.3,
+        -6.56
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "medkit",
+      "pos": [
+        6,
+        0.3,
+        3
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "medkit",
+      "pos": [
+        12,
+        0.3,
+        8
+      ],
+      "respawn": 0
+    },
+    {
+      "kind": "ammo",
+      "pos": [
+        13.31,
+        0.3,
+        7.96
+      ],
+      "respawn": 0
+    }
+  ],
+  "relays": [
+    {
+      "id": "ship_r1",
+      "pos": [
+        -19.2,
+        0.32,
+        -7.2
+      ],
+      "labelKey": "map.ship.relay.ship_r1",
+      "label": "系泊绞车中继"
+    },
+    {
+      "id": "ship_r2",
+      "pos": [
+        0,
+        0.32,
+        3.2
+      ],
+      "labelKey": "map.ship.relay.ship_r2",
+      "label": "货舱门中继"
+    },
+    {
+      "id": "ship_r3",
+      "pos": [
+        17.9,
+        0.32,
+        -7.95
+      ],
+      "labelKey": "map.ship.relay.ship_r3",
+      "label": "驾驶台中继"
+    }
+  ],
+  "zones": [
+    {
+      "id": "deck_bow",
+      "min": [
+        -35,
+        0.3,
+        -15
+      ],
+      "max": [
+        35,
+        6,
+        -2
+      ],
+      "interior": false,
+      "reverb": "deck"
+    },
+    {
+      "id": "deck_mid",
+      "min": [
+        -35,
+        0.3,
+        -2
+      ],
+      "max": [
+        35,
+        6,
+        6
+      ],
+      "interior": false,
+      "reverb": "deck"
+    },
+    {
+      "id": "bridge",
+      "min": [
+        -11,
+        0.3,
+        6
+      ],
+      "max": [
+        11,
+        8,
+        15
+      ],
+      "interior": true,
+      "reverb": "bridge"
+    },
+    {
+      "id": "stern_house",
+      "min": [
+        -10.4,
+        0.3,
+        15.8
+      ],
+      "max": [
+        10.4,
+        6,
+        24.8
+      ],
+      "interior": true,
+      "reverb": "cabin"
+    },
+    {
+      "id": "deck_stern",
+      "min": [
+        -35,
+        0.3,
+        6
+      ],
+      "max": [
+        35,
+        6,
+        28
+      ],
+      "interior": false,
+      "reverb": "deck"
+    }
+  ],
+  "nav": {
+    "cell": 0.5,
+    "agentRadius": 0.5
+  }
+}

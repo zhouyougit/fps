@@ -1,0 +1,53 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8");
+
+test("V52 架构：game 片段 manifest 完整且不再有单文件 game.js", () => {
+  assert.equal(fs.existsSync(path.join(ROOT, "src/game.js")), false);
+  const m = JSON.parse(read("src/game/manifest.json"));
+  assert.equal(m.parts.length, 6);
+  let expect = 1;
+  for (const p of m.parts) {
+    assert.equal(p.lines[0], expect, p.file + " 不连续");
+    assert.ok(fs.existsSync(path.join(ROOT, p.file)), "缺片段 " + p.file);
+    expect = p.lines[1] + 1;
+  }
+  assert.equal(expect, m.lineCount + 1);
+});
+
+test("V52 架构：config 先于 game，武器数据只保留 JSON 源", () => {
+  const build = read("tools/build.cjs");
+  const q = build.indexOf("src/config/quality.js");
+  const b = build.indexOf("src/config/balance.js");
+  const a = build.indexOf("src/config/avatar.js");
+  const g = build.indexOf("gameManifest");
+  assert.ok(q > 0 && b > q && a > b && g > a, "config 顺序错误");
+  assert.ok(build.indexOf("weaponDataTag + weaponExt") > 0);
+  const weapon = read("src/weapon_ext.js");
+  assert.ok(!/var SX_WEAPON_DATA = \{/.test(weapon), "weapon_ext 不应再有完整武器表");
+  assert.ok(weapon.indexOf("__SX_WEAPON_DATA_SOURCE") > 0);
+});
+
+test("V52 架构：关键运行时约定存在", () => {
+  const mapkit = read("src/mapkit.js");
+  assert.ok(/MAP_CACHE_LIMIT = 2/.test(mapkit));
+  assert.ok(/sxMapOwned/.test(mapkit));
+  const lights = read("src/ext_lights.js");
+  assert.ok(/POOL = LB\.pool \|\| 8/.test(lights));
+  const mp = read("src/mp.js");
+  assert.ok(/MAX_PENDING_SEND = 90/.test(mp));
+  assert.ok(/updateRemoteLod/.test(mp));
+  const avatar = read("src/mp_avatar.js");
+  for (const field of ["handL:", "handR:", "magBase:", "muzzleLocal:", "far:", "blob:"]) {
+    assert.ok(avatar.indexOf(field) > 0, "avatar 缺字段 " + field);
+  }
+  const cfg = read("src/config/avatar.js");
+  for (const key of ["team:", "materials:", "proportions:", "blob:", "lod:"]) {
+    assert.ok(cfg.indexOf(key) > 0, "avatar config 缺 " + key);
+  }
+});

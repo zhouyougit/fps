@@ -1,0 +1,82 @@
+# ============================================================
+# 几猫 · SALTLINE — .gitignore
+# 入库：src/ packages/ server/ tests/ tools/ 源码与脚本、
+#       versions/ 版本留档及 versions/screens/ 验收截图、
+#       game.html（README 指向的开发构建）、
+#       bench/ 基线 JSON、地图数据、package-lock.json。
+# 不入库：依赖、构建中间物、测试/探针输出、运行时存档与锁。
+# ============================================================
+
+# ---------- 依赖与包管理 ----------
+node_modules/
+.npmcache/
+.npm/
+.pnpm-store/
+.yarn/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- 构建产物与中间文件 ----------
+# tools/game_bundle.mjs 还原的 game 包，随时可由 manifest 重建
+build/
+# 根目录按版本临时构建的副本；正式留档统一放 versions/（game.html 例外，保留）
+/game_v[0-9]*.html
+# 地图评审用的一次性预览构建（由 tools/build.cjs 生成）
+/tools/mapwork/*/preview.html
+
+# ---------- 测试、探针与日志 ----------
+*.log
+/tools/logs/
+/tools/.cache/
+# 探针/临时截图；需要长期保留的验收图请放 versions/screens/
+/tools/*.png
+/tools/mapwork/*.png
+/tools/mapwork/shots/
+# Playwright 默认产物目录（当前用自定义截图路径，保留以防）
+/test-results/
+/playwright-report/
+/blob-report/
+/.playwright/
+
+# ---------- 运行时存档 / 锁 / 临时文件 ----------
+# PROFILES_FILE 默认 server/profiles.json；含 .lock / .tmp 与 e2e 专用档
+/server/profiles.json*
+/tools/e2e-profiles.json*
+*.tmp
+*.temp
+*.pid
+
+# ---------- Python 辅助脚本运行产物 ----------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------- 基准对比临时输出 ----------
+# 基线 JSON 与 V41_RESULTS.md 保留（README / TESTING 引用）
+/bench/*.html
+/bench/*.err
+
+# ---------- 本地配置与密钥 ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---------- 系统与编辑器 ----------
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*~

@@ -1,0 +1,2816 @@
+{
+  "tag": "after",
+  "url": "file:///Users/zhouyou/codex_workspace/fps/bench/v34_after.html?q=low&noaudio=1&autostart=1&dt=0.1&seed=4207",
+  "errs": [],
+  "boot": {
+    "mapId": "harbor",
+    "quality": "low",
+    "aiVersion": "V34.1"
+  },
+  "realtime": {
+    "label": "realtime60s",
+    "updates": 510,
+    "totalMs": 109,
+    "avgMs": 0.214,
+    "p95Ms": 0.5,
+    "maxMs": 2.2,
+    "frames": 510,
+    "wallMs": 60503,
+    "enemiesAlive": 13,
+    "ai": {
+      "ok": true,
+      "enabled": true,
+      "debug": false,
+      "mapId": "harbor",
+      "covers": 32,
+      "validCovers": 11,
+      "hotCovers": 11,
+      "squads": 6,
+      "enemies": [
+        {
+          "id": 1,
+          "type": "gull",
+          "variant": "",
+          "hp": 45,
+          "pos": [
+            16.46,
+            10,
+            -27.77
+          ],
+          "mode": "patrol",
+          "role": "assault",
+          "intent": "flank",
+          "utility": {
+            "engage": 0.061,
+            "flank": 0.382,
+            "cover": 0.133,
+            "suppress": 0.304,
+            "retreat": 0.242
+          },
+          "cover": null,
+          "squad": "sq1",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": false,
+          "dist": 59.27
+        },
+        {
+          "id": 2,
+          "type": "gull",
+          "variant": "",
+          "hp": 45,
+          "pos": [
+            -4.95,
+            6.48,
+            -26.77
+          ],
+          "mode": "patrol",
+          "role": "assault",
+          "intent": "cover",
+          "utility": {
+            "engage": 0.061,
+            "flank": 0.765,
+            "cover": 0.95,
+            "suppress": 0.304,
+            "retreat": 0.605
+          },
+          "cover": "harbor:20",
+          "squad": "sq2",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": false,
+          "dist": 42.49
+        },
+        {
+          "id": 3,
+          "type": "hound",
+          "variant": "",
+          "hp": 140,
+          "pos": [
+            26.68,
+            0,
+            12.06
+          ],
+          "mode": "patrol",
+          "role": "assault",
+          "intent": "flank",
+          "utility": {
+            "engage": 0.061,
+            "flank": 0.382,
+            "cover": 0.133,
+            "suppress": 0.304,
+            "retreat": 0.242
+          },
+          "cover": null,
+          "squad": "sq3",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": false,
+          "dist": 59.02
+        },
+        {
+          "id": 4,
+          "type": "hound",
+          "variant": "",
+          "hp": 140,
+          "pos": [
+            -19.62,
+            0,
+            5.27
+          ],
+          "mode": "engage",
+          "role": "assault",
+          "intent": "engage",
+          "utility": {
+            "engage": 1.604,
+            "flank": 0.918,
+            "cover": 1.52,
+            "suppress": 1.08,
+            "retreat": 0.605
+          },
+          "cover": "harbor:12",
+          "squad": "sq4",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": true,
+          "dist": 12.4
+        },
+        {
+          "id": 5,
+          "type": "gull",
+          "variant": "",
+          "hp": 45,
+          "pos": [
+            -24.88,
+            6.86,
+            14.29
+          ],
+          "mode": "engage",
+          "role": "flanker",
+          "intent": "flank",
+          "utility": {
+            "engage": 0.099,
+            "flank": 1.696,
+            "cover": 1,
+            "suppress": 0.405,
+            "retreat": 0.605
+          },
+          "cover": "harbor:12",
+          "squad": "sq4",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": false,
+          "dist": 11.25
+        },
+        {
+          "id": 6,
+          "type": "hound",
+          "variant": "",
+          "hp": 140,
+          "pos": [
+            -27.36,
+            0,
+            20.27
+          ],
+          "mode": "investigate",
+          "role": "guard",
+          "intent": "cover",
+          "utility": {
+            "engage": 0.124,
+            "flank": 0.765,
+            "cover": 1.35,
+            "suppress": 0.324,
+            "retreat": 0.605
+          },
+          "cover": "harbor:12",
+          "squad": "sq4",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": false,
+          "dist": 15
+        },
+        {
+          "id": 7,
+          "type": "gull",
+          "variant": "",
+          "hp": 45,
+          "pos": [
+            -20.18,
+            6.06,
+            15.14
+          ],
+          "mode": "engage",
+          "role": "support",
+          "intent": "cover",
+          "utility": {
+            "engage": 0.119,
+            "flank": 0.765,
+            "cover": 1,
+            "suppress": 0.547,
+            "retreat": 0.605
+          },
+          "cover": "harbor:12",
+          "squad": "sq4",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": false,
+          "dist": 14.89
+        },
+        {
+          "id": 8,
+          "type": "hound",
+          "variant": "",
+          "hp": 140,
+          "pos": [
+            -39,
+            0,
+            9.8
+          ],
+          "mode": "investigate",
+          "role": "assault",
+          "intent": "cover",
+          "utility": {
+            "engage": 0.155,
+            "flank": 0.765,
+            "cover": 0.95,
+            "suppress": 0.405,
+            "retreat": 0.605
+          },
+          "cover": "harbor:12",
+          "squad": "sq5",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": false,
+          "dist": 7.97
+        },
+        {
+          "id": 9,
+          "type": "gull",
+          "variant": "",
+          "hp": 45,
+          "pos": [
+            -25.84,
+            6.56,
+            14.89
+          ],
+          "mode": "engage",
+          "role": "flanker",
+          "intent": "flank",
+          "utility": {
+            "engage": 0.854,
+            "flank": 2.036,
+            "cover": 1,
+            "suppress": 1.08,
+            "retreat": 0.605
+          },
+          "cover": "harbor:12",
+          "squad": "sq5",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": true,
+          "dist": 10.78
+        },
+        {
+          "id": 10,
+          "type": "hound",
+          "variant": "",
+          "hp": 140,
+          "pos": [
+            -44.14,
+            0,
+            -2.82
+          ],
+          "mode": "investigate",
+          "role": "guard",
+          "intent": "cover",
+          "utility": {
+            "engage": 0.124,
+            "flank": 0.765,
+            "cover": 1.35,
+            "suppress": 0.324,
+            "retreat": 0.605
+          },
+          "cover": "harbor:1",
+          "squad": "sq5",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": false,
+          "dist": 15
+        },
+        {
+          "id": 11,
+          "type": "gull",
+          "variant": "",
+          "hp": 45,
+          "pos": [
+            -40.75,
+            6,
+            -7.3
+          ],
+          "mode": "engage",
+          "role": "support",
+          "intent": "suppress",
+          "utility": {
+            "engage": 1.096,
+            "flank": 0.918,
+            "cover": 1,
+            "suppress": 1.458,
+            "retreat": 0.605
+          },
+          "cover": "harbor:0",
+          "squad": "sq5",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": true,
+          "dist": 15.91
+        },
+        {
+          "id": 12,
+          "type": "hound",
+          "variant": "",
+          "hp": 140,
+          "pos": [
+            -29.46,
+            0,
+            -3.63
+          ],
+          "mode": "engage",
+          "role": "assault",
+          "intent": "suppress",
+          "utility": {
+            "engage": 1.604,
+            "flank": 0.918,
+            "cover": 1.52,
+            "suppress": 1.44,
+            "retreat": 0.605
+          },
+          "cover": "harbor:12",
+          "squad": "sq6",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": true,
+          "dist": 9.96
+        },
+        {
+          "id": 13,
+          "type": "gull",
+          "variant": "",
+          "hp": 45,
+          "pos": [
+            -19.55,
+            6.08,
+            10.56
+          ],
+          "mode": "engage",
+          "role": "support",
+          "intent": "suppress",
+          "utility": {
+            "engage": 1.15,
+            "flank": 0.918,
+            "cover": 1.6,
+            "suppress": 1.944,
+            "retreat": 0.605
+          },
+          "cover": "harbor:12",
+          "squad": "sq6",
+          "suppressT": 0,
+          "retreatT": 0,
+          "los": true,
+          "dist": 13.34
+        }
+      ],
+      "weights": {
+        "engage": 1.125,
+        "flank": 1,
+        "cover": 0.95,
+        "suppress": 0.75,
+        "retreat": 0.6050000000000001
+      },
+      "stats": {},
+      "err": null,
+      "t": 8.7
+    }
+  },
+  "fixed": {
+    "label": "fixed3600",
+    "rounds": [
+      {
+        "label": "fixed3600#0",
+        "updates": 3600,
+        "totalMs": 461.1,
+        "avgMs": 0.128,
+        "p95Ms": 0.2,
+        "maxMs": 0.7,
+        "frames": 0,
+        "wallMs": 463,
+        "enemiesAlive": 13,
+        "ai": {
+          "ok": true,
+          "enabled": true,
+          "debug": false,
+          "mapId": "harbor",
+          "covers": 32,
+          "validCovers": 11,
+          "hotCovers": 11,
+          "squads": 6,
+          "enemies": [
+            {
+              "id": 1,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                17.07,
+                9.99,
+                -17.82
+              ],
+              "mode": "patrol",
+              "role": "assault",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.061,
+                "flank": 0.382,
+                "cover": 0.133,
+                "suppress": 0.304,
+                "retreat": 0.242
+              },
+              "cover": null,
+              "squad": "sq1",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 54.06
+            },
+            {
+              "id": 2,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -4.95,
+                6.48,
+                -26.77
+              ],
+              "mode": "patrol",
+              "role": "assault",
+              "intent": "cover",
+              "utility": {
+                "engage": 0.061,
+                "flank": 0.765,
+                "cover": 0.95,
+                "suppress": 0.304,
+                "retreat": 0.605
+              },
+              "cover": "harbor:20",
+              "squad": "sq2",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 42.49
+            },
+            {
+              "id": 3,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                26.5,
+                0,
+                8.67
+              ],
+              "mode": "patrol",
+              "role": "assault",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.061,
+                "flank": 0.382,
+                "cover": 0.133,
+                "suppress": 0.304,
+                "retreat": 0.242
+              },
+              "cover": null,
+              "squad": "sq3",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 58.56
+            },
+            {
+              "id": 4,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -25.21,
+                0,
+                7.82
+              ],
+              "mode": "engage",
+              "role": "assault",
+              "intent": "engage",
+              "utility": {
+                "engage": 1.682,
+                "flank": 0.918,
+                "cover": 1.52,
+                "suppress": 1.08,
+                "retreat": 0.726
+              },
+              "cover": "harbor:12",
+              "squad": "sq4",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 7.03
+            },
+            {
+              "id": 5,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -26.14,
+                6.98,
+                14.67
+              ],
+              "mode": "engage",
+              "role": "flanker",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.835,
+                "flank": 2.036,
+                "cover": 1,
+                "suppress": 1.08,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq4",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 10.62
+            },
+            {
+              "id": 6,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -27.36,
+                0,
+                20.27
+              ],
+              "mode": "patrol",
+              "role": "guard",
+              "intent": "cover",
+              "utility": {
+                "engage": 0.124,
+                "flank": 0.765,
+                "cover": 1.35,
+                "suppress": 0.324,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq4",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 15
+            },
+            {
+              "id": 7,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -23.98,
+                5.99,
+                17.71
+              ],
+              "mode": "engage",
+              "role": "support",
+              "intent": "suppress",
+              "utility": {
+                "engage": 1.136,
+                "flank": 0.918,
+                "cover": 1.6,
+                "suppress": 1.458,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq4",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 14.4
+            },
+            {
+              "id": 8,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -39,
+                0,
+                1.85
+              ],
+              "mode": "engage",
+              "role": "assault",
+              "intent": "engage",
+              "utility": {
+                "engage": 1.307,
+                "flank": 0.918,
+                "cover": 0.95,
+                "suppress": 1.08,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq5",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 8.15
+            },
+            {
+              "id": 9,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -26.5,
+                6.98,
+                15.43
+              ],
+              "mode": "engage",
+              "role": "flanker",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.842,
+                "flank": 2.036,
+                "cover": 1,
+                "suppress": 1.08,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq5",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 10.64
+            },
+            {
+              "id": 10,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -44.14,
+                0,
+                -2.82
+              ],
+              "mode": "investigate",
+              "role": "guard",
+              "intent": "cover",
+              "utility": {
+                "engage": 0.124,
+                "flank": 0.765,
+                "cover": 1.35,
+                "suppress": 0.324,
+                "retreat": 0.605
+              },
+              "cover": "harbor:1",
+              "squad": "sq5",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 15
+            },
+            {
+              "id": 11,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -34.51,
+                6,
+                -11.86
+              ],
+              "mode": "engage",
+              "role": "support",
+              "intent": "cover",
+              "utility": {
+                "engage": 1.211,
+                "flank": 0.918,
+                "cover": 1.6,
+                "suppress": 1.458,
+                "retreat": 0.726
+              },
+              "cover": "harbor:0",
+              "squad": "sq5",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 18.04
+            },
+            {
+              "id": 12,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -26.5,
+                0,
+                15.8
+              ],
+              "mode": "engage",
+              "role": "assault",
+              "intent": "engage",
+              "utility": {
+                "engage": 1.682,
+                "flank": 0.918,
+                "cover": 1.52,
+                "suppress": 1.44,
+                "retreat": 0.726
+              },
+              "cover": "harbor:12",
+              "squad": "sq6",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 11.24
+            },
+            {
+              "id": 13,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -20.57,
+                6.05,
+                15.52
+              ],
+              "mode": "engage",
+              "role": "support",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.134,
+                "flank": 0.765,
+                "cover": 0.55,
+                "suppress": 0.729,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq6",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 14.97
+            }
+          ],
+          "weights": {
+            "engage": 1.125,
+            "flank": 1,
+            "cover": 0.95,
+            "suppress": 0.75,
+            "retreat": 0.6050000000000001
+          },
+          "stats": {},
+          "err": null,
+          "t": 68.7
+        }
+      },
+      {
+        "label": "fixed3600#1",
+        "updates": 3600,
+        "totalMs": 408.6,
+        "avgMs": 0.114,
+        "p95Ms": 0.2,
+        "maxMs": 1,
+        "frames": 0,
+        "wallMs": 410,
+        "enemiesAlive": 13,
+        "ai": {
+          "ok": true,
+          "enabled": true,
+          "debug": false,
+          "mapId": "harbor",
+          "covers": 32,
+          "validCovers": 11,
+          "hotCovers": 11,
+          "squads": 6,
+          "enemies": [
+            {
+              "id": 1,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                7.96,
+                11.46,
+                -21.89
+              ],
+              "mode": "patrol",
+              "role": "assault",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.061,
+                "flank": 0.382,
+                "cover": 0.133,
+                "suppress": 0.304,
+                "retreat": 0.242
+              },
+              "cover": null,
+              "squad": "sq1",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 48.98
+            },
+            {
+              "id": 2,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -4.95,
+                6.48,
+                -26.77
+              ],
+              "mode": "patrol",
+              "role": "assault",
+              "intent": "cover",
+              "utility": {
+                "engage": 0.061,
+                "flank": 0.765,
+                "cover": 0.95,
+                "suppress": 0.304,
+                "retreat": 0.605
+              },
+              "cover": "harbor:20",
+              "squad": "sq2",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 42.49
+            },
+            {
+              "id": 3,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                26.5,
+                0,
+                8.58
+              ],
+              "mode": "patrol",
+              "role": "assault",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.061,
+                "flank": 0.382,
+                "cover": 0.133,
+                "suppress": 0.304,
+                "retreat": 0.242
+              },
+              "cover": null,
+              "squad": "sq3",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 58.56
+            },
+            {
+              "id": 4,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -22.64,
+                0,
+                16.4
+              ],
+              "mode": "engage",
+              "role": "assault",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.189,
+                "flank": 0.765,
+                "cover": 0.522,
+                "suppress": 0.405,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq4",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 14
+            },
+            {
+              "id": 5,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -26.69,
+                7.03,
+                14.27
+              ],
+              "mode": "engage",
+              "role": "flanker",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.839,
+                "flank": 2.036,
+                "cover": 1,
+                "suppress": 1.08,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq4",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 9.86
+            },
+            {
+              "id": 6,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -27.36,
+                0,
+                20.27
+              ],
+              "mode": "investigate",
+              "role": "guard",
+              "intent": "cover",
+              "utility": {
+                "engage": 0.124,
+                "flank": 0.765,
+                "cover": 1.35,
+                "suppress": 0.324,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq4",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 15
+            },
+            {
+              "id": 7,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -21.35,
+                6.09,
+                14.61
+              ],
+              "mode": "engage",
+              "role": "support",
+              "intent": "cover",
+              "utility": {
+                "engage": 0.112,
+                "flank": 0.765,
+                "cover": 1,
+                "suppress": 0.547,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq4",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 13.09
+            },
+            {
+              "id": 8,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -39,
+                0,
+                1.92
+              ],
+              "mode": "engage",
+              "role": "assault",
+              "intent": "cover",
+              "utility": {
+                "engage": 0.155,
+                "flank": 0.765,
+                "cover": 0.95,
+                "suppress": 0.405,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq5",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 8.11
+            },
+            {
+              "id": 9,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -24.41,
+                6.24,
+                15.45
+              ],
+              "mode": "engage",
+              "role": "flanker",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.864,
+                "flank": 2.036,
+                "cover": 1,
+                "suppress": 1.08,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq5",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 12.03
+            },
+            {
+              "id": 10,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -44.14,
+                0,
+                -2.82
+              ],
+              "mode": "investigate",
+              "role": "guard",
+              "intent": "cover",
+              "utility": {
+                "engage": 0.124,
+                "flank": 0.765,
+                "cover": 1.35,
+                "suppress": 0.324,
+                "retreat": 0.605
+              },
+              "cover": "harbor:1",
+              "squad": "sq5",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 15
+            },
+            {
+              "id": 11,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -34.56,
+                6,
+                -11.83
+              ],
+              "mode": "engage",
+              "role": "support",
+              "intent": "cover",
+              "utility": {
+                "engage": 1.211,
+                "flank": 0.918,
+                "cover": 1.6,
+                "suppress": 1.458,
+                "retreat": 0.726
+              },
+              "cover": "harbor:0",
+              "squad": "sq5",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 18.01
+            },
+            {
+              "id": 12,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -19.52,
+                0,
+                5.5
+              ],
+              "mode": "engage",
+              "role": "assault",
+              "intent": "engage",
+              "utility": {
+                "engage": 1.682,
+                "flank": 0.918,
+                "cover": 1.52,
+                "suppress": 1.44,
+                "retreat": 0.726
+              },
+              "cover": "harbor:12",
+              "squad": "sq6",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 12.49
+            },
+            {
+              "id": 13,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -23.23,
+                6,
+                17.66
+              ],
+              "mode": "engage",
+              "role": "support",
+              "intent": "suppress",
+              "utility": {
+                "engage": 1.074,
+                "flank": 0.918,
+                "cover": 1,
+                "suppress": 1.944,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq6",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 14.61
+            }
+          ],
+          "weights": {
+            "engage": 1.125,
+            "flank": 1,
+            "cover": 0.95,
+            "suppress": 0.75,
+            "retreat": 0.6050000000000001
+          },
+          "stats": {},
+          "err": null,
+          "t": 128.7
+        }
+      },
+      {
+        "label": "fixed3600#2",
+        "updates": 3600,
+        "totalMs": 407.9,
+        "avgMs": 0.113,
+        "p95Ms": 0.2,
+        "maxMs": 1.2,
+        "frames": 0,
+        "wallMs": 409,
+        "enemiesAlive": 13,
+        "ai": {
+          "ok": true,
+          "enabled": true,
+          "debug": false,
+          "mapId": "harbor",
+          "covers": 32,
+          "validCovers": 11,
+          "hotCovers": 11,
+          "squads": 6,
+          "enemies": [
+            {
+              "id": 1,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                15.75,
+                10,
+                -28.09
+              ],
+              "mode": "patrol",
+              "role": "assault",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.061,
+                "flank": 0.382,
+                "cover": 0.133,
+                "suppress": 0.304,
+                "retreat": 0.242
+              },
+              "cover": null,
+              "squad": "sq1",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 58.93
+            },
+            {
+              "id": 2,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -4.95,
+                6.48,
+                -26.77
+              ],
+              "mode": "patrol",
+              "role": "assault",
+              "intent": "cover",
+              "utility": {
+                "engage": 0.061,
+                "flank": 0.765,
+                "cover": 0.95,
+                "suppress": 0.304,
+                "retreat": 0.605
+              },
+              "cover": "harbor:20",
+              "squad": "sq2",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 42.49
+            },
+            {
+              "id": 3,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                28.23,
+                0,
+                21.56
+              ],
+              "mode": "patrol",
+              "role": "assault",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.061,
+                "flank": 0.382,
+                "cover": 0.133,
+                "suppress": 0.304,
+                "retreat": 0.242
+              },
+              "cover": null,
+              "squad": "sq3",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 62.04
+            },
+            {
+              "id": 4,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -22.96,
+                0,
+                17.56
+              ],
+              "mode": "engage",
+              "role": "assault",
+              "intent": "engage",
+              "utility": {
+                "engage": 1.682,
+                "flank": 0.918,
+                "cover": 1.52,
+                "suppress": 1.08,
+                "retreat": 0.726
+              },
+              "cover": "harbor:12",
+              "squad": "sq4",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 14.67
+            },
+            {
+              "id": 5,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -26.85,
+                6.92,
+                14.35
+              ],
+              "mode": "engage",
+              "role": "flanker",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.84,
+                "flank": 2.036,
+                "cover": 1,
+                "suppress": 1.08,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq4",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 9.77
+            },
+            {
+              "id": 6,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -27.36,
+                0,
+                20.27
+              ],
+              "mode": "investigate",
+              "role": "guard",
+              "intent": "cover",
+              "utility": {
+                "engage": 0.124,
+                "flank": 0.765,
+                "cover": 1.35,
+                "suppress": 0.324,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq4",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 15
+            },
+            {
+              "id": 7,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -28.8,
+                6,
+                20.32
+              ],
+              "mode": "engage",
+              "role": "support",
+              "intent": "suppress",
+              "utility": {
+                "engage": 1.034,
+                "flank": 0.918,
+                "cover": 1,
+                "suppress": 1.458,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq4",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 14.66
+            },
+            {
+              "id": 8,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -39,
+                0,
+                1.63
+              ],
+              "mode": "engage",
+              "role": "assault",
+              "intent": "cover",
+              "utility": {
+                "engage": 0.155,
+                "flank": 0.765,
+                "cover": 0.95,
+                "suppress": 0.405,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq5",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 8.25
+            },
+            {
+              "id": 9,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -23.62,
+                6.15,
+                15.84
+              ],
+              "mode": "engage",
+              "role": "flanker",
+              "intent": "flank",
+              "utility": {
+                "engage": 0.863,
+                "flank": 2.036,
+                "cover": 1,
+                "suppress": 1.08,
+                "retreat": 0.605
+              },
+              "cover": "harbor:12",
+              "squad": "sq5",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 12.41
+            },
+            {
+              "id": 10,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -44.14,
+                0,
+                -2.82
+              ],
+              "mode": "investigate",
+              "role": "guard",
+              "intent": "cover",
+              "utility": {
+                "engage": 0.124,
+                "flank": 0.765,
+                "cover": 1.35,
+                "suppress": 0.324,
+                "retreat": 0.605
+              },
+              "cover": "harbor:1",
+              "squad": "sq5",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": false,
+              "dist": 15
+            },
+            {
+              "id": 11,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -34.47,
+                6,
+                -11.83
+              ],
+              "mode": "engage",
+              "role": "support",
+              "intent": "cover",
+              "utility": {
+                "engage": 1.211,
+                "flank": 0.918,
+                "cover": 1.6,
+                "suppress": 1.458,
+                "retreat": 0.726
+              },
+              "cover": "harbor:0",
+              "squad": "sq5",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 18
+            },
+            {
+              "id": 12,
+              "type": "hound",
+              "variant": "",
+              "hp": 140,
+              "pos": [
+                -22.72,
+                0,
+                7.24
+              ],
+              "mode": "engage",
+              "role": "assault",
+              "intent": "engage",
+              "utility": {
+                "engage": 1.673,
+                "flank": 0.918,
+                "cover": 1.52,
+                "suppress": 1.44,
+                "retreat": 0.726
+              },
+              "cover": "harbor:12",
+              "squad": "sq6",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 9.36
+            },
+            {
+              "id": 13,
+              "type": "gull",
+              "variant": "",
+              "hp": 45,
+              "pos": [
+                -23.9,
+                6,
+                17.44
+              ],
+              "mode": "engage",
+              "role": "support",
+              "intent": "suppress",
+              "utility": {
+                "engage": 1.211,
+                "flank": 0.918,
+                "cover": 1.6,
+                "suppress": 1.944,
+                "retreat": 0.726
+              },
+              "cover": "harbor:12",
+              "squad": "sq6",
+              "suppressT": 0,
+              "retreatT": 0,
+              "los": true,
+              "dist": 13.99
+            }
+          ],
+          "weights": {
+            "engage": 1.125,
+            "flank": 1,
+            "cover": 0.95,
+            "suppress": 0.75,
+            "retreat": 0.6050000000000001
+          },
+          "stats": {},
+          "err": null,
+          "t": 188.7
+        }
+      }
+    ],
+    "median": {
+      "avgMs": 0.114,
+      "p95Ms": 0.2,
+      "maxMs": 1,
+      "totalMs": 408.6
+    },
+    "enemiesAvg": 13,
+    "snap": [
+      {
+        "step": 0,
+        "enemies": 13,
+        "covers": 32,
+        "hot": 11,
+        "valid": 11
+      },
+      {
+        "step": 600,
+        "enemies": 13,
+        "covers": 32,
+        "hot": 11,
+        "valid": 11
+      },
+      {
+        "step": 1200,
+        "enemies": 13,
+        "covers": 32,
+        "hot": 11,
+        "valid": 11
+      },
+      {
+        "step": 1800,
+        "enemies": 13,
+        "covers": 32,
+        "hot": 11,
+        "valid": 11
+      },
+      {
+        "step": 2400,
+        "enemies": 13,
+        "covers": 32,
+        "hot": 11,
+        "valid": 11
+      },
+      {
+        "step": 3000,
+        "enemies": 13,
+        "covers": 32,
+        "hot": 11,
+        "valid": 11
+      }
+    ]
+  },
+  "aiSwitch": {
+    "supported": true,
+    "before": true,
+    "off": false,
+    "back": true,
+    "offRun": {
+      "label": "fixed3600-aiOff",
+      "rounds": [
+        {
+          "label": "fixed3600-aiOff#0",
+          "updates": 3600,
+          "totalMs": 436.5,
+          "avgMs": 0.121,
+          "p95Ms": 0.2,
+          "maxMs": 2.2,
+          "frames": 0,
+          "wallMs": 438,
+          "enemiesAlive": 13,
+          "ai": {
+            "ok": true,
+            "enabled": false,
+            "debug": false,
+            "mapId": "harbor",
+            "covers": 32,
+            "validCovers": 11,
+            "hotCovers": 11,
+            "squads": 6,
+            "enemies": [
+              {
+                "id": 1,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  17.8,
+                  10,
+                  -18.42
+                ],
+                "mode": "patrol",
+                "role": "assault",
+                "intent": "flank",
+                "utility": {
+                  "engage": 0.061,
+                  "flank": 0.382,
+                  "cover": 0.133,
+                  "suppress": 0.304,
+                  "retreat": 0.242
+                },
+                "cover": null,
+                "squad": "sq1",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 58.63
+              },
+              {
+                "id": 2,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -0.88,
+                  5.4,
+                  -20.66
+                ],
+                "mode": "patrol",
+                "role": "assault",
+                "intent": "cover",
+                "utility": {
+                  "engage": 0.061,
+                  "flank": 0.765,
+                  "cover": 0.95,
+                  "suppress": 0.304,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:20",
+                "squad": "sq2",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 42.49
+              },
+              {
+                "id": 3,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  27.72,
+                  0,
+                  17.02
+                ],
+                "mode": "patrol",
+                "role": "assault",
+                "intent": "flank",
+                "utility": {
+                  "engage": 0.061,
+                  "flank": 0.382,
+                  "cover": 0.133,
+                  "suppress": 0.304,
+                  "retreat": 0.242
+                },
+                "cover": null,
+                "squad": "sq3",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 62.04
+              },
+              {
+                "id": 4,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -29.13,
+                  0,
+                  4.12
+                ],
+                "mode": "engage",
+                "role": "assault",
+                "intent": "engage",
+                "utility": {
+                  "engage": 1.682,
+                  "flank": 0.918,
+                  "cover": 1.52,
+                  "suppress": 1.08,
+                  "retreat": 0.726
+                },
+                "cover": "harbor:12",
+                "squad": "sq4",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 14.67
+              },
+              {
+                "id": 5,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -27.85,
+                  6,
+                  -6.13
+                ],
+                "mode": "engage",
+                "role": "flanker",
+                "intent": "flank",
+                "utility": {
+                  "engage": 0.84,
+                  "flank": 2.036,
+                  "cover": 1,
+                  "suppress": 1.08,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq4",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 9.77
+              },
+              {
+                "id": 6,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -27.36,
+                  0,
+                  20.27
+                ],
+                "mode": "patrol",
+                "role": "guard",
+                "intent": "cover",
+                "utility": {
+                  "engage": 0.124,
+                  "flank": 0.765,
+                  "cover": 1.35,
+                  "suppress": 0.324,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq4",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 15
+              },
+              {
+                "id": 7,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -18.88,
+                  6.02,
+                  14.32
+                ],
+                "mode": "engage",
+                "role": "support",
+                "intent": "suppress",
+                "utility": {
+                  "engage": 1.034,
+                  "flank": 0.918,
+                  "cover": 1,
+                  "suppress": 1.458,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq4",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 14.66
+              },
+              {
+                "id": 8,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -39.03,
+                  0,
+                  1.81
+                ],
+                "mode": "engage",
+                "role": "assault",
+                "intent": "cover",
+                "utility": {
+                  "engage": 0.155,
+                  "flank": 0.765,
+                  "cover": 0.95,
+                  "suppress": 0.405,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq5",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 8.25
+              },
+              {
+                "id": 9,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -23.23,
+                  6.53,
+                  22.3
+                ],
+                "mode": "engage",
+                "role": "flanker",
+                "intent": "flank",
+                "utility": {
+                  "engage": 0.863,
+                  "flank": 2.036,
+                  "cover": 1,
+                  "suppress": 1.08,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq5",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 12.41
+              },
+              {
+                "id": 10,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -44.14,
+                  0,
+                  -2.82
+                ],
+                "mode": "investigate",
+                "role": "guard",
+                "intent": "cover",
+                "utility": {
+                  "engage": 0.124,
+                  "flank": 0.765,
+                  "cover": 1.35,
+                  "suppress": 0.324,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:1",
+                "squad": "sq5",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 15
+              },
+              {
+                "id": 11,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -9.45,
+                  6,
+                  5.55
+                ],
+                "mode": "engage",
+                "role": "support",
+                "intent": "cover",
+                "utility": {
+                  "engage": 1.211,
+                  "flank": 0.918,
+                  "cover": 1.6,
+                  "suppress": 1.458,
+                  "retreat": 0.726
+                },
+                "cover": "harbor:0",
+                "squad": "sq5",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 18
+              },
+              {
+                "id": 12,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -17.14,
+                  0,
+                  5.58
+                ],
+                "mode": "engage",
+                "role": "assault",
+                "intent": "engage",
+                "utility": {
+                  "engage": 1.673,
+                  "flank": 0.918,
+                  "cover": 1.52,
+                  "suppress": 1.44,
+                  "retreat": 0.726
+                },
+                "cover": "harbor:12",
+                "squad": "sq6",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 9.36
+              },
+              {
+                "id": 13,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -17.62,
+                  6.01,
+                  14.34
+                ],
+                "mode": "engage",
+                "role": "support",
+                "intent": "suppress",
+                "utility": {
+                  "engage": 1.211,
+                  "flank": 0.918,
+                  "cover": 1.6,
+                  "suppress": 1.944,
+                  "retreat": 0.726
+                },
+                "cover": "harbor:12",
+                "squad": "sq6",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 13.99
+              }
+            ],
+            "weights": {
+              "engage": 1.125,
+              "flank": 1,
+              "cover": 0.95,
+              "suppress": 0.75,
+              "retreat": 0.6050000000000001
+            },
+            "stats": {},
+            "err": null,
+            "t": 188.8
+          }
+        },
+        {
+          "label": "fixed3600-aiOff#1",
+          "updates": 3600,
+          "totalMs": 420.6,
+          "avgMs": 0.117,
+          "p95Ms": 0.2,
+          "maxMs": 1,
+          "frames": 0,
+          "wallMs": 423,
+          "enemiesAlive": 13,
+          "ai": {
+            "ok": true,
+            "enabled": false,
+            "debug": false,
+            "mapId": "harbor",
+            "covers": 32,
+            "validCovers": 11,
+            "hotCovers": 11,
+            "squads": 6,
+            "enemies": [
+              {
+                "id": 1,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  8.16,
+                  10.68,
+                  -20.98
+                ],
+                "mode": "patrol",
+                "role": "assault",
+                "intent": "flank",
+                "utility": {
+                  "engage": 0.061,
+                  "flank": 0.382,
+                  "cover": 0.133,
+                  "suppress": 0.304,
+                  "retreat": 0.242
+                },
+                "cover": null,
+                "squad": "sq1",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 58.63
+              },
+              {
+                "id": 2,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -11.92,
+                  5.59,
+                  -12.74
+                ],
+                "mode": "patrol",
+                "role": "assault",
+                "intent": "cover",
+                "utility": {
+                  "engage": 0.061,
+                  "flank": 0.765,
+                  "cover": 0.95,
+                  "suppress": 0.304,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:20",
+                "squad": "sq2",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 42.49
+              },
+              {
+                "id": 3,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  27.82,
+                  0,
+                  20.98
+                ],
+                "mode": "patrol",
+                "role": "assault",
+                "intent": "flank",
+                "utility": {
+                  "engage": 0.061,
+                  "flank": 0.382,
+                  "cover": 0.133,
+                  "suppress": 0.304,
+                  "retreat": 0.242
+                },
+                "cover": null,
+                "squad": "sq3",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 62.04
+              },
+              {
+                "id": 4,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -22.87,
+                  0,
+                  -1.57
+                ],
+                "mode": "engage",
+                "role": "assault",
+                "intent": "engage",
+                "utility": {
+                  "engage": 1.682,
+                  "flank": 0.918,
+                  "cover": 1.52,
+                  "suppress": 1.08,
+                  "retreat": 0.726
+                },
+                "cover": "harbor:12",
+                "squad": "sq4",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 14.67
+              },
+              {
+                "id": 5,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -42.35,
+                  6,
+                  -1.55
+                ],
+                "mode": "engage",
+                "role": "flanker",
+                "intent": "flank",
+                "utility": {
+                  "engage": 0.84,
+                  "flank": 2.036,
+                  "cover": 1,
+                  "suppress": 1.08,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq4",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 9.77
+              },
+              {
+                "id": 6,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -27.36,
+                  0,
+                  20.27
+                ],
+                "mode": "patrol",
+                "role": "guard",
+                "intent": "cover",
+                "utility": {
+                  "engage": 0.124,
+                  "flank": 0.765,
+                  "cover": 1.35,
+                  "suppress": 0.324,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq4",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 15
+              },
+              {
+                "id": 7,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -41.22,
+                  6,
+                  -2.85
+                ],
+                "mode": "engage",
+                "role": "support",
+                "intent": "suppress",
+                "utility": {
+                  "engage": 1.034,
+                  "flank": 0.918,
+                  "cover": 1,
+                  "suppress": 1.458,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq4",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 14.66
+              },
+              {
+                "id": 8,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -39,
+                  0,
+                  1.16
+                ],
+                "mode": "engage",
+                "role": "assault",
+                "intent": "cover",
+                "utility": {
+                  "engage": 0.155,
+                  "flank": 0.765,
+                  "cover": 0.95,
+                  "suppress": 0.405,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq5",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 8.25
+              },
+              {
+                "id": 9,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -27.09,
+                  6,
+                  21.7
+                ],
+                "mode": "engage",
+                "role": "flanker",
+                "intent": "flank",
+                "utility": {
+                  "engage": 0.863,
+                  "flank": 2.036,
+                  "cover": 1,
+                  "suppress": 1.08,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq5",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 12.41
+              },
+              {
+                "id": 10,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -44.14,
+                  0,
+                  -2.82
+                ],
+                "mode": "investigate",
+                "role": "guard",
+                "intent": "cover",
+                "utility": {
+                  "engage": 0.124,
+                  "flank": 0.765,
+                  "cover": 1.35,
+                  "suppress": 0.324,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:1",
+                "squad": "sq5",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 15
+              },
+              {
+                "id": 11,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -30.45,
+                  6.05,
+                  -10.47
+                ],
+                "mode": "engage",
+                "role": "support",
+                "intent": "cover",
+                "utility": {
+                  "engage": 1.211,
+                  "flank": 0.918,
+                  "cover": 1.6,
+                  "suppress": 1.458,
+                  "retreat": 0.726
+                },
+                "cover": "harbor:0",
+                "squad": "sq5",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 18
+              },
+              {
+                "id": 12,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -19.15,
+                  0,
+                  5.64
+                ],
+                "mode": "engage",
+                "role": "assault",
+                "intent": "engage",
+                "utility": {
+                  "engage": 1.673,
+                  "flank": 0.918,
+                  "cover": 1.52,
+                  "suppress": 1.44,
+                  "retreat": 0.726
+                },
+                "cover": "harbor:12",
+                "squad": "sq6",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 9.36
+              },
+              {
+                "id": 13,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -52.42,
+                  6,
+                  14.76
+                ],
+                "mode": "engage",
+                "role": "support",
+                "intent": "suppress",
+                "utility": {
+                  "engage": 1.211,
+                  "flank": 0.918,
+                  "cover": 1.6,
+                  "suppress": 1.944,
+                  "retreat": 0.726
+                },
+                "cover": "harbor:12",
+                "squad": "sq6",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 13.99
+              }
+            ],
+            "weights": {
+              "engage": 1.125,
+              "flank": 1,
+              "cover": 0.95,
+              "suppress": 0.75,
+              "retreat": 0.6050000000000001
+            },
+            "stats": {},
+            "err": null,
+            "t": 188.8
+          }
+        },
+        {
+          "label": "fixed3600-aiOff#2",
+          "updates": 3600,
+          "totalMs": 417.6,
+          "avgMs": 0.116,
+          "p95Ms": 0.2,
+          "maxMs": 1.2,
+          "frames": 0,
+          "wallMs": 419,
+          "enemiesAlive": 13,
+          "ai": {
+            "ok": true,
+            "enabled": false,
+            "debug": false,
+            "mapId": "harbor",
+            "covers": 32,
+            "validCovers": 11,
+            "hotCovers": 11,
+            "squads": 6,
+            "enemies": [
+              {
+                "id": 1,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  14.83,
+                  10,
+                  -28.34
+                ],
+                "mode": "patrol",
+                "role": "assault",
+                "intent": "flank",
+                "utility": {
+                  "engage": 0.061,
+                  "flank": 0.382,
+                  "cover": 0.133,
+                  "suppress": 0.304,
+                  "retreat": 0.242
+                },
+                "cover": null,
+                "squad": "sq1",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 58.63
+              },
+              {
+                "id": 2,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -13.28,
+                  6.57,
+                  -25.7
+                ],
+                "mode": "patrol",
+                "role": "assault",
+                "intent": "cover",
+                "utility": {
+                  "engage": 0.061,
+                  "flank": 0.765,
+                  "cover": 0.95,
+                  "suppress": 0.304,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:20",
+                "squad": "sq2",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 42.49
+              },
+              {
+                "id": 3,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  27.07,
+                  0,
+                  12.61
+                ],
+                "mode": "patrol",
+                "role": "assault",
+                "intent": "flank",
+                "utility": {
+                  "engage": 0.061,
+                  "flank": 0.382,
+                  "cover": 0.133,
+                  "suppress": 0.304,
+                  "retreat": 0.242
+                },
+                "cover": null,
+                "squad": "sq3",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 62.04
+              },
+              {
+                "id": 4,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -25.95,
+                  0,
+                  -3.17
+                ],
+                "mode": "engage",
+                "role": "assault",
+                "intent": "engage",
+                "utility": {
+                  "engage": 1.682,
+                  "flank": 0.918,
+                  "cover": 1.52,
+                  "suppress": 1.08,
+                  "retreat": 0.726
+                },
+                "cover": "harbor:12",
+                "squad": "sq4",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 14.67
+              },
+              {
+                "id": 5,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -50.84,
+                  6,
+                  11.32
+                ],
+                "mode": "engage",
+                "role": "flanker",
+                "intent": "flank",
+                "utility": {
+                  "engage": 0.84,
+                  "flank": 2.036,
+                  "cover": 1,
+                  "suppress": 1.08,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq4",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 9.77
+              },
+              {
+                "id": 6,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -27.36,
+                  0,
+                  20.27
+                ],
+                "mode": "patrol",
+                "role": "guard",
+                "intent": "cover",
+                "utility": {
+                  "engage": 0.124,
+                  "flank": 0.765,
+                  "cover": 1.35,
+                  "suppress": 0.324,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq4",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 15
+              },
+              {
+                "id": 7,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -40.61,
+                  6,
+                  19.62
+                ],
+                "mode": "engage",
+                "role": "support",
+                "intent": "suppress",
+                "utility": {
+                  "engage": 1.034,
+                  "flank": 0.918,
+                  "cover": 1,
+                  "suppress": 1.458,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq4",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 14.66
+              },
+              {
+                "id": 8,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -39,
+                  0,
+                  1.57
+                ],
+                "mode": "engage",
+                "role": "assault",
+                "intent": "cover",
+                "utility": {
+                  "engage": 0.155,
+                  "flank": 0.765,
+                  "cover": 0.95,
+                  "suppress": 0.405,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq5",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 8.25
+              },
+              {
+                "id": 9,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -24.98,
+                  6,
+                  -4.76
+                ],
+                "mode": "engage",
+                "role": "flanker",
+                "intent": "flank",
+                "utility": {
+                  "engage": 0.863,
+                  "flank": 2.036,
+                  "cover": 1,
+                  "suppress": 1.08,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:12",
+                "squad": "sq5",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 12.41
+              },
+              {
+                "id": 10,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -44.14,
+                  0,
+                  -2.82
+                ],
+                "mode": "patrol",
+                "role": "guard",
+                "intent": "cover",
+                "utility": {
+                  "engage": 0.124,
+                  "flank": 0.765,
+                  "cover": 1.35,
+                  "suppress": 0.324,
+                  "retreat": 0.605
+                },
+                "cover": "harbor:1",
+                "squad": "sq5",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": false,
+                "dist": 15
+              },
+              {
+                "id": 11,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -45.94,
+                  6,
+                  20.51
+                ],
+                "mode": "engage",
+                "role": "support",
+                "intent": "cover",
+                "utility": {
+                  "engage": 1.211,
+                  "flank": 0.918,
+                  "cover": 1.6,
+                  "suppress": 1.458,
+                  "retreat": 0.726
+                },
+                "cover": "harbor:0",
+                "squad": "sq5",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 18
+              },
+              {
+                "id": 12,
+                "type": "hound",
+                "variant": "",
+                "hp": 140,
+                "pos": [
+                  -17.14,
+                  0,
+                  5.65
+                ],
+                "mode": "engage",
+                "role": "assault",
+                "intent": "engage",
+                "utility": {
+                  "engage": 1.673,
+                  "flank": 0.918,
+                  "cover": 1.52,
+                  "suppress": 1.44,
+                  "retreat": 0.726
+                },
+                "cover": "harbor:12",
+                "squad": "sq6",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 9.36
+              },
+              {
+                "id": 13,
+                "type": "gull",
+                "variant": "",
+                "hp": 45,
+                "pos": [
+                  -35.57,
+                  7.31,
+                  26.14
+                ],
+                "mode": "engage",
+                "role": "support",
+                "intent": "suppress",
+                "utility": {
+                  "engage": 1.211,
+                  "flank": 0.918,
+                  "cover": 1.6,
+                  "suppress": 1.944,
+                  "retreat": 0.726
+                },
+                "cover": "harbor:12",
+                "squad": "sq6",
+                "suppressT": 0,
+                "retreatT": 0,
+                "los": true,
+                "dist": 13.99
+              }
+            ],
+            "weights": {
+              "engage": 1.125,
+              "flank": 1,
+              "cover": 0.95,
+              "suppress": 0.75,
+              "retreat": 0.6050000000000001
+            },
+            "stats": {},
+            "err": null,
+            "t": 188.8
+          }
+        }
+      ],
+      "median": {
+        "avgMs": 0.117,
+        "p95Ms": 0.2,
+        "maxMs": 1.2,
+        "totalMs": 420.6
+      },
+      "enemiesAvg": 13,
+      "snap": [
+        {
+          "step": 0,
+          "enemies": 13,
+          "covers": 32,
+          "hot": 11,
+          "valid": 11
+        },
+        {
+          "step": 600,
+          "enemies": 13,
+          "covers": 32,
+          "hot": 11,
+          "valid": 11
+        },
+        {
+          "step": 1200,
+          "enemies": 13,
+          "covers": 32,
+          "hot": 11,
+          "valid": 11
+        },
+        {
+          "step": 1800,
+          "enemies": 13,
+          "covers": 32,
+          "hot": 11,
+          "valid": 11
+        },
+        {
+          "step": 2400,
+          "enemies": 13,
+          "covers": 32,
+          "hot": 11,
+          "valid": 11
+        },
+        {
+          "step": 3000,
+          "enemies": 13,
+          "covers": 32,
+          "hot": 11,
+          "valid": 11
+        }
+      ]
+    }
+  }
+}

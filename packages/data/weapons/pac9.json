@@ -1,0 +1,270 @@
+{
+  "id": "pac9",
+  "short": "九式",
+  "name": "几猫九式突击步枪",
+  "nameKey": "weapon.pac9.name",
+  "class": "ar",
+  "slot": "primary",
+  "fire": {
+    "mode": "auto",
+    "rpm": 720,
+    "burst": 0,
+    "pellets": 1
+  },
+  "damage": 26,
+  "headMul": 2,
+  "limbMul": 0.8,
+  "range": 300,
+  "falloff": {
+    "start": 35,
+    "end": 80,
+    "minMul": 0.65
+  },
+  "penetration": 0.5,
+  "penetrationMul": 0.75,
+  "mag": 30,
+  "reserve": 150,
+  "chamber": true,
+  "reload": {
+    "tactical": {
+      "time": 2.1
+    },
+    "empty": {
+      "time": 2.72
+    }
+  },
+  "spread": {
+    "hip": 0.0125,
+    "ads": 0.0012,
+    "move": [
+      0.013,
+      0.004
+    ],
+    "bloomPerShot": 0.16,
+    "bloom": [
+      0.0065,
+      0.0022
+    ],
+    "air": 0.022,
+    "scale": 1
+  },
+  "spreadScale": 1,
+  "recoilPattern": {
+    "pattern": [
+      [
+        0,
+        1
+      ],
+      [
+        0.05,
+        1
+      ],
+      [
+        -0.08,
+        0.95
+      ],
+      [
+        0.12,
+        0.9
+      ],
+      [
+        0.2,
+        0.8
+      ],
+      [
+        0.28,
+        0.62
+      ],
+      [
+        0.22,
+        0.45
+      ],
+      [
+        -0.1,
+        0.4
+      ],
+      [
+        -0.3,
+        0.38
+      ],
+      [
+        -0.34,
+        0.38
+      ],
+      [
+        -0.2,
+        0.38
+      ],
+      [
+        0.15,
+        0.38
+      ],
+      [
+        0.32,
+        0.38
+      ],
+      [
+        0.3,
+        0.38
+      ]
+    ],
+    "loopFrom": 7,
+    "unit": [
+      0.005,
+      0.0068
+    ],
+    "jitter": [
+      0.18,
+      0.1
+    ],
+    "adsMul": 0.72,
+    "crouchMul": 0.85,
+    "moveMul": 1.15,
+    "recover": {
+      "delay": 0.09,
+      "rate": 6.5,
+      "keep": 0.35
+    }
+  },
+  "ads": {
+    "time": 0.18,
+    "fov": 52
+  },
+  "handling": {
+    "draw": 0.42,
+    "holster": 0.3,
+    "sprintOut": 0.2,
+    "swapT": 0.34
+  },
+  "moveMul": 1,
+  "audio": {
+    "shot": "ar_shot",
+    "tail": "ar_tail",
+    "mech": "ar_mech",
+    "alertRadius": 45
+  },
+  "attachments": {
+    "muzzle": [
+      "std",
+      "comp",
+      "supp"
+    ],
+    "mag": [
+      "std",
+      "ext",
+      "fast",
+      "ap",
+      "hp"
+    ],
+    "optic": [
+      "dot",
+      "holo",
+      "x2",
+      "x35",
+      "iron"
+    ],
+    "stock": [
+      "std",
+      "light",
+      "heavy",
+      "fold",
+      "buffer"
+    ],
+    "grip": [
+      "none",
+      "vert",
+      "angle",
+      "stub",
+      "bipod"
+    ]
+  },
+  "cfg": {
+    "id": "pac9",
+    "name": "几猫九式突击步枪",
+    "short": "九式",
+    "muzzle": [
+      0,
+      0,
+      -0.531
+    ],
+    "eject": [
+      0.023,
+      0.004,
+      -0.028
+    ],
+    "sightY": 0.069,
+    "lensF": 0.0285,
+    "window": [
+      [
+        -0.016,
+        0.057
+      ],
+      [
+        0.016,
+        0.057
+      ],
+      [
+        0.016,
+        0.0772
+      ],
+      [
+        0.0122,
+        0.081
+      ],
+      [
+        -0.0122,
+        0.081
+      ],
+      [
+        -0.016,
+        0.0772
+      ]
+    ],
+    "magPos": [
+      0,
+      -0.02,
+      -0.0665
+    ],
+    "boltTravel": 0.062,
+    "railTop": 0.0435,
+    "grip": [
+      0,
+      -0.1,
+      0.073
+    ],
+    "handguard": [
+      0,
+      0,
+      -0.255
+    ],
+    "handguardR": 0.021,
+    "handlePos": [
+      -0.026,
+      0.007,
+      -0.078
+    ],
+    "squeeze": 0.86,
+    "magSize": 30,
+    "reserve": 150,
+    "rpm": 720,
+    "damage": 26,
+    "range": 300,
+    "reloadT": 2.1,
+    "reloadEmptyT": 2.72,
+    "recoil": 1,
+    "scale": 1,
+    "hipPos": [
+      0.118,
+      -0.122,
+      -0.275
+    ],
+    "hipRot": [
+      0.034,
+      0.085,
+      -0.03
+    ],
+    "adsFov": 52,
+    "spreadScale": 1,
+    "semi": false
+  }
+}

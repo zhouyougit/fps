@@ -1,0 +1,48 @@
+
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ headless:true, executablePath: process.env.CHROME_EXE, args:['--enable-unsafe-swiftshader','--use-angle=swiftshader','--ignore-gpu-blocklist','--allow-file-access-from-files'] });
+const page = await browser.newPage({ viewport:{width:1000,height:560} });
+const errs=[]; page.on('pageerror',e=>errs.push(e.message));
+let fails=0; const ok=(n,c,d)=>{ if(!c) fails++; console.log((c?'PASS':'FAIL')+' · '+n+(d?' — '+JSON.stringify(d):'')); };
+await page.goto('file:///Users/zhouyou/codex_workspace/fps/game.html?q=low&noaudio=1&autostart=1&dt=0.1',{waitUntil:'load',timeout:180000});
+await page.waitForFunction(()=>window.__ready===true,null,{timeout:240000});
+await page.waitForTimeout(700);
+await page.evaluate(()=>{ window.__SX.unlockAll(); window.__SX.openMissions(); });
+await page.waitForTimeout(300);
+const cards=await page.evaluate(()=>({all:document.querySelectorAll('.x-mcard').length, missions:document.querySelectorAll('.x-mcard[data-idx]').length}));
+ok('V19 行动卡 6+训练', cards.missions===6 && cards.all===7, cards);
+async function click(sel){ const b=await page.locator(sel).first().boundingBox(); if(!b) return false; await page.mouse.click(b.x+b.width/2,b.y+b.height/2); return true; }
+await click('.x-mcard[data-idx="5"]'); await page.waitForTimeout(200);
+await click('.x-camp-actions [data-x="go"]'); await page.waitForTimeout(300);
+const brief=await page.evaluate(()=>({title:document.querySelector('.x-br-h').textContent, rows:document.querySelectorAll('.x-br-chal li').length}));
+ok('V19 归途简报', brief.title==='归途' && brief.rows===3, brief);
+await click('.x-br-actions [data-x="brief-go"]'); await page.waitForTimeout(900);
+await page.evaluate(()=>window.__G.game.start({skipIntro:true}));
+await page.waitForTimeout(1800);
+const start=await page.evaluate(()=>({map:window.__SX.mapId(), start:window.__G.player.pos.toArray().map(v=>+v.toFixed(1)), obj:window.__G.level.objectives.length, extract:window.__G.level.extraction.pos.toArray().map(v=>+v.toFixed(1))}));
+ok('V19 归途反向开局', start.map==='harbor' && start.obj===2 && Math.abs(start.start[0]-29)<2, start);
+await page.evaluate(()=>{ window.__SX.god(); window.__SX.cutAll(); });
+await page.waitForTimeout(3500);
+const boss=await page.evaluate(()=>{ const b=window.__G.enemies.list.find(e=>e.boss); return b?{hp:b.hp,max:b.maxHp,name:b.variant,bar:(document.querySelector('.x-boss-k')||{}).textContent}:null; });
+ok('V19 蜃·终形', !!boss && boss.hp===2600 && /终形/.test(boss.name||'') && /终形/.test(boss.bar||''), boss);
+await page.evaluate(()=>{ const G=window.__G,b=G.enemies.list.find(e=>e.boss); if(b) b.damage(99999,b.pos,new G.THREE.Vector3(0,0,1),'weak'); });
+await page.waitForTimeout(2500);
+const evac=await page.evaluate(()=>({evac:window.__G.game.run.evacT, bossAlive:window.__G.game.run.bossAlive}));
+ok('V19 终形 30 秒窗口', evac.bossAlive===false && evac.evac>25, evac);
+await page.evaluate(()=>{ window.__G.game.run.evacT=0.01; });
+await page.waitForTimeout(1200);
+await page.evaluate(()=>{ const G=window.__G,e=G.level.extraction.pos; G.player.pos.set(e.x,e.y,e.z); });
+let st='';
+for(let i=0;i<12;i++){ await page.waitForTimeout(2000); st=await page.evaluate(()=>window.__G.game.state); if(st==='complete') break; }
+await page.waitForTimeout(3500);
+const choices=await page.evaluate(()=>({state:window.__G.game.state, buttons:document.querySelectorAll('.x-end-choice [data-end]').length, note:(document.querySelector('.x-final')||{}).textContent}));
+ok('V19 结局选择', choices.state==='complete' && choices.buttons===2, choices);
+await page.evaluate(()=>document.querySelector('[data-end="silent"]').click());
+await page.waitForTimeout(500);
+const ending=await page.evaluate(()=>({text:(document.querySelector('.x-ending')||{}).innerText, ending:JSON.parse(localStorage.getItem('saltline.campaign.v1')||'{}').ending}));
+ok('V19 沉船结局', ending.ending==='silent' && /第 4 次/.test(ending.text||''), ending);
+ok('V19 无错误', errs.length===0, errs.slice(0,2));
+await page.screenshot({path:'tools/v19_ending.png',timeout:120000});
+await browser.close();
+console.log(fails?fails+' 项失败':'全部通过');
+process.exit(fails?1:0);
