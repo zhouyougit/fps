@@ -11,7 +11,9 @@ const LOG_DIR = path.join(ROOT, 'tools', 'logs');
 mkdirSync(LOG_DIR, { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const args = process.argv.slice(2);
-const mode = args.find(a => !a.startsWith('-')) || 'fast';
+const modeIdx = args.findIndex(a => !a.startsWith('-'));
+const mode = modeIdx >= 0 ? args[modeIdx] : 'fast';
+const moduleArg = modeIdx >= 0 ? (args[modeIdx + 1] || '') : '';
 const only = (args.find(a => a.startsWith('--only=')) || '').slice(7);
 
 const LINT = { name: 'lint', cmd: process.execPath, argv: ['tools/lint_tests.mjs'], timeout: 30000 };
@@ -41,10 +43,26 @@ if (only) {
   plan = [LINT, UNIT, FAST];
 } else if (mode === 'full') {
   plan = [LINT, UNIT, SUITE, V55, CHECK, E2E, SERVER];
+} else if (mode === 'module') {
+  const names = moduleArg.split(',').map(s => s.trim()).filter(Boolean);
+  const bad = names.filter(n => !DOMAINS[n]);
+  if (!names.length || bad.length) {
+    console.error('用法: node tools/run_tests.mjs module <ui,gameplay,map,net,visual,audio,save,perf>');
+    if (bad.length) console.error('未知模块: ' + bad.join(', '));
+    process.exit(2);
+  }
+  const seen = new Set();
+  const files = [];
+  for (const n of names) {
+    for (const f of DOMAINS[n]) {
+      if (!seen.has(f)) { seen.add(f); files.push(f); }
+    }
+  }
+  plan = [UNIT, ...files.map(f => ({ name: f.replace(/\.mjs$/, ''), cmd: process.execPath, argv: ['tools/' + f], timeout: 600000 }))];
 } else if (DOMAINS[mode]) {
   plan = [UNIT, ...DOMAINS[mode].map(f => ({ name: f.replace(/\.mjs$/, ''), cmd: process.execPath, argv: ['tools/' + f], timeout: 600000 }))];
 } else {
-  console.error('用法: node tools/run_tests.mjs [fast|full|ui|gameplay|map|net|visual|audio|save|perf|--only=tools/xxx.mjs]');
+  console.error('用法: node tools/run_tests.mjs [fast|module <ui,gameplay,map,net,visual,audio,save,perf>|full|--only=tools/xxx.mjs]');
   process.exit(2);
 }
 

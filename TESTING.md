@@ -1,19 +1,50 @@
 # 测试与开发流程（P0）
 
-## 一条命令
+## 验证分层（先选层，再跑）
 
-    npm run test:fast      # unit + 12 项状态驱动冒烟，约 25s
-    npm run test:full      # unit + 85 项 + V32–V40 + 双端 e2e + server
-    npm run test:domain ui # 某一域（ui/gameplay/map/net/visual/audio/save/perf）
-    npm run test:perf      # V41 性能回归：四图 ≤16.7ms + 灯池 ≤12
-    npm run test:config    # V42 配置/拆分/manifest 校验
-    npm run test:avatar    # V43 联机士兵模型/动作/截图
-    npm run test:drone     # V44 自杀无人机自爆伤害
+| 层 | 命令 | 典型耗时 | 适用 |
+|---|---|---|---|
+| L0 静态 | `npm run test:lint` + `npm run test:unit` | <1s | 改完任何代码先跑 |
+| L1 快速 | `npm run test:fast` | ~25s | 日常提交；lint + unit + 12 项冒烟 |
+| L2 模块 | `npm run test:module -- ui` / `gameplay,save` | 45–150s/模块 | 只改一个子系统 |
+| L2.5 服务器 | `npm run test:server` | 1–2min | 改 `server/`、协议、档案 |
+| L3 完全 | `npm run test:full` | ~19min | 发布前/大改；需另开 `npm run serve:test` |
+
+按需选择：
+
+| 改动 | 建议 |
+|---|---|
+| 文案 / UI / i18n / 设置 | `test:fast` + `test:module -- ui` |
+| 单模块玩法/BOSS/敌人 | `test:fast` + `test:module -- gameplay` |
+| 地图 / 切图 / 天空 | `test:fast` + `test:module -- map,visual` |
+| 存档 / 军械库 | `test:fast` + `test:module -- save` |
+| 联机客户端 / 协议 | `test:fast` + `test:module -- net`（服务端再跑 `test:server`） |
+| 音频 | `test:fast` + `test:module -- audio` |
+| 性能 / 灯池 / 画质 | `test:fast` + `test:module -- visual,perf` |
+| 发布 | `npm run serve:test` + `npm run test:full` |
+
+自动选层：
+
+    npm run test:plan              # 看当前 git 变更推荐哪层
+    npm run test:changed           # 自动跑 fast + 推荐模块 + server
+    npm run test:plan -- --base v55
+
+命令说明：
+
+    npm run test:fast              # lint + unit + 12 项状态驱动冒烟，约 25s
+    npm run test:module -- ui      # 单模块（ui/gameplay/map/net/visual/audio/save/perf）
+    npm run test:module -- ui,save # 多模块，自动去重
+    npm run test:server            # 服务器 profiles + round + net2
+    npm run test:full              # suite85 + V55 + 全版本 + e2e + server
+    npm run test:perf              # V41 性能回归
+    npm run test:config            # 配置/拆分/manifest
+    npm run test:avatar            # V43 联机士兵
+    npm run test:drone             # V55 自杀无人机
     node tools/run_tests.mjs --only=tools/test_v39_visual.mjs
 
 日志写在 `tools/logs/<时间>-<名字>.log`，退出码 0/1，末尾有耗时汇总。
 
-实测基线（V39，macOS Metal）：`test:fast` **22.8s**（unit 0.2s + fast 22.6s）；85 项全量约 **10–12 分钟**（SwiftShader 同一套约 30 分钟）。
+实测基线（V55，macOS Metal）：`test:fast` **~24s**；模块 ui ~123s / gameplay ~145s / map ~100s / net ~134s / visual ~122s / audio ~45s / save ~82s / perf ~49s；`test:full` **~1125s（约19分钟）**。
 
 ## GPU 模式（P0 最大收益）
 

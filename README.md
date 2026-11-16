@@ -287,11 +287,14 @@ profile 白名单：v32 … v55 / dev。无参数运行会打印用法并 exit 1
 
 ## 测试
 
-    npm run serve:test                              # 另开终端：3311 静态服务器（test:full 的 85 项需要）
-    npm run test:lint                               # 静态检查（测试参数/睡眠/本机路径/收尾）
+    npm run test:plan                               # 看当前 git 变更推荐哪层
+    npm run test:changed                            # 自动跑 fast + 推荐模块 + server
+    npm run test:lint                               # <1s：静态检查
     npm run test:fast                               # ~25s：lint + unit + 状态驱动冒烟（Metal）
-    npm run test:full                               # 发布前：85 项 + V55 专项 + V32–V55 + e2e + server
-    npm run test:domain ui                          # 只跑某一域
+    npm run test:module -- ui,save                  # 45–150s/模块：ui/gameplay/map/net/visual/audio/save/perf
+    npm run test:server                             # 1–2min：profiles + round + net2
+    npm run serve:test                              # 另开终端：3311 静态服务器（test:full 的 85 项需要）
+    npm run test:full                               # 发布前：85 项 + V55 专项 + V32–V55 + e2e + server（~19min）
     npm run test:v55                                # V55 专项：第三关无人机/未压缩/暂停/切图/LOD/存档/通关回写
 
 > 默认 macOS Metal GPU；测试规则、分层与 agent 约定见 [TESTING.md](TESTING.md)。

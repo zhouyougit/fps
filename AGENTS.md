@@ -37,15 +37,21 @@
 
 ## 3. 测试：默认 GPU + 状态驱动
 
-### 3.1 一条命令
+### 3.1 分层验证（按需选择，不要每次全量）
 
-    npm run test:fast        # lint + unit + 12 项浏览器冒烟，约 20s
-    npm run serve:test       # 另开终端；test:full 的 85 项默认连 127.0.0.1:3311
-    npm run test:full        # unit + 85 项 + V55 专项 + V32–V55 版本 + 双端 e2e + server
-    npm run test:domain ui   # ui/gameplay/map/net/visual/audio/save/perf
-    node tools/run_tests.mjs --only=tools/test_v39_visual.mjs
+| 层 | 命令 | 耗时 | 用途 |
+|---|---|---|---|
+| L0 静态 | `npm run test:lint` / `npm run test:unit` | <1s | 改完先跑 |
+| L1 快速 | `npm run test:fast` | ~25s | 日常；lint + unit + 12 冒烟 |
+| L2 模块 | `npm run test:module -- ui` / `ui,save` | 45–150s/模块 | 只改一个子系统 |
+| L2.5 服务器 | `npm run test:server` | 1–2min | server/协议/档案 |
+| L3 完全 | `npm run test:full` | ~19min | 发布前/大改 |
 
-日志：`tools/logs/<时间>-<名字>.log`，runner 会输出耗时汇总并以 0/1 退出。
+- 自动选层：`npm run test:plan` 看变更推荐；`npm run test:changed` 自动跑 fast + 模块 + server。
+- 单模块：ui / gameplay / map / net / visual / audio / save / perf；多模块用逗号，runner 去重。
+- `test:full` 的 85 项默认连 `127.0.0.1:3311`，先另开 `npm run serve:test`。
+- `test:full` 只在发布前/跨模块大改时跑；日常不要用它“保险”。
+- 日志：`tools/logs/<时间>-<名字>.log`，runner 输出耗时汇总并以 0/1 退出。
 
 ### 3.2 GPU 是最大加速项（实测）
 
@@ -72,8 +78,9 @@
 
 ### 3.4 全量 vs 快速
 
-- 改一行 UI / 文案 / 单模块：`test:fast` + 本域（如 `test:domain ui`）。
-- 改地图/协议/存档/核心循环：对应域 + `test:fast`。
+- 改一行 UI / 文案 / 单模块：`test:fast` + `test:module -- ui`（或对应模块）。
+- 改地图/协议/存档/核心循环：对应模块 + `test:fast`；`server/` 再跑 `test:server`。
+- 不确定/跨模块：先 `test:plan`，再 `test:changed` 自动选层。
 - 版本收尾/发版：`test:full`，85 项全绿才留档。
 - 85 项在 Metal 下约 9–11 分钟；SwiftShader 约 30 分钟。不要因为“保险”每改一行跑全量。
 
@@ -231,7 +238,7 @@
 ## 9. Definition of Done
 
 - [ ] `npm run test:fast` 绿（lint + unit + 12 项）。
-- [ ] 受影响域测试绿；发布前 `npm run test:full` 85/85。
+- [ ] 受影响模块测试绿（`test:module`/`test:server`）；发布前 `npm run test:full` 85/85。
 - [ ] 没有新增 pageerror / `window.__errors`。
 - [ ] 构建 target/profile 正确，V55 最终产物未压缩（约 3.69MB），`__VERSION_LABEL` 正确。
 - [ ] 新文案中英同键、`missing()===0`。
