@@ -1536,8 +1536,9 @@ async function testOps() {
       { dropped, queueFull }
     );
     ok(
-      '队列满拒绝后 lastQueuedSeq 不推进（ack 仅前 4 条左右）',
-      ackBefore >= 1 && ackBefore <= 6,
+      '队列满拒绝后 lastQueuedSeq 不推进（ack 未追平全部 12 条）',
+      // SRV-9 有界追赶会在 700ms 内多消费几条；关键是不能把 12 条全部接受。
+      ackBefore >= 1 && ackBefore < 12,
       { ackBefore, dropped }
     );
     const nextSeq = ackBefore + 1;

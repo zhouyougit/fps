@@ -5,7 +5,7 @@ three.js 与全部资产程序化内联，双击即玩；联机模式通过 60Hz
 
 ## 立即游玩
 
-- **最新版**：[几猫_V54.html](versions/几猫_V54.html)（收敛，2.22MB）
+- **最新版**：[几猫_V54.html](versions/几猫_V54.html)（收敛，未压缩）
 - 上一版：[几猫_V53.html](versions/几猫_V53.html) · 收口版：[几猫_V52.html](versions/几猫_V52.html) · 可读版：[几猫_V51.html](versions/几猫_V51.html) · 设置版：[几猫_V50.html](versions/几猫_V50.html) · 视距版：[几猫_V49.html](versions/几猫_V49.html) · 稳定版：[几猫_V48.html](versions/几猫_V48.html) · 打磨版：[几猫_V47.html](versions/几猫_V47.html) · 内存版：[几猫_V46.html](versions/几猫_V46.html) · 精简版：[几猫_V45.html](versions/几猫_V45.html) · 平衡版：[几猫_V44.html](versions/几猫_V44.html) · 角色版：[几猫_V43.html](versions/几猫_V43.html) · 架构版：[几猫_V42.html](versions/几猫_V42.html) · 性能版：[几猫_V41.html](versions/几猫_V41.html) · 地图版：[几猫_V40.html](versions/几猫_V40.html)
 - 历史：[几猫_V39.html](versions/几猫_V39.html) · [几猫_V38.html](versions/几猫_V38.html) · [几猫_V37.html](versions/几猫_V37.html) · [几猫_V36.html](versions/几猫_V36.html) · [几猫_V35.html](versions/几猫_V35.html) · [几猫_V34.html](versions/几猫_V34.html) · [几猫_V33.html](versions/几猫_V33.html) · [几猫_V32.html](versions/几猫_V32.html)
 - 开发构建：[game.html](game.html)
@@ -276,14 +276,14 @@ Chrome / Edge，建议 1280×720 以上；支持鼠标键盘、手柄与触屏�
 
 ## 构建
 
-    npm run build          # game.html（V54 开发构建，默认 --minify）
-    npm run build:release  # versions/几猫_V54.html（显式 profile v54，--minify）
-    node tools/build.cjs "versions/几猫_V54.html" v54 --minify
-    node tools/build.cjs game.html v54                 # 调试构建：不压缩，保留可读行号
+    npm run build          # game.html（V54 开发构建，未压缩）
+    npm run build:release  # versions/几猫_V54.html（显式 profile v54，未压缩）
+    node tools/build.cjs "versions/几猫_V54.html" v54
+    node tools/build.cjs game.html v54                 # 保留可读行号；项目没有尺寸限制
 
 历史快照保护：目标在 `versions/` 下且已存在时，构建会拒绝覆盖并以非 0 退出；确需重建请显式追加 `--force`。V32–V53 的快照保持只读。
 profile 白名单：v32 … v54 / dev。无参数运行会打印用法并 exit 1，不会覆盖 game.html。
-构建体积预算：V54 收紧到 **3.5MB**（当前 2.22MB，minify 后 gzip 约 715KB）。`--minify` 使用 terser 对每个内联 script 单独压缩（保留全局名）；每次构建都会打印 head/game.js/sim/net/core/ext/features 明细，并把 `commit`、three.js 版本与 `minified` 写入 `window.__BUILD__`。
+构建体积：项目**没有尺寸限制**，V54 最终产物不压缩（约 3.69MB）；`tools/build.cjs --minify` 仍作为可选的实验能力保留，但 `npm run build` / `build:release` 默认不使用。每次构建都会打印 head/game.js/sim/net/core/ext/features 明细，并把 `commit`、three.js 版本与 `minified` 写入 `window.__BUILD__`。
 
 ## 测试
 
@@ -292,7 +292,7 @@ profile 白名单：v32 … v54 / dev。无参数运行会打印用法并 exit 1
     npm run test:fast                               # ~25s：lint + unit + 状态驱动冒烟（Metal）
     npm run test:full                               # 发布前：85 项 + V54 专项 + V32–V54 + e2e + server
     npm run test:domain ui                          # 只跑某一域
-    npm run test:v54                                # V54 专项：体积/minify/暂停/切图/LOD/存档/通关回写
+    npm run test:v54                                # V54 专项：未压缩产物/暂停/切图/LOD/存档/通关回写
 
 > 默认 macOS Metal GPU；测试规则、分层与 agent 约定见 [TESTING.md](TESTING.md)。
 
@@ -350,7 +350,7 @@ NUC（Ubuntu 24.04，Node 24）：
 
 - 引擎 nav 网格仍是港区固定范围（x -40..31 / z -32..30，东侧 x>29.5 被 quay 边界挡住）；扩建区主要作为玩家探索/视觉区，玩法点保持在 nav 可达区。
 
-- 单文件 **2.22MB**（V54 minified，预算 3.5MB；gzip 约 715KB），首次编译着色器在低端设备仍可能卡顿；
+- 单文件 **约 3.69MB（V54 未压缩，无尺寸限制）**，首次编译着色器在低端设备仍可能卡顿；
 - 引擎/玩法已按 V42 拆到 `src/game/` 6 个片段（three.js 仍是 vendor 压缩包，未按类拆分）；
 - 部分模型为程序化简化体块；新机体复用飞鸦/猎犬骨架；BOSS 骨架有限；
 - TAA-lite 已在 V39 真正启用（medium+），低画质仍走 FXAA；远级阴影用逐光源 shadowRadius 退化为 pcf-lite；

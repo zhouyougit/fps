@@ -46,7 +46,7 @@
 ## 分层
 
 - `tools/test_fast.mjs`：启动、6 枪、8 关、固定步哈希、4/5/6 槽、新机体、m7 图、滑铲、语言、pageerror。
-- `tools/test_v54_acceptance.mjs`：V54 体积/minified、暂停时钟、四图海面/天空、LOD 恢复、存档旧键镜像、通关回写、pageerror；已加入 `test:full`。
+- `tools/test_v54_acceptance.mjs`：V54 未压缩产物、暂停时钟、四图海面/天空、LOD 恢复、存档旧键镜像、通关回写、pageerror；已加入 `test:full`。
 - `test:full` 的 85 项默认连 `127.0.0.1:3311`，先另开终端跑 `npm run serve:test`。
 - 域测试：按改动选一个域，不要每次 85 项。
 - `test_suite.mjs`：发布前 85 项全量；V32–V54 复现用 `check_versions.mjs --all`。

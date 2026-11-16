@@ -20,7 +20,7 @@
 | 架构 | ARCH-1 钩子表 | 至少把 `game.update/render.frame/enemies.update/hud.radio` 的包覆顺序显式化 |
 | 架构 | ARCH-4 卸载 | 给系统/事件加 dispose 测试路径，服务测试隔离；不改生产生命周期 |
 | 本地化 | I18N 全量 | campaign/mp/armory/ext_boss2/ext_net2/access/boss/training；修 ext.js 中文前缀识别 |
-| 工程 | ENG-6 压缩 | 当前 3.62MB；引入 build-only terser，目标 ≤3.5MB |
+| 工程 | ENG-6 构建策略 | 用户明确不要压缩、无尺寸限制；保留可选 `--minify` 但不用于发布 |
 | 工程 | ENG-8 清理 | 235MB mapwork shots、87MB tools 截图、41MB npm cache、23MB 根目录旧构建 |
 | 测试 | TEST-3 归档 | 88 个孤儿测试移入 legacy 目录，lint/inventory 清零噪声 |
 | 联机 | NET-5 snapRate | 客户端真正使用 `welcome.snapRate`，插值缓冲按快照率计算 |
@@ -47,7 +47,7 @@
 - ARCH-2：高频模块空 catch 清零；`SXErrors.counts().bySoft` 可观测。
 - ARCH-1：5 个热点的包覆顺序由显式优先级决定；重复 init 不叠层。
 - I18N：`missing()===0`，中英键一致；EN 下 campaign/mp/armory 无中文正文。
-- ENG-6：V54 产物 ≤3.5MB（minified release），gzip ≤800KB。
+- ENG-6：V54 最终产物不压缩（约 3.69MB），`__BUILD__.minified=false`。
 - ENG-8：工作区从约 650MB 降到 ≤250MB，保留 `versions/screens`。
 - TEST-3：`tools/test_*.mjs` 只剩被引用/当前测试；legacy 有 README。
 - NET-5：客户端 `snapRate` 生效，插值延迟按 1/snapRate 计算；net 单测通过。
@@ -58,14 +58,14 @@
 2. **并行**：I18N 全量（campaign/mp/armory/...）；ARCH-2 空 catch（高频模块）；perf 测量工具。
 3. **性能修复**：按采样结果改 PERF-1/2/3/7；每项单独构建/测量。
 4. **架构**：ARCH-1 钩子表、ARCH-4 dispose、NET-5 snapRate。
-5. **工程**：ENG-6 minify、ENG-8 清理、TEST-3 归档。
+5. **工程**：ENG-6 构建策略（不压缩）、ENG-8 清理、TEST-3 归档。
 6. **验收**：V54 构建 + `test:fast` + 域测试 + `test:full` + `check_versions --all`；更新 CHANGELOG/README/状态文档；tag `v54`。
 
 ## 4. 状态（已完成）
 
 | 项 | 状态 | 证据 |
 |---|---|---|
-| ENG-6 minify | ✅ | 2.22MB/gzip 715KB；预算 3.5MB；`__BUILD__.minified=true` |
+| ENG-6 构建策略 | ✅ | 按用户要求不压缩：约 3.69MB；`build`/`build:release` 不再加 `--minify`；`__BUILD__.minified=false` |
 | I18N 全量 | ✅ | 1107 键/语言、missing=0；`test_v39_i18n` 20/20；EN 战役/军械库/BOSS/训练/联机 |
 | ARCH-2 空 catch | ✅ | 10 模块 174→6 处纯日志白名单；168 个 soft 标签；单测 8/8 |
 | ARCH-1 短期标记 | ✅ | 8 个包覆迁宿主对象、先标记后包覆；完整钩子表留 V55 |
@@ -85,6 +85,6 @@
 
 - 单元 210/210；`test:fast` 12/12；V54 专项 14/14；UI/i18n 20/20；net 域全绿。
 - 高性能：medium 四图 12.1/13.1/9.8/9.7ms；high 16.1/16.0/12/12ms；alloc 51–61MB/s；high 门禁 36/36。
-- 全量 `test:full` **exit 0，1112.2s**；`versions` **161/161**；e2e 9/9；server 64+31+110。
+- 全量 `test:full` **exit 0，1144.2s**；`versions` **161/161**；e2e 9/9；server 64+31+110。
 - 工作区清理：dry-run 429MB，`--apply` 已执行；约 650MB→421MB（含 .git 124MB、versions 247MB）。
 

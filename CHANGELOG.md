@@ -2,12 +2,12 @@
 
 ## V54 · 收敛（当前）
 
-V54 只收敛 V53 未完成项，不新增玩法。重点是 **体积/本地化/可观测性**：发布产物从 3.62MB 降到 2.22MB，EN 正文补齐，性能门禁和清理工具落地。
+V54 只收敛 V53 未完成项，不新增玩法。重点是 **本地化/可观测性/性能门禁/仓库清理**；按用户要求，最终产物**不压缩、无尺寸限制**（约 3.69MB）。
 
 ### 构建与体积（ENG-6）
-- `tools/build.cjs` 新增 `--minify`：独立 minify 每个内联 script（保留全局名），terser 为 devDependency。
-- V54 产物 **2,273.6KB / 2.22MB**（V53 3.62MB），gzip 约 **715KB**；预算收紧到 3.5MB。
-- `__BUILD__` 增加 `minified`；`build`/`build:release` 默认 minify，调试可手动不加参数。
+- `tools/build.cjs` 保留可选 `--minify`（terser 逐 script、保留全局名），但
+  `build`/`build:release` **默认不压缩**；V54 最终产物 **约 3.69MB**，无尺寸限制。
+- `__BUILD__` 记录 `minified=false`；需要实验压缩时手动加 `--minify`。
 
 ### 本地化（I18N 全量）
 - campaign / mp / armory / ext_boss2 / ext_net2 / access / boss / training / ext.js 全部接入 `SXI18n`；词典 1107 键/语言，中英同键、missing=0。
@@ -32,7 +32,7 @@ V54 只收敛 V53 未完成项，不新增玩法。重点是 **体积/本地化/
 ### 验证
 - 单元 210/210；`test:fast` 12/12；V54 专项 14/14；UI/i18n 20/20；save/map/gameplay/visual/audio/perf/net 全绿。
 - 服务器 profiles/round/net2 64+31+110 全绿；双端 e2e 9/9；`check_versions --all` **161/161**（含 V54）。
-- 全量 `test:full` **exit 0，1112.2s**（lint/unit/suite85 85/v54/versions 161/e2e 9/server；需 `serve:test` 3311）。
+- 全量 `test:full` **exit 0，1144.2s**（lint/unit/suite85 85/v54 14/versions 161/e2e 9/server；需 `serve:test` 3311）。
 
 ### 仍未做（V55 候选）
 - PERF-1：three.js `getProgramCacheKey`/uniform cache 每帧分配，属 vendor 引擎内部；不改内核只能做外围小修。

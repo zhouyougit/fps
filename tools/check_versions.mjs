@@ -2,7 +2,7 @@
 /* 产物校验：versions/几猫_V32..V44.html
    - __BUILD__.profile / window.__SX_PROFILE 与文件名一致
    - __VERSION_LABEL 与 profile 匹配
-   - 体积 <= 3.5MB
+   - 体积按 EXPECT 的 budget 校验（V54 未压缩，用 6MB 保护）
    - 无头运行时：V32 = 3 把武器，V33 = 6 关（--all 时 V34+ = 6 把 / 8 关）
    用法：node tools/check_versions.mjs [--no-browser] [--all]
    V37/V38 产物尚未生成时跳过（其余版本缺失视为失败）。 */
@@ -42,7 +42,7 @@ const EXPECT = [
   { profile: 'v51', file: '几猫_V51.html', label: 'V51 · 可读', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 },
   { profile: 'v52', file: '几猫_V52.html', label: 'V52 · 收口', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 },
   { profile: 'v53', file: '几猫_V53.html', label: 'V53 · 改进', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 },
-  { profile: 'v54', file: '几猫_V54.html', label: 'V54 · 收敛', weapons: 6, missions: 8, budget: 3.5 * 1024 * 1024 }
+  { profile: 'v54', file: '几猫_V54.html', label: 'V54 · 收敛', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 }
 ];
 const WEAPON_IDS = ['pac9', 'breaker12', 'dmr', 'smg', 'lmg', 'sidearm'];
 

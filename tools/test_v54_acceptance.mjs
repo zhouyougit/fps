@@ -3,7 +3,7 @@
    SALTLINE · tools/test_v54_acceptance.mjs
    V54 功能验收（浏览器）：
      1. 产物标签/版本/three 版本/commit/minified 元数据
-     2. 体积 ≤3.5MB（ENG-6）
+     2. 最终产物按项目要求不压缩（minified=false）
      3. SXErrors.soft、暂停时钟、四图海面、LOD 恢复、存档镜像（V53 回归）
      4. 通关 complete 后解锁下一关/最佳成绩（V52 老 bug）
      5. 无 pageerror / window.__errors
@@ -36,7 +36,7 @@ try {
   const bytes = (() => { try { return fs.statSync(artifact).size; } catch (e) { return 0; } })();
   ok('产物为 V54 且版本 0.54.0', /^V54\b/.test(env.label || '') && env.build && env.build.version === '0.54.0', env);
   ok('构建元数据含 three r180 / 非 local commit', env.build && env.build.three === 'r180' && env.build.commit && env.build.commit !== 'local', env.build);
-  ok('V54 release 已 minify 且 ≤3.5MB', env.build && env.build.minified === true && bytes > 0 && bytes <= 3.5 * 1024 * 1024, { bytes, minified: env.build && env.build.minified });
+  ok('V54 最终产物未压缩（无尺寸限制）', env.build && env.build.minified === false && bytes > 0, { bytes, minified: env.build && env.build.minified });
   ok('SXErrors.soft 存在', env.soft);
 
   // CLI-2：暂停后 CLOCK 不应被 ext.update 推进
