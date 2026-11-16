@@ -47,11 +47,11 @@
     },
 
     enemies: {
-      // V44：自杀无人机（drone）自爆。玩家实际承伤 = explodeDamage * 0.5，
-      // 旧值 62 → 玩家中心 31；现 44 → 22，仍保留范围威胁。
+      // V44：自杀无人机（drone）自爆。玩家实际承伤 = explodeDamage * 0.5。
+      // V55：第三关 BOSS 战反馈无人机过强；44→36（玩家 22→18），半径 4.4→4.0。
       suicideDrone: {
-        explodeDamage: 44,
-        explodeRadius: 4.4,
+        explodeDamage: 36,
+        explodeRadius: 4.0,
         speed: 10.5,
         triggerRadius: 1.9,
         triggerDistance: 1.5

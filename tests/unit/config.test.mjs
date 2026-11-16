@@ -58,8 +58,8 @@ test("V42 配置层：平衡参数覆盖玩家/任务/敌人/移动/灯光", () 
     assert.ok(B.enemies.variants[id], "缺敌人变体 " + id);
     assert.ok(B.enemies.variants[id].hp > 0);
   }
-  assert.equal(B.enemies.suicideDrone.explodeDamage, 44);
-  assert.equal(B.enemies.suicideDrone.explodeRadius, 4.4);
+  assert.equal(B.enemies.suicideDrone.explodeDamage, 36);
+  assert.equal(B.enemies.suicideDrone.explodeRadius, 4.0);
   assert.equal(B.movement.slide.startSpeed, 7.6);
   assert.equal(B.movement.vault.maxRise, 1.3);
   assert.equal(B.lights.pool, 8);

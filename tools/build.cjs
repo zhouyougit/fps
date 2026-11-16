@@ -14,7 +14,7 @@ const { execSync } = require('child_process');
 const root = path.join(__dirname, '..');
 const pkg = require(path.join(root, 'package.json'));
 
-const PROFILES = ['v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'v42', 'v43', 'v44', 'v45', 'v46', 'v47', 'v48', 'v49', 'v50', 'v51', 'v52', 'v53', 'v54', 'dev'];
+const PROFILES = ['v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'v42', 'v43', 'v44', 'v45', 'v46', 'v47', 'v48', 'v49', 'v50', 'v51', 'v52', 'v53', 'v54', 'v55', 'dev'];
 const LABELS = {
   v32: 'V32 · 地基',
   v33: 'V33 · 手感',
@@ -38,7 +38,8 @@ const LABELS = {
   v51: 'V51 · 可读',
   v52: 'V52 · 收口',
   v53: 'V53 · 改进',
-  v54: 'V54 · 收敛'
+  v54: 'V54 · 收敛',
+  v55: 'V55 · 平衡'
 };
 // V40 地图深化：用户明确允许放宽单文件体积，先完成地图细节，后续再统一优化。
 // 当前约 3.54MB；预算临时放宽到 6MB，仅作为失控保护，不是质量目标。
@@ -199,6 +200,7 @@ const FEATURE_SETS = {
   v52: V41_FEATURES,
   v53: V41_FEATURES,
   v54: V41_FEATURES,
+  v55: V41_FEATURES,
 };
 let features = '';
 if (profile === 'dev') {

@@ -1,12 +1,12 @@
 # 几猫 · SALTLINE
 
-单文件 3D FPS，在原型《几猫国产3A大作 V1》上持续迭代 54 轮（V41 性能 / V42 架构 / V43 角色 / V44 平衡 / V45 精简 / V46 内存 / V47 打磨 / V48 稳定 / V49 视距 / V50 设置 / V51 可读 / V52 收口 / V53 改进 / V54 收敛）。
+单文件 3D FPS，在原型《几猫国产3A大作 V1》上持续迭代 55 轮（V41 性能 / V42 架构 / V43 角色 / V44 平衡 / V45 精简 / V46 内存 / V47 打磨 / V48 稳定 / V49 视距 / V50 设置 / V51 可读 / V52 收口 / V53 改进 / V54 收敛 / V55 平衡）。
 three.js 与全部资产程序化内联，双击即玩；联机模式通过 60Hz 权威服务器中转，协议 2.0 支持二进制增量快照与客户端预测。
 
 ## 立即游玩
 
-- **最新版**：[几猫_V54.html](versions/几猫_V54.html)（收敛，未压缩）
-- 上一版：[几猫_V53.html](versions/几猫_V53.html) · 收口版：[几猫_V52.html](versions/几猫_V52.html) · 可读版：[几猫_V51.html](versions/几猫_V51.html) · 设置版：[几猫_V50.html](versions/几猫_V50.html) · 视距版：[几猫_V49.html](versions/几猫_V49.html) · 稳定版：[几猫_V48.html](versions/几猫_V48.html) · 打磨版：[几猫_V47.html](versions/几猫_V47.html) · 内存版：[几猫_V46.html](versions/几猫_V46.html) · 精简版：[几猫_V45.html](versions/几猫_V45.html) · 平衡版：[几猫_V44.html](versions/几猫_V44.html) · 角色版：[几猫_V43.html](versions/几猫_V43.html) · 架构版：[几猫_V42.html](versions/几猫_V42.html) · 性能版：[几猫_V41.html](versions/几猫_V41.html) · 地图版：[几猫_V40.html](versions/几猫_V40.html)
+- **最新版**：[几猫_V55.html](versions/几猫_V55.html)（平衡，未压缩）
+- 上一版：[几猫_V54.html](versions/几猫_V54.html) · [几猫_V53.html](versions/几猫_V53.html) · 收口版：[几猫_V52.html](versions/几猫_V52.html) · 可读版：[几猫_V51.html](versions/几猫_V51.html) · 设置版：[几猫_V50.html](versions/几猫_V50.html) · 视距版：[几猫_V49.html](versions/几猫_V49.html) · 稳定版：[几猫_V48.html](versions/几猫_V48.html) · 打磨版：[几猫_V47.html](versions/几猫_V47.html) · 内存版：[几猫_V46.html](versions/几猫_V46.html) · 精简版：[几猫_V45.html](versions/几猫_V45.html) · 平衡版：[几猫_V44.html](versions/几猫_V44.html) · 角色版：[几猫_V43.html](versions/几猫_V43.html) · 架构版：[几猫_V42.html](versions/几猫_V42.html) · 性能版：[几猫_V41.html](versions/几猫_V41.html) · 地图版：[几猫_V40.html](versions/几猫_V40.html)
 - 历史：[几猫_V39.html](versions/几猫_V39.html) · [几猫_V38.html](versions/几猫_V38.html) · [几猫_V37.html](versions/几猫_V37.html) · [几猫_V36.html](versions/几猫_V36.html) · [几猫_V35.html](versions/几猫_V35.html) · [几猫_V34.html](versions/几猫_V34.html) · [几猫_V33.html](versions/几猫_V33.html) · [几猫_V32.html](versions/几猫_V32.html)
 - 开发构建：[game.html](game.html)
 
@@ -276,23 +276,23 @@ Chrome / Edge，建议 1280×720 以上；支持鼠标键盘、手柄与触屏�
 
 ## 构建
 
-    npm run build          # game.html（V54 开发构建，未压缩）
-    npm run build:release  # versions/几猫_V54.html（显式 profile v54，未压缩）
-    node tools/build.cjs "versions/几猫_V54.html" v54
-    node tools/build.cjs game.html v54                 # 保留可读行号；项目没有尺寸限制
+    npm run build          # game.html（V55 开发构建，未压缩）
+    npm run build:release  # versions/几猫_V55.html（显式 profile v55，未压缩）
+    node tools/build.cjs "versions/几猫_V55.html" v55
+    node tools/build.cjs game.html v55                 # 保留可读行号；项目没有尺寸限制
 
 历史快照保护：目标在 `versions/` 下且已存在时，构建会拒绝覆盖并以非 0 退出；确需重建请显式追加 `--force`。V32–V53 的快照保持只读。
-profile 白名单：v32 … v54 / dev。无参数运行会打印用法并 exit 1，不会覆盖 game.html。
-构建体积：项目**没有尺寸限制**，V54 最终产物不压缩（约 3.69MB）；`tools/build.cjs --minify` 仍作为可选的实验能力保留，但 `npm run build` / `build:release` 默认不使用。每次构建都会打印 head/game.js/sim/net/core/ext/features 明细，并把 `commit`、three.js 版本与 `minified` 写入 `window.__BUILD__`。
+profile 白名单：v32 … v55 / dev。无参数运行会打印用法并 exit 1，不会覆盖 game.html。
+构建体积：项目**没有尺寸限制**，V55 最终产物不压缩（约 3.69MB）；`tools/build.cjs --minify` 仍作为可选的实验能力保留，但 `npm run build` / `build:release` 默认不使用。每次构建都会打印 head/game.js/sim/net/core/ext/features 明细，并把 `commit`、three.js 版本与 `minified` 写入 `window.__BUILD__`。
 
 ## 测试
 
     npm run serve:test                              # 另开终端：3311 静态服务器（test:full 的 85 项需要）
     npm run test:lint                               # 静态检查（测试参数/睡眠/本机路径/收尾）
     npm run test:fast                               # ~25s：lint + unit + 状态驱动冒烟（Metal）
-    npm run test:full                               # 发布前：85 项 + V54 专项 + V32–V54 + e2e + server
+    npm run test:full                               # 发布前：85 项 + V55 专项 + V32–V55 + e2e + server
     npm run test:domain ui                          # 只跑某一域
-    npm run test:v54                                # V54 专项：未压缩产物/暂停/切图/LOD/存档/通关回写
+    npm run test:v55                                # V55 专项：第三关无人机/未压缩/暂停/切图/LOD/存档/通关回写
 
 > 默认 macOS Metal GPU；测试规则、分层与 agent 约定见 [TESTING.md](TESTING.md)。
 
@@ -326,7 +326,7 @@ profile 白名单：v32 … v54 / dev。无参数运行会打印用法并 exit 1
     node tools/test_v38_mp_perf.mjs                  # V38 联机性能 20 项
     node tools/test_v38_ui_polish.mjs                # V38 界面/本地化 14 项
     node tools/test_v38_armory_sim.mjs               # V38 军械/模拟 17 项
-    node tools/check_versions.mjs --all              # V32–V54 产物复现（161 项）
+    node tools/check_versions.mjs --all              # V32–V55 产物复现（约 163 项）
     node tools/test_v39_visual.mjs                   # V39 TAA/探针/阴影 13 项
     node tools/test_v39_i18n.mjs                     # V39 军械/联机本地化 18 项
     node tools/test_v39_mp_e2e2.mjs                  # V39 双浏览器联机 e2e 9 项
@@ -350,7 +350,7 @@ NUC（Ubuntu 24.04，Node 24）：
 
 - 引擎 nav 网格仍是港区固定范围（x -40..31 / z -32..30，东侧 x>29.5 被 quay 边界挡住）；扩建区主要作为玩家探索/视觉区，玩法点保持在 nav 可达区。
 
-- 单文件 **约 3.69MB（V54 未压缩，无尺寸限制）**，首次编译着色器在低端设备仍可能卡顿；
+- 单文件 **约 3.69MB（V55 未压缩，无尺寸限制）**，首次编译着色器在低端设备仍可能卡顿；
 - 引擎/玩法已按 V42 拆到 `src/game/` 6 个片段（three.js 仍是 vendor 压缩包，未按类拆分）；
 - 部分模型为程序化简化体块；新机体复用飞鸦/猎犬骨架；BOSS 骨架有限；
 - TAA-lite 已在 V39 真正启用（medium+），低画质仍走 FXAA；远级阴影用逐光源 shadowRadius 退化为 pcf-lite；

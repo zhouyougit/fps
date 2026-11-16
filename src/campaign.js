@@ -54,7 +54,8 @@
       goal: "切断码头四处中继", extractText: "前往撤离艇",
       relays: [{ id: "c", label: "码头中继 · 中" }, { id: "e", label: "码头中继 · 北" }, { id: "a", label: "堆场中继 · 西" }, { id: "f", label: "装卸口中继 · 南" }],
       extraction: { x: 29, z: 20 },
-      waves: [{ gull: 3, hound: 2, drone: 2 }, { gull: 4, hound: 3, drone: 2, elite: 1, marksman: 1 }, { gull: 4, hound: 3, drone: 3, elite: 2, marksman: 2, heavy: 2 }],
+      // V55：第三关 BOSS 战无人机减量（2/2/3 → 1/1/2），配合全局自爆伤害 44→36。
+      waves: [{ gull: 3, hound: 2, drone: 1 }, { gull: 4, hound: 3, drone: 1, elite: 1, marksman: 1 }, { gull: 4, hound: 3, drone: 2, elite: 2, marksman: 2, heavy: 2 }],
       patrol: { gull: 3, hound: 2 }, maxAlive: 10, damageScale: 1.16, hpScale: 1.12,
       rain: 0.35, exposure: 1.08, saturation: 1.04, evac: 0, boss: true,
       env: { sun: [0.75, 0.1, -0.65], zen: [0.05, 0.07, 0.15], hor: [1.0, 0.5, 0.36], away: [0.13, 0.15, 0.24], col: [1, 0.55, 0.36], light: 0xffc9a8, intensity: 6.5, exposure: 1.06, envIntensity: 2.1, rain: 0.2 },

@@ -19,7 +19,7 @@ const UNIT = { name: 'unit', cmd: process.execPath, argv: ['--test', 'tests/unit
 const FAST = { name: 'fast', cmd: process.execPath, argv: ['tools/test_fast.mjs'], timeout: 180000 };
 const SUITE = { name: 'suite85', cmd: process.execPath, argv: ['tools/test_suite.mjs'], timeout: 2400000 };
 const CHECK = { name: 'versions', cmd: process.execPath, argv: ['tools/check_versions.mjs', '--all'], timeout: 900000 };
-const V54 = { name: 'v54', cmd: process.execPath, argv: ['tools/test_v54_acceptance.mjs'], timeout: 180000 };
+const V55 = { name: 'v55', cmd: process.execPath, argv: ['tools/test_v55_acceptance.mjs'], timeout: 180000 };
 const E2E = { name: 'mp-e2e', cmd: process.execPath, argv: ['tools/test_v39_mp_e2e2.mjs'], timeout: 600000 };
 const SERVER = { name: 'server', cmd: process.execPath, argv: ['tools/run_server_tests.mjs'], timeout: 600000 };
 
@@ -40,7 +40,7 @@ if (only) {
 } else if (mode === 'fast') {
   plan = [LINT, UNIT, FAST];
 } else if (mode === 'full') {
-  plan = [LINT, UNIT, SUITE, V54, CHECK, E2E, SERVER];
+  plan = [LINT, UNIT, SUITE, V55, CHECK, E2E, SERVER];
 } else if (DOMAINS[mode]) {
   plan = [UNIT, ...DOMAINS[mode].map(f => ({ name: f.replace(/\.mjs$/, ''), cmd: process.execPath, argv: ['tools/' + f], timeout: 600000 }))];
 } else {

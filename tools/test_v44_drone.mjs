@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* V44 · 自杀无人机（drone）自爆伤害回归
-   验证：config 的 enemies.suicideDrone.explodeDamage = 44；
-   实际近身自爆对满血玩家的伤害显著低于旧值 62（旧≈20，新≈14–16）。 */
+   验证：config 的 enemies.suicideDrone.explodeDamage = 36（V55 下调）；
+   实际近身自爆对满血玩家的伤害显著低于旧值 62（V44 44≈15.7，V55 36≈12.9）。 */
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
@@ -35,10 +35,10 @@ const out = await page.evaluate(async () => {
 });
 let pass = 0, fail = 0;
 const ok = (n, c, d) => { if (c) { pass++; console.log('PASS · ' + n + (d ? ' — ' + JSON.stringify(d) : '')); } else { fail++; console.log('FAIL · ' + n + (d ? ' — ' + JSON.stringify(d) : '')); } };
-ok('config suicideDrone.explodeDamage = 44', out.cfg && out.cfg.explodeDamage === 44, out.cfg);
-ok('config suicideDrone.explodeRadius = 4.4', out.cfg && out.cfg.explodeRadius === 4.4, out.cfg);
+ok('config suicideDrone.explodeDamage = 36', out.cfg && out.cfg.explodeDamage === 36, out.cfg);
+ok('config suicideDrone.explodeRadius = 4.0', out.cfg && out.cfg.explodeRadius === 4.0, out.cfg);
 ok('无人机近身自爆（已退役/死亡）', out.alive === false || out.active === false, out);
-ok('满血玩家近身自爆伤害 < 18（旧 62 时约 20+）', out.loss > 6 && out.loss < 18, { loss: out.loss, before: out.before, after: out.after });
+ok('满血玩家近身自爆伤害 < 16（V55 36 / 旧 62 时约 20+）', out.loss > 4 && out.loss < 16, { loss: out.loss, before: out.before, after: out.after });
 ok('无 pageerror', errs.length === 0, errs.slice(0, 3));
 console.log(pass + ' PASS / ' + fail + ' FAIL');
 await Promise.race([browser.close(), new Promise(r => setTimeout(r, 3000))]);
