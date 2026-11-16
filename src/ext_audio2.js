@@ -6,6 +6,23 @@
      ===================================================================== */
   (function () {
     "use strict";
+    // V54 ARCH-2：空 catch 不再静默吞错。软错误统一走 window.SXErrors.soft("audio2:<tag>")：
+    // 按标签计数、每个标签只记一条诊断，热路径不会刷屏；缺少诊断接口时退回 window.__errors。
+    function soft(tag, e) {
+      if (typeof window === "undefined" || !window) return;
+      var forwarded = false;
+      try {
+        if (window.SXErrors && typeof window.SXErrors.soft === "function") { window.SXErrors.soft("audio2:" + tag, e); forwarded = true; }
+      } catch (_) { forwarded = false; }
+      if (forwarded) return;
+      try {
+        if (window.__errors) {
+          window.__errors.push("[audio2:" + tag + "] " + ((e && e.stack) || e));
+          while (window.__errors.length > 200) window.__errors.shift();
+        }
+      } catch (_) { return; }
+    }
+
     if (window.__SX_AUDIO2) return;
 
     var KEY = "saltline.audio.v1";
@@ -30,7 +47,7 @@
     function readJSON(key) {
       try { var v = JSON.parse(localStorage.getItem(key) || "null"); return v && typeof v === "object" ? v : null; } catch (e) { return null; }
     }
-    function writeJSON(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} }
+    function writeJSON(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { soft("storage-write", e); } }
     function safe(fn, tag) { try { return fn(); } catch (e) { console.error("[audio2] " + tag, e); return null; } }
 
     /* ------------------------------------------------------- 配置持久化 */
@@ -58,7 +75,7 @@
       try {
         panners.push(typeof WeakRef === "function" ? new WeakRef(p) : { deref: function () { return p; } });
         if (panners.length > PANNER_CAP * 2) prunePanners();
-      } catch (e) {}
+      } catch (e) { soft("panner-track", e); }
     }
     function prunePanners() {
       var out = [];
@@ -103,7 +120,7 @@
             p.__sx2want = want;
             if (pannerDesc && pannerDesc.set) pannerDesc.set.call(p, want);
             trackPanner(p);
-          } catch (e) {}
+          } catch (e) { soft("panner-create", e); }
           return p;
         };
         return true;
@@ -119,7 +136,7 @@
           /* 引擎显式要求 HRTF 的节点（旋翼/伺服等）不因全局开关而改写 */
           var explicitHrtf = p.__sx2want === "HRTF";
           pannerDesc.set.call(p, (hrtfMode || explicitHrtf) ? "HRTF" : "equalpower");
-        } catch (e) {}
+        } catch (e) { soft("panner-hrtf", e); }
       });
     }
 
@@ -161,12 +178,12 @@
 
     function applyMaster() {
       if (!G || !G.audio) return;
-      try { if (G.audio.setVolume) G.audio.setVolume(cfg.master); } catch (e) {}
+      try { if (G.audio.setVolume) G.audio.setVolume(cfg.master); } catch (e) { soft("master-volume", e); }
       // 同步到引擎设置档，避免下次打开设置页被旧值覆盖
       try {
         var eng = readJSON(ENGINE_KEY) || {};
         if (eng.volume !== cfg.master) { eng.volume = cfg.master; writeJSON(ENGINE_KEY, eng); }
-      } catch (e) {}
+      } catch (e) { soft("master-mirror", e); }
     }
     /* 分轨音量写统一存档 settings.volume，避免只写 legacy 键被引擎旧缓存覆盖 */
     function syncUnifiedVolume() {
@@ -187,7 +204,7 @@
       loops.forEach(function (h) {
         if (!h || !h.__sx2set) return;
         var g = cfg[h.__sx2cat] == null ? 1 : +cfg[h.__sx2cat];
-        try { h.__sx2set.call(h, h.__sx2base * g); } catch (e) {}
+        try { h.__sx2set.call(h, h.__sx2base * g); } catch (e) { soft("loop-gain", e); }
       });
     }
 
@@ -287,7 +304,7 @@
           h.__sx2stopWrapped = true;
           var origStop = h.stop;
           h.stop = function () {
-            try { loops.delete(h); } catch (e) {}
+            try { loops.delete(h); } catch (e) { soft("loop-stop", e); }
             stats.loopStops++;
             return origStop.apply(this, arguments);
           };
@@ -328,7 +345,7 @@
           pos: pos || undefined, variant: 1
         });
         layers++;
-      } catch (e) {}
+      } catch (e) { soft("shot-body", e); }
       // 高频 crack：>30m 只保留低频
       if (d <= 30) {
         try {
@@ -337,7 +354,7 @@
             pos: pos || undefined, variant: 2
           });
           layers++;
-        } catch (e) {}
+        } catch (e) { soft("shot-crack", e); }
       } else {
         stats.lowOnly++;
       }
@@ -356,7 +373,7 @@
       function check() {
         if (initMeasured || !first) return;
         var ready = false, hasDebug = false;
-        try { var dbg = G.audio && G.audio.debug ? G.audio.debug() : null; hasDebug = !!dbg; ready = !!(dbg && dbg.state && dbg.state !== "none"); } catch (e) {}
+        try { var dbg = G.audio && G.audio.debug ? G.audio.debug() : null; hasDebug = !!dbg; ready = !!(dbg && dbg.state && dbg.state !== "none"); } catch (e) { soft("debug-check", e); }
         if (!ready) {
           // 只在存在 debug 且确实未就绪时重试；最多 20 次，避免 noaudio/无 AudioContext 时 0ms 自递归
           tries++;
@@ -368,7 +385,7 @@
         initMs = Math.max(0, now() - first);
         initT0 = first;
         if (window.__SX_AUDIO2) window.__SX_AUDIO2.init = { firstInputAt: +first.toFixed(2), ms: +initMs.toFixed(2) };
-        try { console.log("[audio2] 首次输入初始化 " + initMs.toFixed(1) + "ms"); } catch (e) {}
+        try { console.log("[audio2] 首次输入初始化 " + initMs.toFixed(1) + "ms"); } catch (e) { /* 纯日志输出：诊断通道自身不可用，保持静默（ARCH-2 白名单） */ }
       }
       addEventListener("keydown", check, false);
       addEventListener("pointerdown", check, false);
@@ -421,7 +438,7 @@
           var el = wrap.querySelector('[data-sx2-audio="' + keyName + '"]');
           el.addEventListener("input", function () {
             setBus(keyName, (+el.value) / 100);
-            try { G.events.emit("ui:click", {}); } catch (e) {}
+            try { G.events.emit("ui:click", {}); } catch (e) { soft("ui-click", e); }
           });
         })(k);
       }
@@ -456,7 +473,7 @@
       wrapLoop();
       applyMaster();
       syncUnifiedVolume();
-      try { hrtfMode = !!cfg.hrtf; if (hrtfMode) applyHrtfAll(); } catch (e) {}
+      try { hrtfMode = !!cfg.hrtf; if (hrtfMode) applyHrtfAll(); } catch (e) { soft("init-hrtf", e); }
       if (G.events) {
         G.events.on("weapon:fire", layeredShot);
         G.events.on("enemy:fire", layeredShot);
@@ -494,7 +511,7 @@
         settingsUI: function () { return !!document.querySelector("[data-sx2-audio-ui]"); },
         audio: function () {
           var dbg = null;
-          try { dbg = G.audio && G.audio.debug ? G.audio.debug() : null; } catch (e) {}
+          try { dbg = G.audio && G.audio.debug ? G.audio.debug() : null; } catch (e) { soft("audio-debug", e); }
           return { available: audioReady, ctx: !!(G.audio && G.audio.ctx), state: dbg && dbg.state, bootMs: dbg && dbg.bootMs, genMs: dbg && dbg.genMs, initMs: initMs };
         }
       };

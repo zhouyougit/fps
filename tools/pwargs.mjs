@@ -101,6 +101,13 @@ export function gameUrl(file, params) {
   return base + (base.indexOf('?') >= 0 ? '&' : '?') + qs;
 }
 
+/** 旧版本测试的 HTML 解析：优先根目录 game_vXX.html，找不到则回退 versions/几猫_VXX.html。 */
+export function legacyGame(name) {
+  const rootFile = path.join(ROOT, 'game_' + name + '.html');
+  const snap = path.join(ROOT, 'versions', '几猫_' + name + '.html');
+  return existsSync(rootFile) ? rootFile : snap;
+}
+
 export function launchOptions(overrides) {
   const opts = Object.assign({ headless: HEADLESS, args: PW_ARGS }, overrides || {});
   if (!opts.executablePath) opts.executablePath = findChrome();

@@ -14,6 +14,23 @@
    ===================================================================== */
 (function () {
   "use strict";
+  // V54 ARCH-2：空 catch 不再静默吞错。软错误统一走 window.SXErrors.soft("lights:<tag>")：
+  // 按标签计数、每个标签只记一条诊断，热路径不会刷屏；缺少诊断接口时退回 window.__errors。
+  function soft(tag, e) {
+    if (typeof window === "undefined" || !window) return;
+    var forwarded = false;
+    try {
+      if (window.SXErrors && typeof window.SXErrors.soft === "function") { window.SXErrors.soft("lights:" + tag, e); forwarded = true; }
+    } catch (_) { forwarded = false; }
+    if (forwarded) return;
+    try {
+      if (window.__errors) {
+        window.__errors.push("[lights:" + tag + "] " + ((e && e.stack) || e));
+        while (window.__errors.length > 200) window.__errors.shift();
+      }
+    } catch (_) { return; }
+  }
+
   if (window.__SX_LIGHTS_LOADED) return;
   window.__SX_LIGHTS_LOADED = true;
 
@@ -87,7 +104,7 @@
       r.userData = o.userData || {};
       r.baseIntensity = o.intensity;
       if (o.parent) o.parent.remove(o);
-      try { if (o.dispose) o.dispose(); } catch (e) {}
+      try { if (o.dispose) o.dispose(); } catch (e) { soft("dispose-harvest", e); }
       harvested++;
     }
     return found.length;
@@ -320,13 +337,14 @@
       });
     }
     // 保证 update 在任何 render.frame 调用（含测试同步帧）之前运行
+    // V54 ARCH-1：防重入标记挂在宿主对象（G.render）上，先写标记再包覆。
     var baseFrame = G.render.frame;
-    if (baseFrame && !baseFrame.__sxLightWrapped) {
+    if (baseFrame && !G.render.__sxLightsFrame) {
+      G.render.__sxLightsFrame = true;
       var wrapped = function (dt) {
         try { step(dt); } catch (e) { fail("update", e); }
         return baseFrame.apply(this, arguments);
       };
-      wrapped.__sxLightWrapped = true;
       G.render.frame = wrapped;
     }
     refresh(activeMap);

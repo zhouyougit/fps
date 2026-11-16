@@ -9,6 +9,22 @@
    ===================================================================== */
 (function () {
   "use strict";
+  // V54 ARCH-2：空 catch 不再静默吞错。软错误统一走 window.SXErrors.soft("ai:<tag>")：
+  // 按标签计数、每个标签只记一条诊断，热路径不会刷屏；缺少诊断接口时退回 window.__errors。
+  function soft(tag, e) {
+    if (typeof window === "undefined" || !window) return;
+    var forwarded = false;
+    try {
+      if (window.SXErrors && typeof window.SXErrors.soft === "function") { window.SXErrors.soft("ai:" + tag, e); forwarded = true; }
+    } catch (_) { forwarded = false; }
+    if (forwarded) return;
+    try {
+      if (window.__errors) {
+        window.__errors.push("[ai:" + tag + "] " + ((e && e.stack) || e));
+        while (window.__errors.length > 200) window.__errors.shift();
+      }
+    } catch (_) { return; }
+  }
 
   var G = null, T = null, booted = false;
   var ctx = null;
@@ -46,8 +62,8 @@
   }
   function alive(e) { return !!e && e.alive !== false && e.active !== false; }
   function currentMapId() {
-    try { if (window.__SX && window.__SX.mapId) return window.__SX.mapId(); } catch (e) {}
-    try { if (window.SX_MAPKIT && window.SX_MAPKIT.current) return window.SX_MAPKIT.current(); } catch (e) {}
+    try { if (window.__SX && window.__SX.mapId) return window.__SX.mapId(); } catch (e) { soft("map-id", e); }
+    try { if (window.SX_MAPKIT && window.SX_MAPKIT.current) return window.SX_MAPKIT.current(); } catch (e) { soft("mapkit-current", e); }
     return (G && G.level && (G.level.mapId || G.level.id)) || "harbor";
   }
   function interfaceEye(out) {
@@ -95,21 +111,24 @@
     console.log("[sx-ai] V34 AI 层已加载 ·", state.mapId);
   }
 
+  // V54 ARCH-1：防重入标记挂在宿主对象（ctx / G.enemies）上，先写标记再包覆；
+  // 别人之后再包一层也不会让标记失效。重复 init 直接返回，包覆顺序不变。
   function installThink() {
+    if (ctx.__sxAIThink) return;
     var baseThink = ctx.think;
-    if (baseThink.__sxAI) return;
+    ctx.__sxAIThink = true;
     var wrapped = function (e, dt, thr) {
       if (!aiEnabled) return baseThink.call(ctx, e, dt, thr);
       baseThink.call(ctx, e, dt, thr);
       try { aiThink(e, dt); } catch (err) { if (!state.err) { state.err = String(err && err.message || err); console.error("[sx-ai] think", err); } }
     };
-    wrapped.__sxAI = true;
     ctx.think = wrapped;
   }
 
   function installUpdate() {
+    if (G.enemies.__sxAIUpdate) return;
     var baseUpdate = G.enemies.update;
-    if (baseUpdate.__sxAI) return;
+    G.enemies.__sxAIUpdate = true;
     var wrapped = function (dt) {
       var r = baseUpdate.call(G.enemies, dt);
       if (aiEnabled) {
@@ -117,7 +136,6 @@
       }
       return r;
     };
-    wrapped.__sxAI = true;
     G.enemies.update = wrapped;
   }
 
@@ -467,7 +485,7 @@
       // 只有可能超过当前最优的候选才做寻路直线检查；每次挑点最多 5 次
       if (clearCalls < CLEAR_MAX && s + 1.5 > bestS) {
         clearCalls++;
-        try { if (G.physics.nav.clearLine && G.physics.nav.clearLine(e.pos, c.stand)) s += 1.5; else s -= 0.5; } catch (err) {}
+        try { if (G.physics.nav.clearLine && G.physics.nav.clearLine(e.pos, c.stand)) s += 1.5; else s -= 0.5; } catch (err) { soft("nav-clear-line", err); }
       }
       if (s > bestS) { bestS = s; best = c; }
     }
@@ -578,7 +596,7 @@
           e.hasGoal = true;
           e.planT = 0;
           e.stuckT = 0;
-          try { e.firePlayer.copy(p.pos); } catch (err) {}
+          try { e.firePlayer.copy(p.pos); } catch (err) { soft("fire-player", err); }
         }
         if (e.es !== "tele" && e.es !== "burst" && e.es !== "wind" && e.es !== "lunge" && e.es !== "recover") {
           e.es = "move";
@@ -615,12 +633,12 @@
     if (!sq || !sq.shooter || sq.shooter === e) return;
     if (e.variant === "siege") return;   // 曲射机体不受单发令牌约束
     if (e.type === "hound" && e.es === "tele") {
-      try { ctx.releaseToken(e); } catch (err) {}
+      try { ctx.releaseToken(e); } catch (err) { soft("squad-token-hound", err); }
       e.es = "aim";
       e.cool = Math.max(e.cool || 0, 0.7);
       ai.holdT = 0.8;
     } else if (e.type === "gull" && e.atk === "tele") {
-      try { ctx.releaseToken(e); } catch (err) {}
+      try { ctx.releaseToken(e); } catch (err) { soft("squad-token-gull", err); }
       e.atk = "idle";
       e.cool = Math.max(e.cool || 0, 0.6);
       ai.holdT = 0.8;
@@ -712,17 +730,17 @@
     state.coverT -= dt;
     if (state.coverT <= 0) {
       state.coverT = 0.6;
-      try { evalCovers(); } catch (err) {}
+      try { evalCovers(); } catch (err) { soft("eval-covers", err); }
     }
     state.coverHotT -= dt;
     if (state.coverHotT <= 0) {
       state.coverHotT = 0.5;
-      try { updateCoverHot(); } catch (err) {}
+      try { updateCoverHot(); } catch (err) { soft("cover-hot", err); }
     }
     state.squadT -= dt;
     if (state.squadT <= 0) {
       state.squadT = 0.5;
-      try { updateSquads(); } catch (err) {}
+      try { updateSquads(); } catch (err) { soft("update-squads", err); }
     }
     if (debugOn) {
       dbgT -= dt;
@@ -796,7 +814,7 @@
       if (tag) tag.classList.remove("on");
       if (ui) ui.classList.remove("sx-emp-shift");
     }, Math.max(200, dur * 1000));
-    try { if (G.player && G.player.addShake) G.player.addShake(0.35); } catch (e) {}
+    try { if (G.player && G.player.addShake) G.player.addShake(0.35); } catch (e) { soft("emp-shake", e); }
   }
 
   function installKeys() {
@@ -804,7 +822,7 @@
       if (ev.code === "F7" || ev.key === "F7") {
         debugOn = !debugOn;
         rebuildDebug();
-        try { if (G.hud && G.hud.message) G.hud.message("AI 掩体可视化 " + (debugOn ? "ON" : "OFF"), 1.2); } catch (e) {}
+        try { if (G.hud && G.hud.message) G.hud.message("AI 掩体可视化 " + (debugOn ? "ON" : "OFF"), 1.2); } catch (e) { soft("debug-toggle-hud", e); }
         ev.preventDefault();
       }
     });
@@ -888,7 +906,7 @@
         set: function (v) { aiEnabled = !!v; },
         configurable: true
       });
-    } catch (e) {}
+    } catch (e) { soft("expose-enabled", e); }
     window.__SX_AI.setEnabled = function (on) { aiEnabled = !!on; return aiEnabled; };
     window.__SX_AI_VERSION = "V34.1";
   }

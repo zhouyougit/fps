@@ -1,4 +1,4 @@
-# ARCHITECTURE.md · 几猫 · SALTLINE（V53）
+# ARCHITECTURE.md · 几猫 · SALTLINE（V54）
 
 单文件 3D FPS 的源码结构与维护边界。目标：改一个系统时知道该动哪些文件、哪些文件不能碰。
 
@@ -15,7 +15,7 @@
 6. profile 对应的 feature 模块（`ext_lights`、`mp_avatar`、`ext_lod` 等）。
 
 构建必须显式给 target 和 profile；不允许无参数覆盖 `game.html`。`src/game.js` 已删除，不要再生成单文件。
-V53 起 `versions/` 下已存在的快照默认拒绝覆盖（必须显式 `--force`），产物 `__BUILD__` 记录 `commit` 与 three.js 版本。
+V53 起 `versions/` 下已存在的快照默认拒绝覆盖（必须显式 `--force`），产物 `__BUILD__` 记录 `commit` 与 three.js 版本。V54 起发布默认 `--minify`（terser 逐 script 压缩，保留全局名），体积预算 3.5MB；标签由 mapkit 烘焙为每图 1–2 张图集。
 
 ## 2. 源码地图
 

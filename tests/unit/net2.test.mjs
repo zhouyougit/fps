@@ -578,7 +578,8 @@ describe("mp.js 源码契约（浏览器专属，Node 不可 require）", () => 
     assert.match(MP_SRC, /var interpMs = 67, snapTick = 0;/);
     assert.match(MP_SRC, /var INTERP_TICKS = 2, INTERP_MIN_MS = 60, INTERP_MAX_MS = 120;/);
     assert.match(MP_SRC, /function recomputeInterp\(\)/);
-    assert.match(MP_SRC, /interpMs = clamp\(Math\.round\(INTERP_TICKS \* 1000 \/ Math\.max\(1, tickRate\)\), INTERP_MIN_MS, INTERP_MAX_MS\)/);
+    assert.match(MP_SRC, /interpMs = clamp\(Math\.round\(INTERP_TICKS \* 1000 \/ Math\.max\(1, snapRate\)\), INTERP_MIN_MS, INTERP_MAX_MS\)/);
+    assert.match(MP_SRC, /snapRate = Math\.max\(1, num\(m\.snapRate, 30\)\)/);
     assert.match(MP_SRC, /function updateRemoteEach\(r\)/);
     assert.match(MP_SRC, /var target = now - interpMs;/);
     assert.match(MP_SRC, /k = span > 0 \? clamp\(\(target - ta\) \/ span, 0, 1\) : 0;/);

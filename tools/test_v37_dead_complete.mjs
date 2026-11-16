@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 /* V37 回归：死亡/结算界面必须出现（固定步状态机） */
 import { chromium } from 'playwright';
-import { PW_ARGS } from './pwargs.mjs';
+import { PW_ARGS, ROOT } from './pwargs.mjs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 const CHROME = process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const URL = process.env.SX_URL || 'file:///Users/zhouyou/codex_workspace/fps/game_v37.html?q=low&noaudio=1&autostart=1&dt=0.1';
+// V54：根目录 game_v37 已清理；死亡/结算回归直接跑当前 game.html（V37 之后该状态机不变）。
+const URL = process.env.SX_URL || pathToFileURL(path.join(ROOT, 'game.html')).href + '?q=low&noaudio=1&autostart=1&dt=0.1';
 const b = await chromium.launch({ headless:true, executablePath:CHROME, args: PW_ARGS });
 const p = await b.newPage({ viewport:{width:1000,height:560} });
 const errs=[]; p.on('pageerror',e=>errs.push(e.message));

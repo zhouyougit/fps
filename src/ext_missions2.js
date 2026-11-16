@@ -17,6 +17,23 @@
    ===================================================================== */
 (function () {
   "use strict";
+  // V54 ARCH-2：空 catch 不再静默吞错。软错误统一走 window.SXErrors.soft("missions2:<tag>")：
+  // 按标签计数、每个标签只记一条诊断，热路径不会刷屏；缺少诊断接口时退回 window.__errors。
+  function soft(tag, e) {
+    if (typeof window === "undefined" || !window) return;
+    var forwarded = false;
+    try {
+      if (window.SXErrors && typeof window.SXErrors.soft === "function") { window.SXErrors.soft("missions2:" + tag, e); forwarded = true; }
+    } catch (_) { forwarded = false; }
+    if (forwarded) return;
+    try {
+      if (window.__errors) {
+        window.__errors.push("[missions2:" + tag + "] " + ((e && e.stack) || e));
+        while (window.__errors.length > 200) window.__errors.shift();
+      }
+    } catch (_) { return; }
+  }
+
   if (window.__SX_MISSIONS2__) return;
   window.__SX_MISSIONS2__ = true;
 
@@ -40,7 +57,7 @@
   function mapId() { try { return window.__SX.mapId(); } catch (e) { return null; } }
   function num(v, def) { return typeof v === "number" && isFinite(v) ? v : def; }
   function ceil0(v) { return Math.max(0, Math.ceil(v)); }
-  function logErr(where, e) { try { console.error("[missions2] " + where, e); } catch (_) {} }
+  function logErr(where, e) { try { console.error("[missions2] " + where, e); } catch (_) { /* 纯日志输出：诊断通道自身不可用，保持静默（ARCH-2 白名单） */ } }
   function hasGraph(m) { return !!(m && m.objectivesGraph && m.objectivesGraph.length); }
   function missionById(id) {
     var ms = (API && API.missions) || [];
@@ -129,7 +146,7 @@
     if (!p || p.state !== "locked") return;
     p.state = "active";
     p.progress = 0;
-    try { gr.active = gr.phases.indexOf(p); } catch (e) {}
+    try { gr.active = gr.phases.indexOf(p); } catch (e) { soft("activate-graph", e); }
     announce(p, true);
     if (p.type === "evac") openEvac();
   }
@@ -168,11 +185,11 @@
     } else if (p.type === "evac" && start) {
       say = "撤离通道已打开，前往撤离点！";
     }
-    if (say) { try { G.hud.radio(say, 4); } catch (e) {} }
+    if (say) { try { G.hud.radio(say, 4); } catch (e) { soft("radio", e); } }
   }
 
   function hudwarn(text) {
-    try { G.hud.warn(text, 3); } catch (e) {}
+    try { G.hud.warn(text, 3); } catch (e) { soft("warn", e); }
   }
 
   function openEvac() {
@@ -184,7 +201,7 @@
   }
 
   function objectiveText() {
-    if (!gr && G && G.game && G.game.state === "playing") { try { initGraph(); } catch (e) {} }
+    if (!gr && G && G.game && G.game.state === "playing") { try { initGraph(); } catch (e) { soft("objective-text", e); } }
     if (!gr) return "";
     var p = gr.phases[gr.active];
     var m = mission() || {};
@@ -228,7 +245,7 @@
     var t = objectiveText();
     if (t && t !== lastHud) {
       lastHud = t;
-      try { G.hud.setObjective(t); } catch (e) {}
+      try { G.hud.setObjective(t); } catch (e) { soft("hud-objective", e); }
     }
   }
 
@@ -277,7 +294,7 @@
       try {
         var h = G.physics.groundHeight(def.x, def.z, 3);
         if (typeof h === "number" && isFinite(h)) y = h;
-      } catch (e) {}
+      } catch (e) { soft("ground-height", e); }
       var g = null;
       try { g = G.props.build("relay_node"); } catch (e) { g = null; }
       if (!g) continue;
@@ -317,10 +334,10 @@
       ent.boxes = [];
       for (var i = 0; i < ent.desc.length; i++) {
         var d = ent.desc[i];
-        try { ent.boxes.push(G.physics.addBox(d.min, d.max, d.opts)); } catch (err) {}
+        try { ent.boxes.push(G.physics.addBox(d.min, d.max, d.opts)); } catch (err) { soft("add-box", err); }
       }
     }
-    try { G.physics.build(); } catch (e) {}
+    try { G.physics.build(); } catch (e) { soft("physics-build", e); }
   }
 
   /* =================================================================
@@ -390,16 +407,16 @@
     var cp = buildCP(m, r);
     cpCache = cp;
     try { if (API) API.setCheckpoint(cp); } catch (e) { logErr("save", e); }
-    try { S.checkpoint = hydrate(cp); } catch (e) {}
-    try { if (window.SXSave && SXSave.flush) SXSave.flush(); } catch (e) {}
+    try { S.checkpoint = hydrate(cp); } catch (e) { soft("checkpoint-hydrate", e); }
+    try { if (window.SXSave && SXSave.flush) SXSave.flush(); } catch (e) { soft("save-flush", e); }
     return cp;
   }
 
   function clearCP() {
     cpCache = null;
-    try { if (API) API.clearCheckpoint(); } catch (e) {}
-    try { if (S) S.checkpoint = null; } catch (e) {}
-    try { if (window.SXSave && SXSave.flush) SXSave.flush(); } catch (e) {}
+    try { if (API) API.clearCheckpoint(); } catch (e) { soft("clear-checkpoint", e); }
+    try { if (S) S.checkpoint = null; } catch (e) { soft("clear-memory", e); }
+    try { if (window.SXSave && SXSave.flush) SXSave.flush(); } catch (e) { soft("save-flush-clear", e); }
   }
 
   function loadCP() {
@@ -445,7 +462,7 @@
     }
     r.cut = cutCount;
     r.allCut = total > 0 && cutCount >= total;
-    try { G.hud.setRelays(cutCount, total); } catch (e) {}
+    try { G.hud.setRelays(cutCount, total); } catch (e) { soft("hud-relays", e); }
     refreshMarkers();
   }
 
@@ -453,7 +470,7 @@
     try {
       var d = obj && obj.userData;
       if (d && typeof d.setState === "function") d.setState(state);
-    } catch (e) {}
+    } catch (e) { soft("relay-state", e); }
   }
 
   function refreshMarkers() {
@@ -468,7 +485,7 @@
     if (r.allCut && r.evacT <= 0 && !r.bossAlive && s.extraction) {
       out.push({ id: "extract", short: "撤离", label: "撤离点", pos: s.extraction.pos, kind: "extract" });
     }
-    try { G.hud.setMarkers(out); } catch (e) {}
+    try { G.hud.setMarkers(out); } catch (e) { soft("hud-markers", e); }
   }
 
   function restorePhases(list) {
@@ -532,16 +549,16 @@
     if (m.boss && gr) {
       if (bossPhaseDone()) {
         if (r) { r.bossAlive = false; r.evacT = num(m.bossEvac, 30); }
-        try { if (m.bossName) G.hud.warn(m.bossName + " 已瓦解 · 登船窗口 " + num(m.bossEvac, 30) + " 秒", 3.5); } catch (e) {}
+        try { if (m.bossName) G.hud.warn(m.bossName + " 已瓦解 · 登船窗口 " + num(m.bossEvac, 30) + " 秒", 3.5); } catch (e) { soft("boss-warn", e); }
       } else if (r && r.allCut) {
         window.setTimeout(function () {
-          try { if (G.game.state === "playing") API.bossStart(); } catch (e) {}
+          try { if (G.game.state === "playing") API.bossStart(); } catch (e) { soft("boss-start", e); }
         }, 1200);
       }
     }
-    try { G.hud.message("检查点已恢复", 2.2); } catch (e) {}
+    try { G.hud.message("检查点已恢复", 2.2); } catch (e) { soft("hud-message", e); }
     cpCache = cp;
-    try { S.checkpoint = hydrate(cp); } catch (e) {}
+    try { S.checkpoint = hydrate(cp); } catch (e) { soft("checkpoint-hydrate", e); }
     return true;
   }
 
@@ -637,38 +654,40 @@
         if (typeof y !== "number" || !isFinite(y)) y = G.level.extraction.pos.y;
         G.level.extraction.pos.set(m.extraction.x, y, m.extraction.z);
         G.level.extraction.radius = m.extraction.radius || 2.6;
-      } catch (e) {}
+      } catch (e) { soft("extraction-ground", e); }
     }
   }
 
+  // V54 ARCH-1：防重入标记挂在宿主对象（G.game）上，先写标记再包覆；
+  // 别人之后再包一层也不会让标记失效。重复 init 直接返回，包覆顺序不变。
   function wrapStart() {
-    if (!G.game || G.game.start.__missions2) return;
+    if (!G.game || G.game.__sxM2Start) return;
+    G.game.__sxM2Start = true;
     var base = G.game.start;
     G.game.start = function (opts) {
       try { prepareMission(); } catch (e) { logErr("prepare", e); }
       var out = base.call(G.game, opts);
-      try { if (mission() && mission().objectivesGraph) ensureCoreRelays(); } catch (e) {}
+      try { if (mission() && mission().objectivesGraph) ensureCoreRelays(); } catch (e) { soft("start-relays", e); }
       return out;
     };
-    G.game.start.__missions2 = true;
   }
 
   function wrapUpdate() {
-    if (!G.game || G.game.update.__missions2) return;
+    if (!G.game || G.game.__sxM2Update) return;
+    G.game.__sxM2Update = true;
     var base = G.game.update;
     G.game.update = function (dt) {
       var out = base.call(G.game, dt);
       try { update(dt); } catch (e) { logErr("update", e); }
       return out;
     };
-    G.game.update.__missions2 = true;
   }
 
   function update(dt) {
     if (!booted) return;
     if (coreGroup) coreGroup.visible = mapId() === "core";
     uiT -= dt;
-    if (uiT <= 0) { uiT = 0.4; try { syncScreen(); } catch (e) {} }
+    if (uiT <= 0) { uiT = 0.4; try { syncScreen(); } catch (e) { soft("sync-screen", e); } }
     if (!gr && G.game.state === "playing") { try { initGraph(); } catch (e) { logErr("initGraph", e); } }
     updateGraph(dt);
   }
@@ -721,7 +740,7 @@
     try {
       var st = API.state();
       if (st) st.unlocked = Math.max(st.unlocked || 1, idx + 1);
-    } catch (e) {}
+    } catch (e) { soft("pending-unlock", e); }
     API.launch(idx);
     return true;
   }
@@ -744,7 +763,7 @@
         });
       },
       graph: function () {
-        if (!gr && G && G.game && G.game.state === "playing") { try { initGraph(); } catch (e) {} }
+        if (!gr && G && G.game && G.game.state === "playing") { try { initGraph(); } catch (e) { soft("graph-init", e); } }
         return gr ? {
           missionId: gr.missionId, active: gr.active, complete: gr.complete, evacOpen: gr.evacOpen,
           phases: gr.phases.map(function (p) {
@@ -787,7 +806,7 @@
               pos: G.player.pos
             });
             emitted++;
-          } catch (e) {}
+          } catch (e) { soft("test-emit", e); }
         }
         return { emitted: emitted, kills: (G.combat && G.combat.stats && G.combat.stats.kills) | 0 };
       },
@@ -821,13 +840,13 @@
     // 档案页是低频界面：独立轮询一次 continue 入口，避免错过 openMissions 的下一帧
     try {
       // PERF-4：页面不可见时不轮询档案页 DOM。
-      setInterval(function () { if (booted && !document.hidden) { try { syncScreen(); } catch (e) {} } }, 500);
-    } catch (e) {}
+      setInterval(function () { if (booted && !document.hidden) { try { syncScreen(); } catch (e) { soft("screen-poll", e); } } }, 500);
+    } catch (e) { soft("poll-install", e); }
     try {
       cpCache = loadCP();
       var m = mission();
       if (cpCache && m && cpCache.missionId === m.id && S) S.checkpoint = hydrate(cpCache);
-    } catch (e) {}
+    } catch (e) { soft("boot-restore", e); }
     console.log("[missions2] V34 目标图执行器 / 检查点已加载 · " + ((API.missions && API.missions.length) || 0) + " 关");
   }
 

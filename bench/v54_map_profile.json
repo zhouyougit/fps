@@ -1,0 +1,628 @@
+{
+  "tool": "prof_v54_map",
+  "version": "V54",
+  "generatedAt": "2026-11-16T04:10:17.639Z",
+  "target": "versions/几猫_V53.html",
+  "gpu": "metal",
+  "quality": "medium",
+  "rounds": 1,
+  "cycle": [
+    "depot",
+    "ship",
+    "core",
+    "harbor"
+  ],
+  "longTaskThresholdMs": 100,
+  "transitions": [
+    {
+      "from": "harbor",
+      "to": "depot",
+      "wallStart": 32284,
+      "errors": {},
+      "wasCached": false,
+      "buildMs": 576.4,
+      "loadMs": 3.1,
+      "current": "depot",
+      "compileMs": 38.6,
+      "firstFrameMs": 7423.3,
+      "probeMs": 0,
+      "probeFrames": 0,
+      "probes": {
+        "before": {
+          "map": "depot",
+          "count": 0,
+          "ready": 0,
+          "failed": 0,
+          "pending": 4,
+          "active": -1,
+          "activeName": null,
+          "updated": 0,
+          "size": 128,
+          "items": []
+        },
+        "after": {
+          "map": "depot",
+          "count": 0,
+          "ready": 0,
+          "failed": 0,
+          "pending": 4,
+          "active": -1,
+          "activeName": null,
+          "updated": 0,
+          "size": 128,
+          "items": []
+        }
+      },
+      "wallEnd": 40325.5,
+      "totalMs": 8041.5,
+      "programs": 249,
+      "geometries": 629,
+      "textures": 212,
+      "index": 1,
+      "round": 1,
+      "longTasks": []
+    },
+    {
+      "from": "depot",
+      "to": "ship",
+      "wallStart": 44313.299999952316,
+      "errors": {},
+      "wasCached": false,
+      "buildMs": 126.9,
+      "loadMs": 2.2,
+      "current": "ship",
+      "compileMs": 7.4,
+      "firstFrameMs": 1518.6,
+      "probeMs": 0,
+      "probeFrames": 0,
+      "probes": {
+        "before": {
+          "map": "ship",
+          "count": 0,
+          "ready": 0,
+          "failed": 0,
+          "pending": 3,
+          "active": -1,
+          "activeName": null,
+          "updated": 1,
+          "size": 128,
+          "items": []
+        },
+        "after": {
+          "map": "ship",
+          "count": 0,
+          "ready": 0,
+          "failed": 0,
+          "pending": 3,
+          "active": -1,
+          "activeName": null,
+          "updated": 1,
+          "size": 128,
+          "items": []
+        }
+      },
+      "wallEnd": 45968.39999997616,
+      "totalMs": 1655.1,
+      "programs": 267,
+      "geometries": 840,
+      "textures": 241,
+      "index": 2,
+      "round": 1,
+      "longTasks": []
+    },
+    {
+      "from": "ship",
+      "to": "core",
+      "wallStart": 46300.59999990463,
+      "errors": {},
+      "wasCached": false,
+      "buildMs": 150.5,
+      "loadMs": 3.8,
+      "current": "core",
+      "compileMs": 8,
+      "firstFrameMs": 460.8,
+      "probeMs": 0,
+      "probeFrames": 0,
+      "probes": {
+        "before": {
+          "map": "core",
+          "count": 0,
+          "ready": 0,
+          "failed": 0,
+          "pending": 7,
+          "active": -1,
+          "activeName": null,
+          "updated": 2,
+          "size": 128,
+          "items": []
+        },
+        "after": {
+          "map": "core",
+          "count": 0,
+          "ready": 0,
+          "failed": 0,
+          "pending": 7,
+          "active": -1,
+          "activeName": null,
+          "updated": 2,
+          "size": 128,
+          "items": []
+        }
+      },
+      "wallEnd": 46923.799999952316,
+      "totalMs": 623.2,
+      "programs": 268,
+      "geometries": 879,
+      "textures": 230,
+      "index": 3,
+      "round": 1,
+      "longTasks": []
+    },
+    {
+      "from": "core",
+      "to": "harbor",
+      "wallStart": 47157.699999928474,
+      "errors": {},
+      "wasCached": true,
+      "buildMs": 0.1,
+      "loadMs": 1.4,
+      "current": "harbor",
+      "compileMs": 37.9,
+      "firstFrameMs": 1039.4,
+      "probeMs": 0.1,
+      "probeFrames": 0,
+      "probes": {
+        "before": {
+          "map": "harbor",
+          "count": 0,
+          "ready": 0,
+          "failed": 0,
+          "pending": 0,
+          "active": -1,
+          "activeName": null,
+          "updated": 3,
+          "size": 128,
+          "items": []
+        },
+        "after": {
+          "map": "harbor",
+          "count": 0,
+          "ready": 0,
+          "failed": 0,
+          "pending": 0,
+          "active": -1,
+          "activeName": null,
+          "updated": 3,
+          "size": 128,
+          "items": []
+        }
+      },
+      "wallEnd": 48236.699999928474,
+      "totalMs": 1079,
+      "programs": 318,
+      "geometries": 956,
+      "textures": 245,
+      "index": 4,
+      "round": 1,
+      "longTasks": []
+    }
+  ],
+  "longTasks": [
+    {
+      "name": "self",
+      "startTime": 75,
+      "duration": 3281,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 3394.2,
+      "duration": 3375,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 6776.7,
+      "duration": 1744,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 8522.4,
+      "duration": 533,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 9058.6,
+      "duration": 98,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 9162,
+      "duration": 73,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 9239.6,
+      "duration": 680,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 9925.1,
+      "duration": 167,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 10096.2,
+      "duration": 5157,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 15304.9,
+      "duration": 4418,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 19723,
+      "duration": 2338,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 22068.6,
+      "duration": 5568,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 27675.3,
+      "duration": 3072,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 40325.9,
+      "duration": 3983,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 45968.7,
+      "duration": 329,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 46924,
+      "duration": 233,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    }
+  ],
+  "longTasksOverThreshold": [
+    {
+      "name": "self",
+      "startTime": 75,
+      "duration": 3281,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 3394.2,
+      "duration": 3375,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 6776.7,
+      "duration": 1744,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 8522.4,
+      "duration": 533,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 9239.6,
+      "duration": 680,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 9925.1,
+      "duration": 167,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 10096.2,
+      "duration": 5157,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 15304.9,
+      "duration": 4418,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 19723,
+      "duration": 2338,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 22068.6,
+      "duration": 5568,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 27675.3,
+      "duration": 3072,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 40325.9,
+      "duration": 3983,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 45968.7,
+      "duration": 329,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    },
+    {
+      "name": "self",
+      "startTime": 46924,
+      "duration": 233,
+      "attribution": [
+        {
+          "name": "unknown",
+          "containerType": "window",
+          "containerName": ""
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "transitions": 4,
+    "build": {
+      "avg": 213.47,
+      "min": 0.1,
+      "max": 576.4,
+      "n": 4
+    },
+    "load": {
+      "avg": 2.63,
+      "min": 1.4,
+      "max": 3.8,
+      "n": 4
+    },
+    "compile": {
+      "avg": 22.98,
+      "min": 7.4,
+      "max": 38.6,
+      "n": 4
+    },
+    "firstFrame": {
+      "avg": 2610.53,
+      "min": 460.8,
+      "max": 7423.3,
+      "n": 4
+    },
+    "probe": {
+      "avg": 0.03,
+      "min": 0,
+      "max": 0.1,
+      "n": 4
+    },
+    "probeFrames": {
+      "avg": 0,
+      "min": 0,
+      "max": 0,
+      "n": 4
+    },
+    "total": {
+      "avg": 2849.7,
+      "min": 623.2,
+      "max": 8041.5,
+      "n": 4
+    },
+    "longTasks": {
+      "count": 16,
+      "overThreshold": 14,
+      "maxMs": 5568,
+      "totalMs": 35049
+    }
+  },
+  "observerError": null,
+  "errors": [],
+  "label": "V53 · 改进"
+}

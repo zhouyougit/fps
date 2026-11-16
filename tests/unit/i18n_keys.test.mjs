@@ -153,3 +153,100 @@ test("V53 i18n：ext_progress / ext_input 引用的字面量 key 都在词典里
   assert.deepEqual(missing, [], "引用了不存在的键：" + missing.join(", "));
   assert.ok(seen.size > 30, "抽取到的键数异常：" + seen.size);
 });
+
+/* =====================================================================
+   V54 · I18N 全量：campaign / mp / armory / boss / training / access / ext
+   ===================================================================== */
+const V54_NS = ["campaign.", "mission.", "boss.", "training.", "access.", "ext.", "mp.", "ui2.mp.", "ui2.ar.", "ui2.armory."];
+
+test("V54 i18n：新增命名空间中英齐全，EN 无中文", () => {
+  const keys = Object.keys(ZH).filter((k) => V54_NS.some((ns) => k.indexOf(ns) === 0));
+  assert.ok(keys.length > 300, "V54 命名空间键数异常：" + keys.length);
+  const bad = keys.filter((k) => EN[k] == null || EN[k] === "");
+  assert.deepEqual(bad, [], "en 缺失：" + bad.join(", "));
+  const stale = keys.filter((k) => /[\u4e00-\u9fff]/.test(String(EN[k])) && !EN_CJK_ALLOWED.has(k));
+  assert.deepEqual(stale, [], "EN 仍有中文：" + stale.map((k) => k + "=" + EN[k]).join(", "));
+});
+
+test("V54 i18n：战役 HUD/叙事补充字段（locTitle/intro/all/done/中继/目标图）", () => {
+  for (const id of ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"]) {
+    const fields = ["name", "chapter", "sub", "desc", "goal", "extract", "threats", "recommend", "brief.1", "locTitle", "locSub", "speaker", "intro", "all", "done"];
+    if (id !== "m6") fields.push("interlude.1");   // m6 没有过场对白
+    for (const f of fields) {
+      const key = "mission." + id + "." + f;
+      assert.ok(ZH[key] != null && EN[key] != null, "缺任务字段 " + key);
+    }
+  }
+  assert.equal(ZH["mission.m1.locTitle"], "几猫港区 · 四号泊位 · 05:42");
+  assert.equal(EN["mission.m1.locTitle"], "JIMAO PORT · BERTH FOUR · 05:42");
+  assert.equal(ZH["mission.m8.bossName"], "蜃 · 残响");
+  assert.equal(EN["mission.m8.bossName"], "Shen · Echo");
+  assert.equal(ZH["mission.m7.obj.2"], "清除敌对单位");
+  assert.equal(EN["mission.m7.obj.2"], "Clear the hostiles");
+});
+
+test("V54 i18n：新增正文抽查（campaign / boss / training / access / ext / mp）", () => {
+  const pairs = [
+    ["campaign.sealed", "几猫港区 · 档案 B4-0271 已封存", "JIMAO PORT · FILE B4-0271 SEALED"],
+    ["campaign.now", "当前行动 {code} · {name} · 已解锁 {n}/{total}", "Current op {code} · {name} · Unlocked {n}/{total}"],
+    ["campaign.restart", "重新开始行动", "Restart Operation"],
+    ["boss.objective.core", "摧毁港区主控核心", "Destroy the port core"],
+    ["boss.radio.deadFinal", "蜃·终形瓦解！最后 {n} 秒，撤离！", "Shen's final form is breaking up! {n} seconds — extract!"],
+    ["boss.finalPhase.2", "三·坍缩", "III · Collapse"],
+    ["training.resultTitle", "射击评估", "Shooting Assessment"],
+    ["training.startMsg", "训练开始 · 90 秒内击中悬浮靶机", "Training started · Hit the floating targets within 90 seconds"],
+    ["access.lockedHint", "完成 {n} 个挑战解锁", "Complete {n} challenges to unlock"],
+    ["access.cross.lime", "绿 · 3", "Green · 3"],
+    ["ext.pickup.medkitGain", "医疗包  +45", "Medkit +45"],
+    ["ext.tip.controls", "1/2 切换武器 · G 手雷 · V 近战", "1/2 Switch Weapon · G Grenade · V Melee"],
+    ["ext.shield.break", "<b>重装盾卫</b> 护盾破碎", "<b>Heavy Shielder</b> shield broken"],
+    ["mp.name.default", "几猫", "Jimao"],
+    ["mp.bot.name.1", "猫-七", "Cat-7"],
+    ["ui2.mp.err.empty_url", "请输入服务器地址", "Enter a server address"],
+    ["ui2.mp.err.bad_name", "呼号不合法（2–12 个字，仅中英文/数字/下划线/连字符）", "Invalid callsign (2–12 chars; letters, digits, underscore, hyphen)"]
+  ];
+  for (const [key, zh, en] of pairs) {
+    assert.equal(ZH[key], zh, key + " zh 文案不符");
+    assert.equal(EN[key], en, key + " en 文案不符");
+  }
+});
+
+test("V54 i18n：源码引用的键都存在（campaign/mp/armory/boss/training/access/ext/net2）", () => {
+  const files = ["campaign.js", "mp.js", "armory.js", "ext_boss2.js", "ext_net2.js", "access.js", "boss.js", "training.js", "ext.js"];
+  const re = /["']((?:mission|campaign|boss|training|access|ext|mp|ui2|hud|radio)\.[A-Za-z0-9_.]+)["']/g;
+  const seen = new Set();
+  const missing = [];
+  for (const name of files) {
+    const src = fs.readFileSync(path.join(SRC, name), "utf8");
+    let m;
+    re.lastIndex = 0;
+    while ((m = re.exec(src))) {
+      const key = m[1];
+      if (key.slice(-1) === ".") continue;        // 动态拼接前缀
+      if (/\.$/.test(key)) continue;
+      seen.add(key);
+      if (!I.has(key)) missing.push(name + " → " + key);
+    }
+  }
+  assert.deepEqual(missing, [], "引用了不存在的键：" + missing.join(", "));
+  assert.ok(seen.size > 120, "抽取到的键数异常：" + seen.size);
+});
+
+test("V54 i18n：任务电台改稳定事件，不再用中文前缀识别", () => {
+  const ext = fs.readFileSync(path.join(SRC, "ext.js"), "utf8");
+  const campaign = fs.readFileSync(path.join(SRC, "campaign.js"), "utf8");
+  assert.ok(ext.indexOf("sx:mission-radio") > 0, "ext.js 未监听 sx:mission-radio");
+  assert.ok(campaign.indexOf('emit("sx:mission-radio"') > 0, "campaign.js 未发 sx:mission-radio");
+  assert.ok(ext.indexOf('text.indexOf("几猫队员，这里是指挥中心")') < 0, "ext.js 仍用中文开场前缀识别");
+  assert.ok(ext.indexOf('text.indexOf("三处中继全部断开")') < 0, "ext.js 仍用中文全断前缀识别");
+  assert.ok(/m\.intro/.test(ext), "ext.js 未使用 currentMission.intro");
+});
+
+test("V54 i18n：campaign 数据保留中文，界面字段由 getter 按 key 取词", () => {
+  const campaign = fs.readFileSync(path.join(SRC, "campaign.js"), "utf8");
+  assert.ok(campaign.indexOf('"mission." + m.id + "." + f') > 0, "任务文本 getter 未走 mission.* key");
+  assert.ok(campaign.indexOf("Object.defineProperty(m, f") > 0, "任务字段未定义 getter");
+  assert.ok(campaign.indexOf("missionRadioArmed") > 0, "开场电台未做单次触发保护");
+  // 数据仍是中文（zh 回退）；抽查不会被提前英化
+  assert.ok(campaign.indexOf('name: "四号泊位"') > 0, "MISSIONS 丢失中文回退");
+});

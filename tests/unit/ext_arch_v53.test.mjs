@@ -68,7 +68,7 @@ test("PERF-4 源码：槽位直接复用 w.list / w.slots，不再每步 map 出
   );
   assert.ok(!/w\.list\.map\(/.test(EXT_SRC), "w.list.map 仍存在");
   const block = fnBody(EXT_SRC, "    // HUD loadout", "    var act = w && w.list");
-  assert.match(EXT_SRC, /var SLOT_FALLBACK = \[\{ short: "九式", ammo: 0 \}\];/); // 模块级缓存回退数组
+  assert.match(EXT_SRC, /var SLOT_FALLBACK = \[\{ short: .*?, ammo: 0 \}\];/); // 模块级缓存回退数组
   assert.match(block, /var slots = SLOT_FALLBACK;/);
   assert.match(block, /if \(w && w\.list\) slots = w\.list;/);
   assert.match(block, /else if \(w && w\.slots && w\.slots\.length\) slots = w\.slots;/);
@@ -251,20 +251,22 @@ test("ARCH-1 源码：G.game.update 用宿主标记防二次包覆，调用顺�
   assert.ok(!/G\.game\.__sxExtUpdate\s*\|\|/.test(wrap), "标记不能退化成只写在函数上");
 });
 
-test("ARCH-1 源码：G.hud.radio 用宿主标记防二次包覆，任务文案仍只调一次 baseRadio", () => {
+test("ARCH-1 源码：G.hud.radio 用宿主标记防二次包覆，任务电台走稳定事件", () => {
   const wrap = fnBody(EXT_SRC, "if (!G.hud.__sxExtRadio) {", "    // 首次进入战斗的操作提示");
   assert.match(wrap, /G\.hud\.__sxExtRadio = true;/);
   assert.ok(
     wrap.indexOf("G.hud.__sxExtRadio = true;") < wrap.indexOf("G.hud.radio = function (text, secs)"),
     "标记必须写在包覆之前"
   );
-  // 三条分支：intro / all / 默认透传；前两条命中后直接 return，不会重复发声
-  assert.equal((wrap.match(/baseRadio\.call\(G\.hud/g) || []).length, 3);
-  assert.match(wrap, /m\.intro && text\.indexOf\("几猫队员，这里是指挥中心"\) === 0/);
-  assert.match(wrap, /m\.all && text\.indexOf\("三处中继全部断开"\) === 0/);
+  // V54：不再用中文前缀匹配；intro 由 sx:mission-radio 预置，下一条 radio 消费一次，其余透传。
+  assert.equal((wrap.match(/baseRadio\.call\(G\.hud/g) || []).length, 2);
+  assert.match(EXT_SRC, /sx:mission-radio/);
+  assert.match(wrap, /arm\.kind === "intro"/);
+  assert.match(wrap, /m\.intro/);
+  assert.ok(!/text\.indexOf\(/.test(wrap), "不应再用 text.indexOf 匹配中文");
   assert.ok(
-    wrap.indexOf("m.intro") < wrap.indexOf("return baseRadio.call(G.hud, text, secs);"),
-    "默认透传必须在任务文案判断之后"
+    wrap.indexOf("var arm = radioArm") < wrap.indexOf("return baseRadio.call(G.hud, text, secs);"),
+    "默认透传必须在事件消费之后"
   );
 });
 

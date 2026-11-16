@@ -3,9 +3,21 @@
   var bossRef = null;
   var bossBar = null;
 
+  /* V54 · BOSS 文案：词典缺键（旧构建）时回退中文。 */
+  function bossT(key, zh, vars) {
+    try {
+      var I = typeof window !== "undefined" ? window.SXI18n : null;
+      if (I && typeof I.t === "function" && typeof I.has === "function" && I.has(key)) return I.t(key, vars);
+    } catch (e) { /* 取词失败回退中文 */ }
+    var s = zh == null ? key : String(zh);
+    if (vars) s = s.replace(/\{(\w+)\}/g, function (_, name) { return vars[name] == null ? "" : String(vars[name]); });
+    return s;
+  }
+
+
   function buildBossBar() {
     var bar = el("div", "x-boss",
-      '<div class="x-boss-k">港区主控 · 蜃</div>' +
+      '<div class="x-boss-k">' + bossT("boss.core.kicker", "港区主控 · 蜃") + '</div>' +
       '<div class="x-boss-track"><i></i></div>' +
       '<div class="x-boss-pips"><em class="on"></em><em class="on"></em><em class="on"></em></div>');
     G.hud.root.appendChild(bar);
@@ -56,22 +68,24 @@
     try { e = G.enemies.spawn("boss", pos, { state: "alert", target: G.player.pos }); } catch (err) {}
     if (!e) {
       console.warn("[boss] spawn failed");
-      G.hud.warn("主控核心信号丢失", 3);
+      G.hud.warn(bossT("boss.signalLost", "主控核心信号丢失"), 3);
       return;
     }
     bossRef = e;
     if (m.bossHp) { e.hp = m.bossHp; e.maxHp = m.bossHp; }
     if (m.bossName && bossBar && bossBar.title) bossBar.title.textContent = m.bossName;
-    else if (bossBar && bossBar.title) bossBar.title.textContent = "港区主控 · 蜃";
+    else if (bossBar && bossBar.title) bossBar.title.textContent = bossT("boss.core.kicker", "港区主控 · 蜃");
     if (m.bossName) e.variant = m.bossName;
     G.game.run.bossAlive = true;
     G.game.run.evacT = 0;
-    try { if (typeof setSpeaker === "function") setSpeaker("港区主控"); } catch (e) {}
-    G.hud.warn((m.bossName || "港区主控 · 蜃") + "  已启动", 4);
-    G.hud.radio(m.bossName ? "终形展开。它把整个港区的防线接进了自己身体——打掉核心！" : "检测到大型机械单位！那是港区主控，打掉它的核心！", 5);
-    G.hud.setObjective("摧毁港区主控核心");
+    try { if (typeof setSpeaker === "function") setSpeaker(bossT("boss.core.speaker", "港区主控")); } catch (e) { /* 说话人可选 */ }
+    G.hud.warn(bossT("boss.started", "{name}  已启动", { name: m.bossName || bossT("boss.core.kicker", "港区主控 · 蜃") }), 4);
+    G.hud.radio(m.bossName
+      ? bossT("boss.radio.final", "终形展开。它把整个港区的防线接进了自己身体——打掉核心！")
+      : bossT("boss.radio.start", "检测到大型机械单位！那是港区主控，打掉它的核心！"), 5);
+    G.hud.setObjective(bossT("boss.objective.core", "摧毁港区主控核心"));
     G.hud.setMarkers([
-      { id: "boss", short: "主控", label: "港区主控", pos: pos.clone(), kind: "relay" }
+      { id: "boss", short: bossT("boss.core.markerShort", "主控"), label: bossT("boss.core.markerLabel", "港区主控"), pos: pos.clone(), kind: "relay" }
     ]);
     if (bossBar) { bossBar.el.classList.add("on"); bossBar.lastPct = -1; }
     var rel = document.querySelector(".h-relays");
@@ -93,11 +107,13 @@
     try { G.fx.explosion(p, 2.4); } catch (e) {}
     try { G.combat.explode(p, 6, 40, "enemy"); } catch (e) {}
     var evac = m.bossEvac || 25;
-    G.hud.warn("主控核心已摧毁 · 登船窗口 " + evac + " 秒", 4);
+    G.hud.warn(bossT("boss.destroyed", "主控核心已摧毁 · 登船窗口 {n} 秒", { n: evac }), 4);
     try { G.game.run.evacT = evac; } catch (e) {}
-    G.hud.radio((m.bossName ? "蜃·终形瓦解！最后 " : "主控核心下线！接驳艇 ") + evac + " 秒，撤离！", 5);
-    G.hud.setObjective("登船窗口 · " + evac + " 秒");
-    try { if (typeof setSpeaker === "function") setSpeaker("指挥中心"); } catch (e) {}
+    G.hud.radio(m.bossName
+      ? bossT("boss.radio.deadFinal", "蜃·终形瓦解！最后 {n} 秒，撤离！", { n: evac })
+      : bossT("boss.radio.deadCore", "主控核心下线！接驳艇 {n} 秒，撤离！", { n: evac }), 5);
+    G.hud.setObjective(bossT("boss.objective.window", "登船窗口 · {n} 秒", { n: evac }));
+    try { if (typeof setSpeaker === "function") setSpeaker(bossT("radio.command", "指挥中心")); } catch (e) { /* 说话人可选 */ }
     try { AudioExt.setBoss(false); } catch (e) {}
     G.events.emit("sx:boss-dead", { pos: p });
   }
@@ -117,7 +133,9 @@
       for (var i = 0; i < bossBar.pips.length; i++)
         bossBar.pips[i].classList.toggle("on", i >= phase);
       if (phase > 0) {
-        G.hud.warn(phase === 1 ? "主控装甲剥落 · 释放无人机" : "主控过载 · 全力攻击", 3);
+        G.hud.warn(phase === 1
+          ? bossT("boss.phase1.warn", "主控装甲剥落 · 释放无人机")
+          : bossT("boss.phase2.warn", "主控过载 · 全力攻击"), 3);
         G.player.addShake(0.35);
       }
     }

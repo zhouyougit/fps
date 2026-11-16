@@ -7,10 +7,10 @@
 
 | 项 | 数量 |
 |---|---:|
-| 扫描到的 `tools/test_*.mjs` | 115 |
-| 测试脚本（不含清单工具自身） | 114 |
+| 扫描到的 `tools/test_*.mjs` | 118 |
+| 测试脚本（不含清单工具自身） | 117 |
 | 被 runner/套件引用 | 26 |
-| 孤儿（未被任何套件引用） | 88 |
+| 孤儿（未被任何套件引用） | 91 |
 | 清单工具自身（不计入测试） | 1 |
 
 - `test_suite.mjs` 没有再引用其它 `test_*.mjs`，因此 25 个引用全部来自 `run_tests.mjs`；被引用脚本按 fast/full/domain 标注在下方。
@@ -82,7 +82,7 @@
 
 - `tools/lint_tests.mjs` 的 FILES 共 38 个：原有 31 个 + runner 引用的 test 脚本 + V41–V52 的 `test_*.mjs`（去重）。新增两项检查的严格范围 27 个（套件/测试 + V41–V52 + `check_versions.mjs`）。
 - 本机绝对路径：全量 77 文件 / 102 处；严格范围 15 文件 / 28 处已登记为基线（只允许减少，新增一处即 lint 失败）。V41–V52 测试已全部清零（test_v41_perf/test_v43_avatar/test_v44_drone/test_v46_map_release/test_v49_avatar_lod/test_v50_quality_auto/test_v51_enemy_shadow）；test_suite/e2e2/testkit 也已清除启动用硬编码；pwargs 仅保留 findChrome 的候选探测列表（不含用户主目录）。
-- 收尾：55/114 个历史测试缺少 `process.exit(...)` 或 testkit `closeBrowser`；严格范围 0。新增测试必须显式 `process.exit` 或使用 testkit 收尾。
+- 收尾：55/117 个历史测试缺少 `process.exit(...)` 或 testkit `closeBrowser`；严格范围 0。新增测试必须显式 `process.exit` 或使用 testkit 收尾。
 - `waitForTimeout`：94 文件 / 349 处历史遗留；只有 `test_fast.mjs` 禁止新增，其余留给后续清理。
 - 新增检查未一次性卡死历史文件：已知本机路径按文件/次数登记基线，数量下降不报错，数量上升报错。
 
@@ -97,4 +97,4 @@
 - 15 个历史套件文件仍含本机路径（28 处），全部是 V32–V39 的旧套件测试：`test_mapdata`、`test_save_migration`、`test_v32_ground`、`test_v34_missions`、`test_v35_audio`、`test_v35_ui_smoke`、`test_v35_visual`、`test_v36_net`、`test_v37_dead_complete`、`test_v37_gameplay`、`test_v38_armory_sim`、`test_v38_audio_perf`、`test_v38_ui_polish`、`test_v39_i18n`、`test_v39_visual`；V41+ 已清零。这些只登记基线，新增一处即失败。
 - 88 个孤儿测试未纳入任何套件，无法从 `test:full` 获得回归信号；其中 `test_v39_mp_e2e.mjs` 已被 `test_v39_mp_e2e2.mjs` 取代，建议后续归档而不是直接删除。
 - `test_v39_perf.mjs` 仍被 perf 域引用（TEST-4 计划移除），在 runner 改动前会计入“被引用”。
-- 全量 lint 仍会读取全部 115 个 `test_*.mjs`（114 个测试 + 清单工具）做遗留统计；文件继续增加时输出会变长，但不影响退出码。
+- 全量 lint 仍会读取全部 118 个 `test_*.mjs`（117 个测试 + 清单工具）做遗留统计；文件继续增加时输出会变长，但不影响退出码。

@@ -73,6 +73,11 @@
         // 直接减少一整轮 shadow draw call。
         mesh.castShadow = !(g.mat.transparent || g.mat.alphaTest > 0 || g.mat.depthWrite === false);
         mesh.receiveShadow = true;
+        // V54 PERF-7：合并后的静态地图网格位置已烘焙，关闭每帧 matrix 更新。
+        // 动态物件（K.dyn / 门 / 钩/灯）不在这里，保持默认更新。
+        mesh.matrixAutoUpdate = false;
+        mesh.updateMatrix();
+        mesh.userData.sxStatic = true;
         out.add(mesh);
       });
       return out;
@@ -182,7 +187,78 @@
       var mesh = new T.Mesh(lgeo, m);
       mesh.position.set(x, y, z);
       mesh.rotation.y = yaw || 0;
+      mesh.userData = mesh.userData || {};
+      mesh.userData.sxLabel = true;
+      mesh.userData.labelText = text;
       return mesh;
+    }
+
+    /* V54 PERF-3：把同一张地图的标签烘焙成 1–2 张图集/网格。
+       原实现每个标签 = 1 个 512×128 CanvasTexture + 1 个 material + 1 个 mesh；
+       V53 四图 372 个标签占 397 个透明 mesh 的 93%。这里按 6×25 格（320×80/格）
+       画进 2048×2048 图集，再按图集合并为一个 PlaneGeometry，保留位置/朝向/宽高。 */
+    var LABEL_ATLAS = 2048, LABEL_CELL_W = 512, LABEL_CELL_H = 128, LABEL_COLS = 4, LABEL_ROWS = 16;
+    function bakeLabels(group) {
+      if (!group || !group.children || !group.children.length) return group;
+      var list = [];
+      for (var i = 0; i < group.children.length; i++) {
+        var m = group.children[i];
+        if (m && m.isMesh && m.userData && m.userData.sxLabel) list.push(m);
+      }
+      if (list.length < 2) return group;
+      var perAtlas = LABEL_COLS * LABEL_ROWS;
+      for (var base = 0; base < list.length; base += perAtlas) {
+        var slice = list.slice(base, base + perAtlas);
+        var canvas = document.createElement("canvas");
+        var atlasRows = Math.max(1, Math.ceil(slice.length / LABEL_COLS));
+        var atlasH = Math.min(LABEL_ATLAS, atlasRows * LABEL_CELL_H);
+        canvas.width = LABEL_ATLAS; canvas.height = atlasH;
+        var ctx = canvas.getContext("2d");
+        var pos = [], nor = [], uv = [];
+        for (var j = 0; j < slice.length; j++) {
+          var mesh = slice[j];
+          var col = j % LABEL_COLS, row = Math.floor(j / LABEL_COLS);
+          var ox = col * LABEL_CELL_W, oy = row * LABEL_CELL_H;
+          var text = mesh.userData.labelText || "";
+          ctx.fillStyle = "rgba(8,10,12,.72)"; ctx.fillRect(ox, oy, LABEL_CELL_W, LABEL_CELL_H);
+          ctx.strokeStyle = "rgba(255,179,71,.8)"; ctx.lineWidth = 4; ctx.strokeRect(ox + 2, oy + 2, LABEL_CELL_W - 4, LABEL_CELL_H - 4);
+          ctx.fillStyle = "#ffd27a"; ctx.font = "bold 58px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText(text, ox + LABEL_CELL_W / 2, oy + LABEL_CELL_H / 2 + 2);
+          mesh.updateMatrix();
+          var g = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+          g.applyMatrix4(mesh.matrix);
+          var p = g.attributes.position, n = g.attributes.normal, u = g.attributes.uv;
+          var u0 = (col * LABEL_CELL_W) / LABEL_ATLAS;
+          var v0 = 1 - ((row + 1) * LABEL_CELL_H) / atlasH;
+          for (var k = 0; k < p.count; k++) {
+            pos.push(p.getX(k), p.getY(k), p.getZ(k));
+            if (n) nor.push(n.getX(k), n.getY(k), n.getZ(k));
+            if (u) uv.push(u0 + u.getX(k) * (LABEL_CELL_W / LABEL_ATLAS), v0 + u.getY(k) * (LABEL_CELL_H / atlasH));
+          }
+          g.dispose();
+          group.remove(mesh);
+          try { mesh.geometry.dispose(); mesh.material.map.dispose(); mesh.material.dispose(); } catch (e) {}
+        }
+        if (!pos.length) continue;
+        var geo = new T.BufferGeometry();
+        geo.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+        if (nor.length) geo.setAttribute("normal", new T.Float32BufferAttribute(nor, 3));
+        if (uv.length) geo.setAttribute("uv", new T.Float32BufferAttribute(uv, 2));
+        geo.userData = geo.userData || {};
+        geo.userData.sxMapOwned = true;
+        var tex = new T.CanvasTexture(canvas);
+        tex.colorSpace = T.SRGBColorSpace;
+        tex.needsUpdate = true;
+        var mat = new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.95, depthWrite: false });
+        mat.userData = mat.userData || {};
+        mat.userData.sxMapOwned = true;
+        var atlas = new T.Mesh(geo, mat);
+        atlas.name = "sx-label-atlas-" + (base / perAtlas);
+        atlas.userData = atlas.userData || {};
+        atlas.userData.sxLabelAtlas = true;
+        group.add(atlas);
+      }
+      return group;
     }
 
     function makeBuilder() {
@@ -406,7 +482,7 @@
       def.fogObject = new T.FogExp2(def.fog ? def.fog.color : 0x090c10, def.fog ? def.fog.density : 0.026);
       def.merged = mergeRoot(b.root);
       def.merged.add(b.dyn);
-      def.merged.add(b.labels);
+      def.merged.add(bakeLabels(b.labels));
       // V46：地图组内所有几何均为本次 build 新建（材质共享 G.mats），
       // 标记为地图自有，切图 LRU 可安全 dispose；不要标记共享材质。
       def.merged.traverse(function (o) {

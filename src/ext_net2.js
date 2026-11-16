@@ -25,6 +25,16 @@
     return typeof v === 'number' && Number.isFinite(v) ? v : d;
   }
   function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+  /* V54 · 错误码/模式名走 SXI18n；词典缺键（Node 单测 / 旧构建）时回退中文。 */
+  function netT(key, zh, vars) {
+    try {
+      var I = root && root.SXI18n;
+      if (I && typeof I.t === 'function' && typeof I.has === 'function' && I.has(key)) return I.t(key, vars);
+    } catch (e) { /* 取词失败回退中文 */ }
+    var s = zh == null ? key : String(zh);
+    if (vars) s = s.replace(/\{(\w+)\}/g, function (_, name) { return vars[name] == null ? '' : String(vars[name]); });
+    return s;
+  }
 
   function protocolLib() {
     if (root && root.SALT_NET && root.SALT_NET.decodeSnapshot) return root.SALT_NET;
@@ -56,51 +66,61 @@
   }
   function validateUrl(raw) {
     var u = String(raw == null ? '' : raw).trim();
-    if (!u) return { ok: false, error: 'empty_url', message: '请输入服务器地址' };
+    if (!u) return { ok: false, error: 'empty_url', message: netT('ui2.mp.err.empty_url', '请输入服务器地址') };
     var parsed;
-    try { parsed = new URL(u); } catch (e) { return { ok: false, error: 'bad_url', message: '地址格式无效（只允许 ws:// 或 wss://）' }; }
+    try { parsed = new URL(u); } catch (e) { return { ok: false, error: 'bad_url', message: netT('ui2.mp.err.bad_url', '地址格式无效（只允许 ws:// 或 wss://）') }; }
     if (parsed.protocol !== 'ws:' && parsed.protocol !== 'wss:') {
-      return { ok: false, error: 'bad_scheme', message: '只允许 ws:// 或 wss:// 地址' };
+      return { ok: false, error: 'bad_scheme', message: netT('ui2.mp.err.bad_scheme', '只允许 ws:// 或 wss:// 地址') };
     }
-    if (!parsed.hostname) return { ok: false, error: 'bad_host', message: '服务器地址缺少主机名' };
+    if (!parsed.hostname) return { ok: false, error: 'bad_host', message: netT('ui2.mp.err.bad_host', '服务器地址缺少主机名') };
     return { ok: true, url: parsed.href };
   }
 
   /* ------------------------------------------------------------ 错误码 */
-  var ERRORS = {
-    dev_disabled: '服务器未开启调试指令（dev 已禁用）',
-    dev_denied: '调试指令令牌无效',
-    room_full: '房间已满，请换一个房间或稍后再试',
-    full: '房间已满，请换一个房间或稍后再试',
-    bad_name: '呼号不合法（2–12 个字，仅中英文/数字/下划线/连字符）',
-    bad_json: '服务器无法解析消息',
-    bad_message: '消息格式不完整',
-    not_joined: '尚未加入房间',
-    unknown_type: '服务器不认识该指令',
-    version_mismatch: '协议版本不匹配，请刷新页面后重试',
-    protocol_mismatch: '协议版本不匹配，请刷新页面后重试',
-    rate_limit: '操作过于频繁，已被服务器限速',
-    timeout: '连接超时，请检查服务器地址与网络',
-    offline: '网络已断开，正在尝试重连',
-    fire_rejected: '射击被服务器拒绝，弹药已回滚',
-    shot_rejected: '射击被服务器拒绝，弹药已回滚',
-    aim_mismatch: '射击方向与视角不一致，已被服务器拒绝',
-    reloading: '换弹中，无法开火',
-    dead: '已阵亡，等待重生',
-    round_end: '回合已结束，无法开火',
-    no_ammo: '弹药不足，已被服务器拒绝',
-    no_reserve: '备弹不足',
-    cooldown: '射速过快，已被服务器拒绝',
-    fire_rate: '射速过快，已被服务器拒绝',
-    invalid: '射击数据不合法，已被服务器拒绝',
-    '4001': '房间已满，请换一个房间或稍后再试',
-    '4008': '操作过于频繁，已被服务器限速'
+  var ERR_TEXT = {
+    dev_disabled: ['ui2.mp.err.dev_disabled', '服务器未开启调试指令（dev 已禁用）'],
+    dev_denied: ['ui2.mp.err.dev_denied', '调试指令令牌无效'],
+    room_full: ['ui2.mp.err.room_full', '房间已满，请换一个房间或稍后再试'],
+    full: ['ui2.mp.err.full', '房间已满，请换一个房间或稍后再试'],
+    bad_name: ['ui2.mp.err.bad_name', '呼号不合法（2–12 个字，仅中英文/数字/下划线/连字符）'],
+    bad_json: ['ui2.mp.err.bad_json', '服务器无法解析消息'],
+    bad_message: ['ui2.mp.err.bad_message', '消息格式不完整'],
+    not_joined: ['ui2.mp.err.not_joined', '尚未加入房间'],
+    unknown_type: ['ui2.mp.err.unknown_type', '服务器不认识该指令'],
+    version_mismatch: ['ui2.mp.err.version_mismatch', '协议版本不匹配，请刷新页面后重试'],
+    protocol_mismatch: ['ui2.mp.err.protocol_mismatch', '协议版本不匹配，请刷新页面后重试'],
+    rate_limit: ['ui2.mp.err.rate_limit', '操作过于频繁，已被服务器限速'],
+    timeout: ['ui2.mp.err.timeout', '连接超时，请检查服务器地址与网络'],
+    offline: ['ui2.mp.err.offline', '网络已断开，正在尝试重连'],
+    fire_rejected: ['ui2.mp.err.fire_rejected', '射击被服务器拒绝，弹药已回滚'],
+    shot_rejected: ['ui2.mp.err.shot_rejected', '射击被服务器拒绝，弹药已回滚'],
+    aim_mismatch: ['ui2.mp.err.aim_mismatch', '射击方向与视角不一致，已被服务器拒绝'],
+    reloading: ['ui2.mp.err.reloading', '换弹中，无法开火'],
+    dead: ['ui2.mp.err.dead', '已阵亡，等待重生'],
+    round_end: ['ui2.mp.err.round_end', '回合已结束，无法开火'],
+    no_ammo: ['ui2.mp.err.no_ammo', '弹药不足，已被服务器拒绝'],
+    no_reserve: ['ui2.mp.err.no_reserve', '备弹不足'],
+    cooldown: ['ui2.mp.err.cooldown', '射速过快，已被服务器拒绝'],
+    fire_rate: ['ui2.mp.err.fire_rate', '射速过快，已被服务器拒绝'],
+    invalid: ['ui2.mp.err.invalid', '射击数据不合法，已被服务器拒绝'],
+    '4001': ['ui2.mp.err.room_full', '房间已满，请换一个房间或稍后再试'],
+    '4008': ['ui2.mp.err.rate_limit', '操作过于频繁，已被服务器限速']
   };
+  // V54：getter 在调用时取词，切语言后错误提示跟着变（不在模块加载时固化）。
+  var ERRORS = {};
+  Object.keys(ERR_TEXT).forEach(function (code) {
+    Object.defineProperty(ERRORS, code, {
+      enumerable: true,
+      get: function () { return netT(ERR_TEXT[code][0], ERR_TEXT[code][1]); }
+    });
+  });
   function friendlyError(code, message) {
     var key = code == null ? '' : String(code);
     if (Object.prototype.hasOwnProperty.call(ERRORS, key) && typeof ERRORS[key] === 'string') return ERRORS[key];
     if (typeof message === 'string' && message.trim()) return String(message).slice(0, 160);
-    return '服务器错误' + (key ? '（' + key.slice(0, 32) + '）' : '');
+    return key
+      ? netT('ui2.mp.err.withCode', '服务器错误（{code}）', { code: key.slice(0, 32) })
+      : netT('ui2.mp.err.server', '服务器错误');
   }
 
   /* ------------------------------------------------------------ id / nid 映射
@@ -338,10 +358,22 @@
 
   /* ------------------------------------------------------------ 模式 / 文本 */
   // 服务端只支持 tdm / chaos / domination；个人乱斗已移除，未知模式不再默认 tdm。
-  var MODE_NAMES = {
-    tdm: '团队死斗', chaos: '大乱战', domination: '据点争夺', dom: '据点争夺',
-    bomb: '爆破', coop: '潮汐防线', pve: '潮汐防线'
+  var MODE_TEXT = {
+    tdm: ['ui2.mp.modeName.tdm', '团队死斗'],
+    chaos: ['ui2.mp.modeName.chaos', '大乱战'],
+    domination: ['ui2.mp.modeName.domination', '据点争夺'],
+    dom: ['ui2.mp.modeName.domination', '据点争夺'],
+    bomb: ['ui2.mp.modeName.bomb', '爆破'],
+    coop: ['ui2.mp.modeName.coop', '潮汐防线'],
+    pve: ['ui2.mp.modeName.coop', '潮汐防线']
   };
+  var MODE_NAMES = {};
+  Object.keys(MODE_TEXT).forEach(function (key) {
+    Object.defineProperty(MODE_NAMES, key, {
+      enumerable: true,
+      get: function () { return netT(MODE_TEXT[key][0], MODE_TEXT[key][1]); }
+    });
+  });
   function modeKey(mode) {
     var m = String(mode == null ? '' : mode).toLowerCase();
     if (!m) return '';
@@ -351,7 +383,7 @@
     if (m === 'tdm' || m === 'chaos' || m === 'domination') return m;
     return '';
   }
-  function modeName(mode) { return MODE_NAMES[modeKey(mode)] || '未知模式'; }
+  function modeName(mode) { return MODE_NAMES[modeKey(mode)] || netT('mp.mode.unknown', '未知模式'); }
 
   function addLobbyMode() {
     if (typeof document === 'undefined') return false;
@@ -360,7 +392,7 @@
     if (!sel.querySelector('option[value="domination"]')) {
       var opt = document.createElement('option');
       opt.value = 'domination';
-      opt.textContent = '据点争夺 · 5v5';
+      opt.textContent = netT('ui2.mp.mode.domination', '据点争夺 · 5v5');
       sel.appendChild(opt);
     }
     try {

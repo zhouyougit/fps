@@ -15,6 +15,22 @@
    ===================================================================== */
 (function () {
   "use strict";
+  // V54 ARCH-2：空 catch 不再静默吞错。软错误统一走 window.SXErrors.soft("visual:<tag>")：
+  // 按标签计数、每个标签只记一条诊断，热路径不会刷屏；缺少诊断接口时退回 window.__errors。
+  function soft(tag, e) {
+    if (typeof window === "undefined" || !window) return;
+    var forwarded = false;
+    try {
+      if (window.SXErrors && typeof window.SXErrors.soft === "function") { window.SXErrors.soft("visual:" + tag, e); forwarded = true; }
+    } catch (_) { forwarded = false; }
+    if (forwarded) return;
+    try {
+      if (window.__errors) {
+        window.__errors.push("[visual:" + tag + "] " + ((e && e.stack) || e));
+        while (window.__errors.length > 200) window.__errors.shift();
+      }
+    } catch (_) { return; }
+  }
 
   var G = null, T = null, booted = false, disabled = false;
   var params = {};
@@ -88,7 +104,7 @@
     } catch (e) { return false; }
   }
   function mapId() {
-    try { if (window.__SX && window.__SX.mapId) return window.__SX.mapId(); } catch (e) {}
+    try { if (window.__SX && window.__SX.mapId) return window.__SX.mapId(); } catch (e) { soft("map-id", e); }
     return S.map;
   }
   function hintsFor(id) {
@@ -371,7 +387,7 @@
         ft.flipY = false;
         if (T.NoColorSpace !== undefined) ft.colorSpace = T.NoColorSpace;
         return ft;
-      } catch (e) {}
+      } catch (e) { soft("history-texture", e); }
     }
     var d = new Uint8Array(Math.max(4, w * h * 4));
     var tx = new T.DataTexture(d, Math.max(1, w), Math.max(1, h), T.RGBAFormat);
@@ -525,7 +541,7 @@
     }
     aa.valid = 0;
     aa.histReady = false;
-    try { old.dispose(); } catch (e) {}
+    try { old.dispose(); } catch (e) { soft("aa-target-dispose", e); }
   }
 
   function aaEnabled() {
@@ -570,7 +586,7 @@
     }
     if (!aa.mat) { aa.enabled = false; S.aa = "fxaa"; return; }
     var depth = null;
-    try { depth = G.render.depthTexture; } catch (e) {}
+    try { depth = G.render.depthTexture; } catch (e) { soft("depth-texture", e); }
     if (!depth) {
       aa.enabled = false;
       S.aa = "fxaa";
@@ -615,7 +631,7 @@
     try {
       if (G.render.tune) G.render.tune.sharpen = 0.22;
       if (aa.mat.uniforms.uFxaa) aa.mat.uniforms.uFxaa.value = 0;
-    } catch (e) {}
+    } catch (e) { soft("aa-tune", e); }
   }
 
   function restoreJitter() {
@@ -669,7 +685,7 @@
     pr.baseEnv = G.scene.environment || null;
     pr.baseEnvIntensity = G.scene.environmentIntensity == null ? 1 : G.scene.environmentIntensity;
     pr.pmrem = new T.PMREMGenerator(G.renderer);
-    try { pr.pmrem.compileCubemapShader(); } catch (e) {}
+    try { pr.pmrem.compileCubemapShader(); } catch (e) { soft("pmrem-compile", e); }
     pr.hints = hintsFor(mapId());
     pr.map = mapId();
     pr.cubeSize = qualityName === "low" || qualityName === "test" ? 64 : 128;
@@ -687,7 +703,7 @@
     for (var i = 0; i < pr.list.length; i++) {
       var it = pr.list[i];
       if (!it || !it.env) continue;
-      try { it.env.dispose(); } catch (e) {}
+      try { it.env.dispose(); } catch (e) { soft("probe-dispose", e); }
       it.env = null;
     }
     pr.pending.length = 0;
@@ -788,7 +804,7 @@
         }
       }
       if (pr.cubeRT) pr.cubeRT.texture.generateMipmaps = st.gm;
-    } catch (e) {}
+    } catch (e) { soft("capture-restore", e); }
   }
 
   function beginProbeCapture(item) {
@@ -838,7 +854,7 @@
     if (oldEnv) {
       // 重捕当前 active 探针时先绑定新 env，再释放旧 env，避免环境贴图指向已释放 RT
       if (pr.active >= 0 && pr.list[pr.active] === cap.item) G.scene.environment = out.texture;
-      try { oldEnv.dispose(); } catch (e) {}
+      try { oldEnv.dispose(); } catch (e) { soft("probe-env-dispose", e); }
     }
     cap.item.env = out;
     cap.item.at = G.time ? G.time.t : frameNo / 60;
@@ -1036,7 +1052,7 @@
           var b = boxes[0], cp = G.camera.position;
           interior = (cp.x > b.min.x && cp.x < b.max.x && cp.z > b.min.z && cp.z < b.max.z && cp.y < b.max.y) ? 1 : 0;
         }
-      } catch (e) {}
+      } catch (e) { soft("interior-probe", e); }
       var hintFill = hint.fill || {};
       var base = hintFill.intensity == null ? (interior ? 2.4 : 0.55) : hintFill.intensity;
       var target = base * (interior ? 1 : 0.55) * (1 + 0.3 * (p && p.ads || 0));
@@ -1137,7 +1153,7 @@
         var gdx = c.pos.x - c.gx, gdz = c.pos.z - c.gz;
         if (c.gy == null || gdx * gdx + gdz * gdz > 0.1225) {
           c.gy = 0;
-          try { c.gy = G.physics.groundHeight(c.pos.x, c.pos.z, c.pos.y + 1) || 0; } catch (e) {}
+          try { c.gy = G.physics.groundHeight(c.pos.x, c.pos.z, c.pos.y + 1) || 0; } catch (e) { soft("ground-height", e); }
           c.gx = c.pos.x; c.gz = c.pos.z;
         }
         var gy = c.gy || 0;
@@ -1266,7 +1282,7 @@
     e.__sxFlashT = 0;
     var k = e.__sxKick;
     if (k && k.bone) {
-      try { k.bone.position.x = k.bx; k.bone.position.y = k.by; k.bone.position.z = k.bz; } catch (err) {}
+      try { k.bone.position.x = k.bx; k.bone.position.y = k.by; k.bone.position.z = k.bz; } catch (err) { soft("kick-restore", err); }
     }
     e.__sxKick = null;
     if (!list) return;
@@ -1279,7 +1295,7 @@
           else if (mat === f.m) mesh.material = f.src;
         }
         f.m.dispose();
-      } catch (err) {}
+      } catch (err) { soft("flash-mat-restore", err); }
     }
     list.length = 0;
   }
@@ -1306,7 +1322,7 @@
         continue;
       }
       var inList = false;
-      try { inList = !!(G.enemies && G.enemies.list && G.enemies.list.indexOf(e) >= 0); } catch (err) {}
+      try { inList = !!(G.enemies && G.enemies.list && G.enemies.list.indexOf(e) >= 0); } catch (err) { soft("enemy-list-probe", err); }
       if (!inList || (!e.__sxFlashT && !e.__sxKick)) untrackFlash(e);
     }
   }
@@ -1324,7 +1340,7 @@
           e.__sxKick = { bone: b, t: 0.16, x: (Math.random() - 0.5) * 0.035, z: -0.05, bx: b.position.x, by: b.position.y, bz: b.position.z };
         }
       }
-    } catch (err) {}
+    } catch (err) { soft("rig-bones", err); }
   }
 
   function updateEnemyKicks(dt) {
@@ -1536,7 +1552,7 @@
     try {
       if (G.render.tune) G.render.tune.sharpen = (name === "low" || name === "test") ? 0.36 : 0.22;
       if (aa.mat && aa.mat.uniforms.uFxaa) aa.mat.uniforms.uFxaa.value = 1;
-    } catch (e) {}
+    } catch (e) { soft("quality-tune", e); }
     if (sh.sun) sh.sun.shadow.needsUpdate = true;
     if (sh.far) sh.far.shadow.needsUpdate = true;
     sh.force = true; sh.farDirty = true;
@@ -1548,7 +1564,7 @@
     var name = typeof v === "string" ? v : (v && v.name);
     if (!name || !QP[name]) return { ok: false, reason: "unknown quality", quality: qualityName };
     configureQuality(name, false);
-    try { G.events.emit("sx:visual-quality", { name: name }); } catch (e) {}
+    try { G.events.emit("sx:visual-quality", { name: name }); } catch (e) { soft("emit-quality", e); }
     return { ok: true, quality: name, aa: S.aa, shadow: S.shadow };
   }
 
@@ -1686,9 +1702,13 @@
 
   var lastFrameT = 0;
   var ringSum = 0; // PERF-4：300 帧滚动和，避免每帧对环形缓冲做 O(n) 求和
+  // V54 ARCH-1：防重入标记挂在宿主对象（G.render）上，先写标记再包覆；
+  // 别人之后再包一层也不会让标记失效。重复 init 直接返回，包覆顺序不变。
   function wrapRender() {
+    if (!G.render || G.render.__sxVisualFrame) return;
     var base = G.render.frame;
-    if (!base || base.__sxVisual) return;
+    if (!base) return;
+    G.render.__sxVisualFrame = true;
     var wrapped = function (dt) {
       var start = performance.now();
       frameNo++;
@@ -1712,8 +1732,8 @@
         return base.call(G.render, dt);
       } finally {
         try { afterAA(); } catch (e) { fail("aa-after", e); }
-        try { restoreCamera(); } catch (e) {}
-        try { restoreJitter(); } catch (e) {}
+        try { restoreCamera(); } catch (e) { soft("restore-camera", e); }
+        try { restoreJitter(); } catch (e) { soft("restore-jitter", e); }
         var now = performance.now();
         if (lastFrameT) {
           var ms = now - lastFrameT;
@@ -1733,7 +1753,6 @@
         if ((frameNo & 7) === 0) updateF3();
       }
     };
-    wrapped.__sxVisual = true;
     G.render.frame = wrapped;
   }
 

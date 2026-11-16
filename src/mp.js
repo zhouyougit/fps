@@ -20,7 +20,8 @@
     var mpDead = false, scoreData = null, scoreVisible = false, myKills = 0, myDeaths = 0, myTeam = 0;
     var respawnAt = 0, streak = 0, protectShown = false, hitDirEl = null;
     var fireHandler = null, reloadHandler = null, switchHandler = null;
-    var names = ["猫-七", "猫-九", "猫-十三", "猫-二七", "猫-零", "猫-拾"];
+    // V54：大厅随机呼号只存 key，取词时按当前语言生成。
+    var names = ["mp.bot.name.1", "mp.bot.name.2", "mp.bot.name.3", "mp.bot.name.4", "mp.bot.name.5", "mp.bot.name.6"];
     var session = 0, reconnectTimer = null, reconnectAttempts = 0, fatalConn = false, manualClose = false;
     var conn = null;
     var net = {
@@ -37,7 +38,7 @@
       state: "warmup", mode: "tdm", overtime: false, timeLeft: null, timeLeftAt: 0,
       teams: [0, 0], caps: {}, capsList: [], note: "", capsVisible: false
     };
-    var tickRate = 30, cmdRate = 30, serverTickBase = 0, serverTimeBase = 0, serverWallBase = 0, serverWallAt = 0;
+    var tickRate = 30, snapRate = 30, cmdRate = 30, serverTickBase = 0, serverTimeBase = 0, serverWallBase = 0, serverWallAt = 0;
     var interpMs = 67, snapTick = 0;
     var INTERP_TICKS = 2, INTERP_MIN_MS = 60, INTERP_MAX_MS = 120;
     var TAG_MIN_MS = 33, HIT_UI_MIN_MS = 60, HUD_THROTTLE_MS = 100;
@@ -235,7 +236,8 @@
       return wrote;
     }
     function recomputeInterp() {
-      interpMs = clamp(Math.round(INTERP_TICKS * 1000 / Math.max(1, tickRate)), INTERP_MIN_MS, INTERP_MAX_MS);
+      // NET-5：插值缓冲按“快照率”而不是模拟 tick 率计算；服务端 tick 60 / snap 30。
+      interpMs = clamp(Math.round(INTERP_TICKS * 1000 / Math.max(1, snapRate)), INTERP_MIN_MS, INTERP_MAX_MS);
       return interpMs;
     }
     function perfStats() {
@@ -357,8 +359,9 @@
 
     function sanitizeName(name) {
       var n = net2();
-      if (n && n.sanitizeName) return n.sanitizeName(name, "猫");
-      return String(name == null ? "" : name).replace(/[\u0000-\u001f\u007f<>"'&\\]/g, "").replace(/\s+/g, " ").trim().slice(0, 16) || "猫";
+      if (n && n.sanitizeName) return n.sanitizeName(name, mpT("mp.name.default", null, "几猫"));
+      return String(name == null ? "" : name).replace(/[\u0000-\u001f\u007f<>"'&\\]/g, "").replace(/\s+/g, " ").trim().slice(0, 16) ||
+        mpT("mp.name.default", null, "几猫");
     }
     function esc(s) {
       return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -566,13 +569,14 @@
           '<p class="x-mp-note" data-i18n="ui2.mp.lobby.note">V36：二进制快照 · 预测回放 · 服务器权威命中 · 断线重连 3 次（1s/2s/4s）</p>' +
         '</div>';
       document.getElementById("ui").appendChild(ui);
-      ui.querySelector("[data-mp-name]").value = localStorage.getItem("saltline.mp.name") || names[Math.floor(Math.random() * names.length)];
+      ui.querySelector("[data-mp-name]").value = localStorage.getItem("saltline.mp.name") ||
+      mpT(names[Math.floor(Math.random() * names.length)], null, "猫-七");
       ui.querySelector("[data-mp-url]").value = defaultUrl();
       ui.querySelector("[data-mp-map]").value = localStorage.getItem("saltline.mp.map") || "harbor";
       ui.querySelector("[data-mp-mode]").value = localStorage.getItem("saltline.mp.mode") || "tdm";
       ui.querySelector("[data-mp-back]").onclick = function () { closeLobby(); };
       ui.querySelector("[data-mp-join]").onclick = function () {
-        var n = ui.querySelector("[data-mp-name]").value.trim() || "猫";
+        var n = ui.querySelector("[data-mp-name]").value.trim() || mpT("mp.name.default", null, "几猫");
         var r = ui.querySelector("[data-mp-room]").value.trim() || "harbor-1";
         var u = ui.querySelector("[data-mp-url]").value.trim() || defaultUrl();
         var mp = ui.querySelector("[data-mp-map]").value || "harbor";
@@ -900,10 +904,10 @@
     }
     function rosterOf(id) { return roster.get(idKey(resolveId(id))) || {}; }
     function displayName(id) {
-      if (id == null) return "几猫";
-      if (sameId(resolveId(id), selfId)) return playerName || "你";
+      if (id == null) return mpT("mp.name.default", null, "几猫");
+      if (sameId(resolveId(id), selfId)) return playerName || mpT("mp.name.you", null, "你");
       var r = rosterOf(id);
-      return r.name || "几猫";
+      return r.name || mpT("mp.name.default", null, "几猫");
     }
     function isBotPlayer(p) {
       if (!p) return false;
@@ -925,7 +929,7 @@
       if (hp <= 0 && raw.alive == null) alive = false;
       var p = {
         id: rid,
-        name: raw.name ? sanitizeName(raw.name) : (r.name || ("猫-" + k.slice(-2))),
+        name: raw.name ? sanitizeName(raw.name) : (r.name || (mpT("mp.name.botPrefix", null, "猫-") + k.slice(-2))),
         x: x, y: y, z: z,
         yaw: raw.yaw != null ? num(raw.yaw, 0) : num(r.yaw, 0),
         pitch: raw.pitch != null ? num(raw.pitch, 0) : num(r.pitch, 0),
@@ -1291,6 +1295,7 @@
       }
       if (m.team != null) myTeam = m.team === 1 ? 1 : 0;
       tickRate = Math.max(1, num(m.tickRate, 30));
+      snapRate = Math.max(1, num(m.snapRate, 30));
       cmdRate = tickRate;
       recomputeInterp();
       if (m.mode) modeId = modeKey(m.mode);
@@ -2110,7 +2115,7 @@
       if (!r) {
         r = buildRemoteModel(p);
         if (r.mag && !r.magBase) r.magBase = { y: r.mag.position.y, z: r.mag.position.z };
-        r.id = p.id; r.hist = []; r.samples = []; r.name = p.name || "几猫"; r.phase = 0;
+        r.id = p.id; r.hist = []; r.samples = []; r.name = p.name || mpT("mp.name.default", null, "几猫"); r.phase = 0;
         r.lodFar = false; r.lodAt = 0; r.shieldOn = false;
         r.dead = false; r.team = p.team; r.lastHp = -1; r.fireT = 0; r.reloadT = 0; r.reloadDur = 1.35;
         r.los = true; r.losT = 0; r.lastTick = -1;
@@ -3001,7 +3006,7 @@
         team: myTeam, players: remotes.size + (selfId != null ? 1 : 0),
         kills: myKills, deaths: myDeaths, dead: mpDead,
         protocol: net.protocol, bin: net.bin, caps: net.caps.slice(),
-        tickRate: tickRate, cmdRate: cmdRate, interpMs: interpMs, interpTicks: INTERP_TICKS,
+        tickRate: tickRate, snapRate: snapRate, cmdRate: cmdRate, interpMs: interpMs, interpTicks: INTERP_TICKS,
         serverTick: estimatedServerTick(), serverTime: estimatedServerTime(),
         rtt: pingMs, pending: pending.length, acked: lastAcked, ackedTotal: ackedTotal, cmdBackoff: net.cmdBackoff,
         snapStats: { binary: net.snapBinary, json: net.snapJson, decodeErrors: net.decodeErrors, lastBinaryAt: net.lastBinaryAt, lastSnapAt: net.lastSnapAt, lastTick: net.lastTick },
@@ -3016,7 +3021,7 @@
     var API = {
       init: init,
       open: openLobby,
-      join: function (u, n, r, m, md) { openLobby(); return join(u, n || "猫", r || "harbor-1", m, md); },
+      join: function (u, n, r, m, md) { openLobby(); return join(u, n || mpT("mp.name.default", null, "几猫"), r || "harbor-1", m, md); },
       leave: leave,
       state: function () { return netState(); },
       remotes: showRemotes,

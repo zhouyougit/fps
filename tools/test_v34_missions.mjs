@@ -19,10 +19,11 @@
    （默认打开 game_v34.html — 与全量回归的 game.html 隔离）
    ===================================================================== */
 import { chromium } from 'playwright';
-import { PW_ARGS } from './pwargs.mjs';
+import { PW_ARGS, legacyGame } from './pwargs.mjs';
 import { existsSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
-const URL = 'file:///Users/zhouyou/codex_workspace/fps/game_v34.html?q=low&noaudio=1&autostart=1&dt=0.1';
+const URL = pathToFileURL(legacyGame('v34')).href + '?q=low&noaudio=1&autostart=1&dt=0.1';
 const EXE = process.env.CHROME_EXE ||
   (existsSync('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
     ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'

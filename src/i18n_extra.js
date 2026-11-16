@@ -164,6 +164,178 @@
     }
   ];
 
+  /* ---------- V54 · 战役 HUD/叙事补充字段 ----------
+     只补 i18n_extra 原本没有的玩家可见字段（locTitle/locSub/speaker/intro/all/done、
+     中继标签、m7/m8 目标图文本、BOSS 名）。name/brief/desc 等沿用上面的 MISSIONS，
+     不在这里重复造一份。-------- */
+  var MISSION_EXTRA = {
+    m1: {
+      zh: {
+        locTitle: "几猫港区 · 四号泊位 · 05:42", locSub: "几猫突击小队 · 单兵行动，无人支援",
+        speaker: "指挥中心",
+        intro: "几猫队员，这里是行动指挥。按顺序切断三处中继；接驳需要 45 秒，务必守住撤离点。",
+        all: "三处中继全部断开！接驳艇正在靠泊，坚守 45 秒！",
+        done: "四号泊位已解除封锁",
+        relayLabels: ["甲号中继 · 堆场", "乙号中继 · 仓库", "丙号中继 · 码头"]
+      },
+      en: {
+        locTitle: "JIMAO PORT · BERTH FOUR · 05:42", locSub: "JIMAO ASSAULT SQUAD · Solo operation, no support",
+        speaker: "Command",
+        intro: "Jimaos, this is Operation Command. Cut the three relays in order; the boat needs 45 seconds. Hold the extraction point.",
+        all: "All three relays are down! The boat is docking — hold for 45 seconds!",
+        done: "Berth Four is no longer blockaded",
+        relayLabels: ["Relay A · Yard", "Relay B · Warehouse", "Relay C · Quay"]
+      }
+    },
+    m2: {
+      zh: {
+        locTitle: "几猫港区 · 二号仓库 · 暴雨", locSub: "几猫突击小队 · 近距离作战 · 能见度低",
+        speaker: "小队频道",
+        intro: "指挥部通报：暴雨封港，仓库内有三个上行中继。猎犬已经进场；接驳需要 45 秒。",
+        all: "仓库中继全部离线！东门集结点被封锁，坚守 45 秒！",
+        done: "仓库区已恢复控制",
+        relayLabels: ["西区中继 · 货架", "主控中继 · 仓库", "东区中继 · 装卸口"]
+      },
+      en: {
+        locTitle: "JIMAO PORT · WAREHOUSE TWO · DOWNPOUR", locSub: "JIMAO ASSAULT SQUAD · Close quarters · Low visibility",
+        speaker: "Squad Channel",
+        intro: "Command reports: the storm has sealed the port. Three uplink relays inside the warehouse. Hounds are already moving; the boat needs 45 seconds.",
+        all: "Warehouse relays are offline! The east gate is sealed — hold for 45 seconds!",
+        done: "Warehouse district secured",
+        relayLabels: ["West relay · Racks", "Main relay · Warehouse", "East relay · Loading bay"]
+      }
+    },
+    m3: {
+      zh: {
+        locTitle: "几猫港区 · 北码头 · 黎明", locSub: "几猫突击小队 · 主控核心仍在活动",
+        speaker: "指挥中心",
+        intro: "最后一班接驳即将到港。切断四处中继——注意，港区主控还在码头上。",
+        all: "四处中继全部断开！港区主控已启动，摧毁它的核心！",
+        done: "码头封锁已解除",
+        relayLabels: ["码头中继 · 中", "码头中继 · 北", "堆场中继 · 西", "装卸口中继 · 南"]
+      },
+      en: {
+        locTitle: "JIMAO PORT · NORTH QUAY · DAWN", locSub: "JIMAO ASSAULT SQUAD · Port core still active",
+        speaker: "Command",
+        intro: "The last boat is about to dock. Cut all four relays — be advised, the port core is still on the quay.",
+        all: "All four relays are down! The port core is awake — destroy its heart!",
+        done: "Quay blockade lifted",
+        relayLabels: ["Quay relay · Center", "Quay relay · North", "Yard relay · West", "Loading relay · South"]
+      }
+    },
+    m4: {
+      zh: {
+        locTitle: "几猫港区 · 冷链仓库", locSub: "B4-0271 · 低温货物区",
+        speaker: "小队频道",
+        intro: "信号钻进了冷库。三个冷却中继维持着 B4-0271 的低温——切断它们，看看里面到底冻着什么。",
+        all: "冷库中继全部离线！装卸口正在封门，坚守 45 秒！",
+        done: "冷链仓库已恢复控制",
+        relayLabels: ["西侧冷却中继", "中央控制中继", "东侧货舱中继"]
+      },
+      en: {
+        locTitle: "JIMAO PORT · COLD STORAGE", locSub: "B4-0271 · Cryo cargo zone",
+        speaker: "Squad Channel",
+        intro: "The signal went into the freezer. Three cooling relays keep B4-0271 cold — cut them and see what is frozen inside.",
+        all: "Cold storage relays are offline! The loading bay is sealing — hold for 45 seconds!",
+        done: "Cold storage secured",
+        relayLabels: ["West cooling relay", "Central control relay", "East cargo relay"]
+      }
+    },
+    m5: {
+      zh: {
+        locTitle: "水滴保险 · 外锚地", locSub: "B4-0271 · 7 号货舱",
+        speaker: "舵手",
+        intro: "舵手把船停在探照灯照不到的地方。货单上的“活体”在七号货舱里——切断三处船上中继，别让这艘船离港。",
+        all: "三处船上中继全部断开！船首撤离点正在暴露，坚守 45 秒！",
+        done: "外锚地已控制",
+        relayLabels: ["系泊绞车中继", "货舱门中继", "驾驶台中继"]
+      },
+      en: {
+        locTitle: "WATERDROP INSURANCE · OUTER ANCHORAGE", locSub: "B4-0271 · Cargo Hold 7",
+        speaker: "Pilot",
+        intro: "The pilot tucked the boat out of the searchlights. The manifest's \"live cargo\" is in Hold Seven — cut the three ship relays and keep this vessel in port.",
+        all: "All three ship relays are down! The bow extraction point is exposed — hold for 45 seconds!",
+        done: "Outer anchorage secured",
+        relayLabels: ["Mooring winch relay", "Cargo door relay", "Bridge relay"]
+      }
+    },
+    m6: {
+      zh: {
+        locTitle: "几猫港区 · 四号泊位 · 破晓", locSub: "几猫突击小队 · 蜃 · 终形",
+        speaker: "蜃",
+        intro: "回到四号泊位。接管组已经进场——蜃把整座港区的防线接进了自己身体。它只想拖住他们，给你时间。",
+        all: "最后两处中继断开！蜃·终形展开，摧毁核心！",
+        done: "四号泊位 · 归途",
+        relayLabels: ["堆场中继 · 西", "码头中继 · 中"],
+        bossName: "蜃 · 终形"
+      },
+      en: {
+        locTitle: "JIMAO PORT · BERTH FOUR · DAYBREAK", locSub: "JIMAO ASSAULT SQUAD · Shen · Final Form",
+        speaker: "Shen",
+        intro: "Back at Berth Four. The takeover team is in — Shen has wired the whole port's defenses into its body. It only wants to hold them off and buy you time.",
+        all: "The last two relays are down! Shen's final form unfolds — destroy the core!",
+        done: "Berth Four · Homeward",
+        relayLabels: ["Yard relay · West", "Quay relay · Center"],
+        bossName: "Shen · Final Form"
+      }
+    },
+    m7: {
+      zh: {
+        locTitle: "几猫港区 · 四号泊位 · 暴雨夜", locSub: "几猫突击小队 · 反向推进 · 断电区",
+        speaker: "指挥中心",
+        intro: "泡在水里的港区。四处上行中继还在供电，十八个目标已经把你围在中间——清掉它们，守住西门。",
+        all: "四处中继全部断开！敌人正在收拢包围圈，把这片区域清干净，然后守住西门！",
+        done: "深水区已清空",
+        relayLabels: ["装卸口中继 · 南", "仓库中继 · 乙", "堆场中继 · 甲", "北侧上行中继 · 戊"],
+        obj: ["切断四处上行中继", "清除敌对单位", "坚守撤离区"]
+      },
+      en: {
+        locTitle: "JIMAO PORT · BERTH FOUR · STORM NIGHT", locSub: "JIMAO ASSAULT SQUAD · Reverse push · Blackout zone",
+        speaker: "Command",
+        intro: "A port underwater. Four uplink relays still have power, and eighteen hostiles have you surrounded — clear them and hold the west gate.",
+        all: "All four relays are down! They are closing the net — sweep this sector clean, then hold the west gate!",
+        done: "Deep water cleared",
+        relayLabels: ["Loading relay · South", "Warehouse relay · B", "Yard relay · A", "North uplink relay · E"],
+        obj: ["Cut the four uplink relays", "Clear the hostiles", "Hold the extraction zone"]
+      }
+    },
+    m8: {
+      zh: {
+        locTitle: "港区主控 · 核心舱 · B4-0271", locSub: "几猫突击小队 · 蜃 · 残响",
+        speaker: "蜃",
+        intro: "核心舱。冷却回路还在把它的记忆泵进反应堆——切断三处上行中继，逼它从里面出来。",
+        all: "三处冷却中继断开！反应堆过载，蜃·残响正在成形——摧毁它！",
+        done: "核心舱 · 归零",
+        relayLabels: ["西侧冷却中继", "东侧回响中继", "南侧核心中继"],
+        obj: ["切断三处上行中继", "摧毁蜃 · 残响"],
+        bossName: "蜃 · 残响"
+      },
+      en: {
+        locTitle: "PORT CORE · REACTOR BAY · B4-0271", locSub: "JIMAO ASSAULT SQUAD · Shen · Echo",
+        speaker: "Shen",
+        intro: "The reactor bay. The cooling loop is still pumping its memories into the reactor — cut the three uplinks and force it out.",
+        all: "All three cooling relays are down! The reactor is overloading, Shen's echo is forming — destroy it!",
+        done: "Reactor Bay · Zeroed",
+        relayLabels: ["West cooling relay", "East echo relay", "South core relay"],
+        obj: ["Cut the three uplink relays", "Destroy Shen · Echo"],
+        bossName: "Shen · Echo"
+      }
+    }
+  };
+  (function mergeMissionExtra() {
+    for (var i = 0; i < MISSIONS.length; i++) {
+      var m = MISSIONS[i], x = MISSION_EXTRA[m.id];
+      if (!m || !x) continue;
+      for (var lang in x) {
+        if (!Object.prototype.hasOwnProperty.call(x, lang)) continue;
+        if (!m[lang]) m[lang] = {};
+        for (var k in x[lang]) {
+          if (Object.prototype.hasOwnProperty.call(x[lang], k)) m[lang][k] = x[lang][k];
+        }
+      }
+    }
+  })();
+
   /* ---------- 界面文案 ---------- */
   var ZH = {
     "ui2.title.kicker": "几猫突击小队",
@@ -1420,8 +1592,253 @@
     "ui2.brief.opCode": "Op {code}",
     "ui2.hud.touchKey": "Interact"
   };
+  /* ---------- V54 · 战役 / BOSS / 训练 / 辅助 / 扩展 / 联机呼号 ---------- */
+  var CAMP_ZH = {
+    "campaign.campSub": "同一港区，三种时段与目标编成。完成行动可解锁下一阶段。",
+    "campaign.archive": "剧情档案",
+    "campaign.brief.title": "行动简报",
+    "campaign.brief.threatsUnknown": "未知",
+    "campaign.brief.recommendFree": "自由配装",
+    "campaign.sealed": "几猫港区 · 档案 B4-0271 已封存",
+    "campaign.unlocked": "几猫港区 · 已解锁 {n}/{total}",
+    "campaign.now": "当前行动 {code} · {name} · 已解锁 {n}/{total}",
+    "campaign.debriefTitle": "行动 {code} · {name} · 行动简报",
+    "campaign.doneFallback": "行动完成",
+    "campaign.confirmRetry": "确认重试？",
+    "campaign.restart": "重新开始行动",
+    "campaign.op": "行动",
+    "campaign.obj.extract": "撤离点",
+    "campaign.arcSub": "一夜港区 · 六幕行动",
+    "campaign.v3.locSub": "几猫突击小队 · 撤离窗口 40 秒",
+    "campaign.v3.all": "四处中继全部断开！撤离窗口开始计时，守住阵地！",
+    "campaign.v3.intro": "最后一班接驳即将到港。切断四处中继，然后守住撤离点。"
+  };
+  var CAMP_EN = {
+    "campaign.campSub": "One port, three time slots and objective sets. Complete an operation to unlock the next stage.",
+    "campaign.archive": "Story Archive",
+    "campaign.brief.title": "Operation Briefing",
+    "campaign.brief.threatsUnknown": "Unknown",
+    "campaign.brief.recommendFree": "Free loadout",
+    "campaign.sealed": "JIMAO PORT · FILE B4-0271 SEALED",
+    "campaign.unlocked": "JIMAO PORT · Unlocked {n}/{total}",
+    "campaign.now": "Current op {code} · {name} · Unlocked {n}/{total}",
+    "campaign.debriefTitle": "Op {code} · {name} · Operation Briefing",
+    "campaign.doneFallback": "Operation Complete",
+    "campaign.confirmRetry": "Retry?",
+    "campaign.restart": "Restart Operation",
+    "campaign.op": "Op",
+    "campaign.obj.extract": "Extraction Point",
+    "campaign.arcSub": "One night at the port · Six operations",
+    "campaign.v3.locSub": "JIMAO ASSAULT SQUAD · 40-second extraction window",
+    "campaign.v3.all": "All four relays are down! The extraction window starts now — hold your ground!",
+    "campaign.v3.intro": "The last boat is about to dock. Cut all four relays, then hold the extraction point."
+  };
+  var BOSS_ZH = {
+    "boss.core.kicker": "港区主控 · 蜃",
+    "boss.core.name": "港区主控 · 蜃",
+    "boss.core.speaker": "港区主控",
+    "boss.core.markerShort": "主控",
+    "boss.core.markerLabel": "港区主控",
+    "boss.signalLost": "主控核心信号丢失",
+    "boss.started": "{name}  已启动",
+    "boss.radio.final": "终形展开。它把整个港区的防线接进了自己身体——打掉核心！",
+    "boss.radio.start": "检测到大型机械单位！那是港区主控，打掉它的核心！",
+    "boss.objective.core": "摧毁港区主控核心",
+    "boss.destroyed": "主控核心已摧毁 · 登船窗口 {n} 秒",
+    "boss.radio.deadFinal": "蜃·终形瓦解！最后 {n} 秒，撤离！",
+    "boss.radio.deadCore": "主控核心下线！接驳艇 {n} 秒，撤离！",
+    "boss.objective.window": "登船窗口 · {n} 秒",
+    "boss.phase1.warn": "主控装甲剥落 · 释放无人机",
+    "boss.phase2.warn": "主控过载 · 全力攻击",
+    "boss.final.name": "蜃 · 终形",
+    "boss.final.warn": "蜃 · 终形 · 残响展开",
+    "boss.phase.0": "一·扫描",
+    "boss.phase.1": "二·吊装",
+    "boss.phase.2": "三·过载",
+    "boss.finalPhase.0": "一·防壁",
+    "boss.finalPhase.1": "二·镜像",
+    "boss.finalPhase.2": "三·坍缩",
+    "boss.announce.hoist": "主控装甲剥落 · 吊装臂启动",
+    "boss.radio.hoist": "它把吊机接进了身体。注意地面红环，别站在落点里。",
+    "boss.announce.mirror": "蜃·终形 · 镜像投射",
+    "boss.radio.mirror": "它开始投射镜像了。扫描分辨真身——打错会挨反击。",
+    "boss.announce.overload": "主控过载 · 核心脱离吊臂",
+    "boss.radio.overload": "核心落地了！躲开冲刺，EMP 能让它短路。",
+    "boss.announce.collapse": "蜃·终形 · 坍缩开始",
+    "boss.radio.collapse": "反应堆失稳！安全区在缩小，借柱子躲开贯穿光束。",
+    "boss.summon.warn": "蜃 · 护盾无人机 ×{n}",
+    "boss.emp.warn": "EMP 脉冲 · HUD 故障 1.5s",
+    "boss.echo.warn": "残响 · 幻影投射 ×{n}"
+  };
+  var BOSS_EN = {
+    "boss.core.kicker": "PORT CORE · SHEN",
+    "boss.core.name": "PORT CORE · SHEN",
+    "boss.core.speaker": "Port Core",
+    "boss.core.markerShort": "CORE",
+    "boss.core.markerLabel": "Port Core",
+    "boss.signalLost": "Core signal lost",
+    "boss.started": "{name} online",
+    "boss.radio.final": "The final form unfolds. It has wired the whole port's defenses into its body — take out the core!",
+    "boss.radio.start": "Large mechanical unit detected! That is the port core — take out its heart!",
+    "boss.objective.core": "Destroy the port core",
+    "boss.destroyed": "Core destroyed · Boarding window {n}s",
+    "boss.radio.deadFinal": "Shen's final form is breaking up! {n} seconds — extract!",
+    "boss.radio.deadCore": "Core offline! The boat leaves in {n} seconds — extract!",
+    "boss.objective.window": "Boarding window · {n}s",
+    "boss.phase1.warn": "Core armor stripped · drones released",
+    "boss.phase2.warn": "Core overload · all-out attack",
+    "boss.final.name": "Shen · Final Form",
+    "boss.final.warn": "Shen · Final Form · Echoes unfold",
+    "boss.phase.0": "I · Scan",
+    "boss.phase.1": "II · Hoist",
+    "boss.phase.2": "III · Overload",
+    "boss.finalPhase.0": "I · Bulwark",
+    "boss.finalPhase.1": "II · Mirror",
+    "boss.finalPhase.2": "III · Collapse",
+    "boss.announce.hoist": "Core armor stripped · Hoist arms active",
+    "boss.radio.hoist": "It has wired the crane into its body. Watch the red rings on the ground and stay out of the impact zone.",
+    "boss.announce.mirror": "Shen · Final Form · Mirror Projection",
+    "boss.radio.mirror": "It is projecting mirrors. Scan to find the real body — hitting a decoy draws a counterattack.",
+    "boss.announce.overload": "Core overload · Core detached from the hoist",
+    "boss.radio.overload": "The core is down! Dodge the dash — EMP will short it out.",
+    "boss.announce.collapse": "Shen · Final Form · Collapse begins",
+    "boss.radio.collapse": "Reactor unstable! The safe zone is shrinking — use the pillars to dodge the beam.",
+    "boss.summon.warn": "Shen · Shield drones ×{n}",
+    "boss.emp.warn": "EMP pulse · HUD failure 1.5s",
+    "boss.echo.warn": "Echo · Phantom projection ×{n}"
+  };
+  var TRAIN_ZH = {
+    "training.name": "训练场",
+    "training.sub": "靶场 · 限时挑战",
+    "training.desc": "90 秒内击中尽可能多的悬浮靶机。无限弹药，三把武器自由试用。",
+    "training.kicker": "训练 · 靶场",
+    "training.remaining": "剩余",
+    "training.score": "得分",
+    "training.resultKicker": "训练结束 · 靶场成绩",
+    "training.resultTitle": "射击评估",
+    "training.acc": "命中率",
+    "training.kills": "击中靶机",
+    "training.head": "爆头",
+    "training.best": "最佳成绩",
+    "training.again": "再来一次",
+    "training.back": "返回标题",
+    "training.objective": "训练 · 击中靶机",
+    "training.extract": "训练结束",
+    "training.startMsg": "训练开始 · 90 秒内击中悬浮靶机"
+  };
+  var TRAIN_EN = {
+    "training.name": "Training Ground",
+    "training.sub": "Range · Timed Challenge",
+    "training.desc": "Hit as many floating targets as you can in 90 seconds. Unlimited ammo, three weapons to try freely.",
+    "training.kicker": "TRAINING · RANGE",
+    "training.remaining": "TIME",
+    "training.score": "SCORE",
+    "training.resultKicker": "Training Complete · Range Results",
+    "training.resultTitle": "Shooting Assessment",
+    "training.acc": "Accuracy",
+    "training.kills": "Targets Hit",
+    "training.head": "Headshots",
+    "training.best": "Best Score",
+    "training.again": "Try Again",
+    "training.back": "Return to Title",
+    "training.objective": "Training · Hit the targets",
+    "training.extract": "Training Complete",
+    "training.startMsg": "Training started · Hit the floating targets within 90 seconds"
+  };
+  var ACCESS_ZH = {
+    "access.lockedHint": "完成 {n} 个挑战解锁",
+    "access.shake.low": "低",
+    "access.shake.std": "标准",
+    "access.shake.high": "高",
+    "access.cross.lime": "绿 · 3",
+    "access.cross.crimson": "红 · 6",
+    "access.cross.gold": "金 · 9",
+    "access.controls": "操控"
+  };
+  var ACCESS_EN = {
+    "access.lockedHint": "Complete {n} challenges to unlock",
+    "access.shake.low": "Low",
+    "access.shake.std": "Standard",
+    "access.shake.high": "High",
+    "access.cross.lime": "Green · 3",
+    "access.cross.crimson": "Red · 6",
+    "access.cross.gold": "Gold · 9",
+    "access.controls": "Controls"
+  };
+  var EXT_ZH = {
+    "ext.pickup.medkit": "医疗包",
+    "ext.pickup.armor": "护甲板",
+    "ext.pickup.ammo": "弹药箱",
+    "ext.pickup.grenade": "手雷箱",
+    "ext.pickup.medkitGain": "医疗包  +45",
+    "ext.pickup.armorGain": "护甲板  +50",
+    "ext.pickup.ammoGain": "弹药补给",
+    "ext.pickup.ammoGainWithGrenade": "弹药补给 · 手雷 +1",
+    "ext.pickup.grenadeGain": "手雷 +1",
+    "ext.pickup.grenadeGain2": "手雷  +2",
+    "ext.melee.kill": "近战击杀",
+    "ext.checkpoint.resume": "从检查点继续",
+    "ext.checkpoint.restored": "检查点已恢复",
+    "ext.shield.break": "<b>重装盾卫</b> 护盾破碎",
+    "ext.hold.message": "接驳准备中 · 坚守撤离点",
+    "ext.tip.mission": "行动 {code} · {name}",
+    "ext.tip.training": "训练 · 靶场",
+    "ext.tip.controls": "1/2 切换武器 · G 手雷 · V 近战",
+    "ext.touch.scan": "扫描",
+    "ext.touch.swap": "换枪"
+  };
+  var EXT_EN = {
+    "ext.pickup.medkit": "Medkit",
+    "ext.pickup.armor": "Armor Plate",
+    "ext.pickup.ammo": "Ammo Box",
+    "ext.pickup.grenade": "Grenade Box",
+    "ext.pickup.medkitGain": "Medkit +45",
+    "ext.pickup.armorGain": "Armor plate +50",
+    "ext.pickup.ammoGain": "Ammo resupplied",
+    "ext.pickup.ammoGainWithGrenade": "Ammo resupplied · Grenade +1",
+    "ext.pickup.grenadeGain": "Grenade +1",
+    "ext.pickup.grenadeGain2": "Grenade +2",
+    "ext.melee.kill": "Melee Kill",
+    "ext.checkpoint.resume": "Continue from Checkpoint",
+    "ext.checkpoint.restored": "Checkpoint restored",
+    "ext.shield.break": "<b>Heavy Shielder</b> shield broken",
+    "ext.hold.message": "Extraction inbound · Hold the LZ",
+    "ext.tip.mission": "Op {code} · {name}",
+    "ext.tip.training": "Training · Range",
+    "ext.tip.controls": "1/2 Switch Weapon · G Grenade · V Melee",
+    "ext.touch.scan": "Scan",
+    "ext.touch.swap": "Swap"
+  };
+  var MPX_ZH = {
+    "ui2.mp.err.empty_url": "请输入服务器地址",
+    "ui2.mp.err.bad_name": "呼号不合法（2–12 个字，仅中英文/数字/下划线/连字符）",
+    "mp.mode.unknown": "未知模式",
+    "mp.name.default": "几猫",
+    "mp.name.you": "你",
+    "mp.name.botPrefix": "猫-",
+    "mp.bot.name.1": "猫-七",
+    "mp.bot.name.2": "猫-九",
+    "mp.bot.name.3": "猫-十三",
+    "mp.bot.name.4": "猫-二七",
+    "mp.bot.name.5": "猫-零",
+    "mp.bot.name.6": "猫-拾"
+  };
+  var MPX_EN = {
+    "ui2.mp.err.empty_url": "Enter a server address",
+    "ui2.mp.err.bad_name": "Invalid callsign (2–12 chars; letters, digits, underscore, hyphen)",
+    "mp.mode.unknown": "Unknown mode",
+    "mp.name.default": "Jimao",
+    "mp.name.you": "You",
+    "mp.name.botPrefix": "Cat-",
+    "mp.bot.name.1": "Cat-7",
+    "mp.bot.name.2": "Cat-9",
+    "mp.bot.name.3": "Cat-13",
+    "mp.bot.name.4": "Cat-27",
+    "mp.bot.name.5": "Cat-0",
+    "mp.bot.name.6": "Cat-10"
+  };
   (function () {
-    var maps = [[PROG_ZH, ZH], [PROG_EN, EN], [INP_ZH, ZH], [INP_EN, EN], [UI2X_ZH, ZH], [UI2X_EN, EN]];
+    var maps = [[PROG_ZH, ZH], [PROG_EN, EN], [INP_ZH, ZH], [INP_EN, EN], [UI2X_ZH, ZH], [UI2X_EN, EN], [CAMP_ZH, ZH], [CAMP_EN, EN], [BOSS_ZH, ZH], [BOSS_EN, EN], [TRAIN_ZH, ZH], [TRAIN_EN, EN], [ACCESS_ZH, ZH], [ACCESS_EN, EN], [EXT_ZH, ZH], [EXT_EN, EN], [MPX_ZH, ZH], [MPX_EN, EN]];
     for (var i = 0; i < maps.length; i++) {
       for (var k in maps[i][0]) if (Object.prototype.hasOwnProperty.call(maps[i][0], k)) maps[i][1][k] = maps[i][0][k];
     }

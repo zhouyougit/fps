@@ -14,7 +14,7 @@ const { execSync } = require('child_process');
 const root = path.join(__dirname, '..');
 const pkg = require(path.join(root, 'package.json'));
 
-const PROFILES = ['v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'v42', 'v43', 'v44', 'v45', 'v46', 'v47', 'v48', 'v49', 'v50', 'v51', 'v52', 'v53', 'dev'];
+const PROFILES = ['v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'v42', 'v43', 'v44', 'v45', 'v46', 'v47', 'v48', 'v49', 'v50', 'v51', 'v52', 'v53', 'v54', 'dev'];
 const LABELS = {
   v32: 'V32 · 地基',
   v33: 'V33 · 手感',
@@ -37,7 +37,8 @@ const LABELS = {
   v50: 'V50 · 设置',
   v51: 'V51 · 可读',
   v52: 'V52 · 收口',
-  v53: 'V53 · 改进'
+  v53: 'V53 · 改进',
+  v54: 'V54 · 收敛'
 };
 // V40 地图深化：用户明确允许放宽单文件体积，先完成地图细节，后续再统一优化。
 // 当前约 3.54MB；预算临时放宽到 6MB，仅作为失控保护，不是质量目标。
@@ -61,6 +62,7 @@ const profile = process.argv[3];
 if (!targetArg || !profile) usage('必须显式指定 target 与 profile');
 if (PROFILES.indexOf(profile) < 0) usage('未知 profile: ' + profile);
 const force = process.argv.indexOf('--force') >= 0;
+const MINIFY = process.argv.indexOf('--minify') >= 0;
 const target = path.isAbsolute(targetArg) ? targetArg : path.resolve(root, targetArg);
 const version = process.env.SX_VERSION || pkg.version || '0.38.0';
 // ENG-2：历史快照只读。versions/ 下已存在的产物默认拒绝覆盖，必须显式 --force。
@@ -196,6 +198,7 @@ const FEATURE_SETS = {
   v51: V41_FEATURES,
   v52: V41_FEATURES,
   v53: V41_FEATURES,
+  v54: V41_FEATURES,
 };
 let features = '';
 if (profile === 'dev') {
@@ -222,6 +225,7 @@ const buildInfo = {
   target: path.basename(target),
   // ENG-7：引擎是无上游源码的 vendor 片段；至少把 three.js 版本写进产物。
   three: 'r180',
+  minified: MINIFY,
   commit: (function () {
     try {
       return execSync('git rev-parse --short HEAD', { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
@@ -235,30 +239,57 @@ const buildTag = 'window.__BUILD__ = ' + JSON.stringify(buildInfo) + ';\n' +
 head = head.replace(/<script>\s*$/, () => '<script>\n' + buildTag);
 if (head.indexOf('window.__BUILD__') < 0) throw new Error('[build] buildTag 注入失败（template.head.html 缺少 <script> 结尾）');
 
+// ENG-6：可选压缩构建。每个内联 script 单独 minify，保留全局名（toplevel=false），
+// 避免跨 <script> 的 window.*/SALT_* 约定被破坏。terser 只在 --minify 时加载。
+function minifyCode(code, label) {
+  if (!MINIFY || !code) return code;
+  let out;
+  try {
+    const terser = require('terser');
+    out = terser.minify_sync(code, {
+      compress: { passes: 2, drop_debugger: false },
+      mangle: true,
+      format: { comments: false, ascii_only: false },
+      sourceMap: false,
+    });
+  } catch (e) {
+    throw new Error('[build] minify 失败 ' + label + ': ' + e.message);
+  }
+  if (!out || typeof out.code !== 'string') throw new Error('[build] minify 输出为空: ' + label);
+  return out.code;
+}
+
+const jsOut = minifyCode(js, 'game+cfg');
+const simOut = minifyCode(sim, 'sim');
+const netOut = minifyCode(netProtocol, 'net');
+const coreOut = minifyCode(core, 'core');
+const extOut = minifyCode(ext, 'ext');
+const featuresOut = minifyCode(features, 'features');
+
 const html =
-  head + js + '\n</script>\n' +
-  (sim ? '<script id="salttime-sim">\n' + sim + '\n</script>\n' : '') +
-  (netProtocol ? '<script id="salttime-net">\n' + netProtocol + '\n</script>\n' : '') +
-  (core ? '<script id="salttime-core">\n' + buildTag + '\n' + core + '\n</script>\n' : '') +
-  '<script id="salttime-ext">\n' + ext + '\n</script>\n' +
-  (features ? '<script id="salttime-features">\n' + features + '\n</script>\n' : '') +
+  head + jsOut + '\n</script>\n' +
+  (simOut ? '<script id="salttime-sim">\n' + simOut + '\n</script>\n' : '') +
+  (netOut ? '<script id="salttime-net">\n' + netOut + '\n</script>\n' : '') +
+  (coreOut ? '<script id="salttime-core">\n' + buildTag + '\n' + coreOut + '\n</script>\n' : '') +
+  '<script id="salttime-ext">\n' + extOut + '\n</script>\n' +
+  (featuresOut ? '<script id="salttime-features">\n' + featuresOut + '\n</script>\n' : '') +
   '\n</body>\n</html>\n';
 
 fs.writeFileSync(target, html);
 const size = fs.statSync(target).size;
 const shownTarget = path.relative(root, target) || target;
-console.log('built ' + shownTarget + '  profile ' + profile + '  version ' + version + '  ' + (size / 1048576).toFixed(2) + ' MB');
+console.log('built ' + shownTarget + '  profile ' + profile + '  version ' + version + '  minify=' + (MINIFY ? 'on' : 'off') + '  ' + (size / 1048576).toFixed(2) + ' MB');
 
 /* ---- 体积明细 ---- */
 function kb(s) { return (Buffer.byteLength(s, 'utf8') / 1024).toFixed(1); }
 const parts = [
   ['head', head],
-  ['game+cfg', js],
-  ['sim', sim],
-  ['net', netProtocol],
-  ['core', core],
-  ['ext', ext],
-  ['features', features]
+  ['game+cfg', jsOut],
+  ['sim', simOut],
+  ['net', netOut],
+  ['core', coreOut],
+  ['ext', extOut],
+  ['features', featuresOut]
 ];
 for (const p of parts) console.log('  ' + p[0].padEnd(10) + kb(p[1]).padStart(9) + ' KB');
 const pct = (size / BUDGET * 100).toFixed(1);

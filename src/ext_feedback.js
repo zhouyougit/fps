@@ -12,6 +12,22 @@
    ===================================================================== */
 (function () {
   "use strict";
+  // V54 ARCH-2：空 catch 不再静默吞错。软错误统一走 window.SXErrors.soft("feedback:<tag>")：
+  // 按标签计数、每个标签只记一条诊断，热路径不会刷屏；缺少诊断接口时退回 window.__errors。
+  function soft(tag, e) {
+    if (typeof window === "undefined" || !window) return;
+    var forwarded = false;
+    try {
+      if (window.SXErrors && typeof window.SXErrors.soft === "function") { window.SXErrors.soft("feedback:" + tag, e); forwarded = true; }
+    } catch (_) { forwarded = false; }
+    if (forwarded) return;
+    try {
+      if (window.__errors) {
+        window.__errors.push("[feedback:" + tag + "] " + ((e && e.stack) || e));
+        while (window.__errors.length > 200) window.__errors.shift();
+      }
+    } catch (_) { return; }
+  }
 
   var G = null;
   var booted = false;
@@ -40,10 +56,10 @@
         if (typeof raw.numbers === "boolean") state.numbers = raw.numbers;
         if (typeof raw.arcs === "boolean") state.arcs = raw.arcs;
       }
-    } catch (e) {}
+    } catch (e) { soft("load-settings", e); }
   }
   function saveFeedback() {
-    try { localStorage.setItem(HIT_KEY, JSON.stringify({ numbers: !!state.numbers, arcs: !!state.arcs })); } catch (e) {}
+    try { localStorage.setItem(HIT_KEY, JSON.stringify({ numbers: !!state.numbers, arcs: !!state.arcs })); } catch (e) { soft("save-settings", e); }
   }
   // PERF-4：reduce-motion 只按 100ms 轮询刷新，避免低血量路径每帧 JSON.parse(localStorage)。
   var reduceMotionCached = false;
@@ -67,7 +83,7 @@
       if (a && (a.short || a.name)) return a.short || a.name;
       if (w.short) return w.short;
       if (w.name) return w.name;
-    } catch (e) {}
+    } catch (e) { soft("weapon-name", e); }
     return "几式";
   }
 
@@ -207,7 +223,7 @@
             { transform: "scale(.55)", opacity: 0.95 },
             { transform: "scale(2.35)", opacity: 0 }
           ], { duration: 420, easing: "ease-out" });
-        } catch (e) {}
+        } catch (e) { soft("hit-ring-anim", e); }
       }
     }
     // 音效：普通轻、爆头清脆、击杀重、护甲金属
@@ -267,7 +283,7 @@
           en.value += amount;
           en.t = now;
           en.el.textContent = String(Math.max(0, Math.round(en.value)));
-          try { en.el.animate([{ transform: "translate(-50%,-50%) scale(1.22)" }, { transform: "translate(-50%,-50%) scale(1)" }], { duration: 90 }); } catch (e) {}
+          try { en.el.animate([{ transform: "translate(-50%,-50%) scale(1.22)" }, { transform: "translate(-50%,-50%) scale(1)" }], { duration: 90 }); } catch (e) { soft("dmg-num-anim", e); }
           return en.el;
         }
       }
@@ -329,7 +345,7 @@
       if (el.parentNode) el.parentNode.removeChild(el);
     });
     removeLater(el, 1580);
-    try { G.audio.play("objective_done", { gain: 0.3, pitch: 1.3 }); } catch (e) {}
+    try { G.audio.play("objective_done", { gain: 0.3, pitch: 1.3 }); } catch (e) { soft("sfx-objective", e); }
     return el;
   }
 
@@ -386,7 +402,7 @@
     try {
       var P = G.player;
       low = !!(P && P.alive && P.health < 35 && G.game.state === "playing");
-    } catch (e) {}
+    } catch (e) { soft("low-health-read", e); }
     if (low && reduceMotion()) low = false;
     if (low !== lowOn) {
       lowOn = low;
@@ -421,7 +437,7 @@
           return en;
         };
       }
-    } catch (e) {}
+    } catch (e) { soft("probe-install", e); }
   }
   function takeDamage(en) {
     if (!en) return 0;
@@ -432,7 +448,7 @@
           lastDmg.delete(en);
           return v;
         }
-      } catch (e) {}
+      } catch (e) { soft("take-damage", e); }
     }
     return en.__xfLastDmg || 0;
   }
@@ -528,8 +544,8 @@
   function toggleNumbers() {
     state.numbers = !state.numbers;
     saveFeedback();
-    try { G.hud.message("伤害数字 " + (state.numbers ? "开启" : "关闭"), 1.4); } catch (e) {}
-    try { G.events.emit("sx:feedback-settings", { numbers: state.numbers, arcs: state.arcs }); } catch (e) {}
+    try { G.hud.message("伤害数字 " + (state.numbers ? "开启" : "关闭"), 1.4); } catch (e) { soft("hud-message", e); }
+    try { G.events.emit("sx:feedback-settings", { numbers: state.numbers, arcs: state.arcs }); } catch (e) { soft("emit-settings", e); }
     return state.numbers;
   }
   function onKey(e) {
@@ -575,7 +591,7 @@
 
   function publicState() {
     var P = null;
-    try { P = G.player; } catch (e) {}
+    try { P = G.player; } catch (e) { soft("public-player", e); }
     return {
       numbers: !!state.numbers,
       arcs: !!state.arcs,
@@ -605,9 +621,9 @@
     try { G.events.on("impact", onImpact); } catch (e) { console.error("[feedback] impact", e); }
     try { G.events.on("player:hitEnemy", onHitEnemy); } catch (e) { console.error("[feedback] hitEnemy", e); }
     try { G.events.on("player:hit", onPlayerHit); } catch (e) { console.error("[feedback] player:hit", e); }
-    try { G.events.on("player:dead", onPlayerDead); } catch (e) {}
-    try { G.events.on("sx:armor-absorb", onArmor); } catch (e) {}
-    try { G.events.on("sx:streak", onStreak); } catch (e) {}
+    try { G.events.on("player:dead", onPlayerDead); } catch (e) { soft("hook-dead", e); }
+    try { G.events.on("sx:armor-absorb", onArmor); } catch (e) { soft("hook-armor", e); }
+    try { G.events.on("sx:streak", onStreak); } catch (e) { soft("hook-streak", e); }
     addEventListener("keydown", onKey, true);
     // 周期刷新低血量与敌人探针（PERF-4：去掉与 100ms 定时器重复的常驻 rAF）
     reduceMotionCached = readReduceMotion();
@@ -615,7 +631,7 @@
     var iv = setInterval(function () {
       tick++;
       reduceMotionCached = readReduceMotion();
-      try { updateLowHealth(); } catch (e) {}
+      try { updateLowHealth(); } catch (e) { soft("low-health-tick", e); }
       if (tick % 20 === 0) installProbe();
       if (!G || !G.hud || !G.hud.root) {
         clearInterval(iv);

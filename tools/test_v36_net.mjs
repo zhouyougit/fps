@@ -555,6 +555,8 @@ try {
   ok('selfId 为字符串 id，selfNid 为数值 netId（welcome 映射）',
     typeof stateA.selfId === 'string' && /^a[0-9a-f]+$/.test(stateA.selfId) && typeof stateA.selfNid === 'number',
     { selfId: stateA.selfId, selfNid: stateA.selfNid });
+  const rates = await pageA.evaluate(() => { const s = window.__SX_NET.state(); return { snapRate: s.snapRate, tickRate: s.tickRate, interpMs: s.interpMs }; });
+  ok('welcome.snapRate 生效（snap 30 → interp ≥60ms）', rates.snapRate === 30 && rates.interpMs >= 60, rates);
 
   const selfRemote = await pageA.evaluate(() => ({
     remotes: window.__MP.remotes(),

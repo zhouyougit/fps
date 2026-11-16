@@ -8,6 +8,22 @@
      ===================================================================== */
 (function () {
   "use strict";
+  // V54 ARCH-2：空 catch 不再静默吞错。软错误统一走 window.SXErrors.soft("weapons2:<tag>")：
+  // 按标签计数、每个标签只记一条诊断，热路径不会刷屏；缺少诊断接口时退回 window.__errors。
+  function soft(tag, e) {
+    if (typeof window === "undefined" || !window) return;
+    var forwarded = false;
+    try {
+      if (window.SXErrors && typeof window.SXErrors.soft === "function") { window.SXErrors.soft("weapons2:" + tag, e); forwarded = true; }
+    } catch (_) { forwarded = false; }
+    if (forwarded) return;
+    try {
+      if (window.__errors) {
+        window.__errors.push("[weapons2:" + tag + "] " + ((e && e.stack) || e));
+        while (window.__errors.length > 200) window.__errors.shift();
+      }
+    } catch (_) { return; }
+  }
 
   if (window.__SX_W2_INSTALLED) return;
   window.__SX_W2_INSTALLED = true;
@@ -29,13 +45,13 @@
   var tuneOn = false;
 
   function log(msg) {
-    try { console.log("[weapons2] " + msg); } catch (e) {}
+    try { console.log("[weapons2] " + msg); } catch (e) { /* 纯日志输出：诊断通道自身不可用，保持静默（ARCH-2 白名单） */ }
   }
 
   try {
     var sp = new URLSearchParams(location.search);
     if (sp.get("seed")) SEED = +sp.get("seed") >>> 0;
-  } catch (e) {}
+  } catch (e) { soft("seed-parse", e); }
 
   /* ------------------------------------------------------------------ 数据 */
   function dataAll() { return W.__SX_WEAPON_DATA || {}; }
@@ -206,7 +222,7 @@
           G.events.emit("player:hitEnemy", {
             enemy: en, part: rec.part, killed: killed, weak: rec.part === "weak", damage: rec.damage,
           });
-        } catch (e) {}
+        } catch (e) { soft("emit-hit-enemy", e); }
         return killed;
       },
     };
@@ -221,7 +237,7 @@
         penetration: rec.penetrations || 0, falloff: rec.falloff, dmgMul: rec.dmgMul,
         exit: rec.kind === "exit",
       });
-    } catch (e) {}
+    } catch (e) { soft("emit-impact", e); }
   }
 
   function toLegacy(rec) {
@@ -593,7 +609,7 @@
     last10: function () { return ring.slice(-10); },
     weapons: function () { return G && G.weapon && G.weapon.list ? G.weapon.list.map(function (w) { return w.id; }) : []; },
   };
-  try { window.__SX = window.__SX || {}; window.__SX.tune = W.__SX_TUNE; } catch (e) {}
+  try { window.__SX = window.__SX || {}; window.__SX.tune = W.__SX_TUNE; } catch (e) { soft("expose-tune", e); }
 
   /* ---------------------------------------------------------------- 启动 */
   function boot() {

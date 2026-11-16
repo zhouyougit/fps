@@ -55,6 +55,8 @@ test("V53 架构：关键运行时约定存在", () => {
 test("V53 架构：历史快照保护与 V53 profile", () => {
   const build = read("tools/build.cjs");
   assert.ok(build.indexOf("'v53'") > 0, "build 缺 v53 profile");
+  assert.ok(build.indexOf("'v54'") > 0, "build 缺 v54 profile");
+  assert.ok(build.indexOf("--minify") > 0, "build 缺 --minify");
   assert.ok(build.indexOf("拒绝覆盖历史快照") > 0, "build 缺 versions 快照保护");
   assert.ok(build.indexOf("--force") > 0, "build 缺 --force 逃生口");
   assert.ok(build.indexOf("three: 'r180'") > 0, "build 缺 three 版本记录");
@@ -69,7 +71,7 @@ test("V53 架构：服务器共享移动/模拟时钟/协议侧身位", () => {
   assert.ok(/LEAN_L:\s*1024/.test(proto) && /LEAN_R:\s*2048/.test(proto), "协议缺侧身位");
   const runner = read("tools/run_tests.mjs");
   assert.ok(runner.indexOf("const okRes = !killed && code === 0") > 0, "runner 不应再用绿色正则兜底");
-  assert.ok(runner.indexOf("test_v53_acceptance.mjs") > 0, "full 套件缺 V53 专项");
+  assert.ok(runner.indexOf("test_v54_acceptance.mjs") > 0, "full 套件缺 V54 专项");
 });
 
 test("V53 架构：SXErrors.soft 诊断限频接口存在", () => {

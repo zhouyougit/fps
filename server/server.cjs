@@ -3989,7 +3989,7 @@ function healthPayload(includeDetail) {
   const payload = {
     ok: true,
     service: 'saltline-mp',
-    version: 'V53',
+    version: 'V54',
     protocol: 2,
     tick: tick,
     tickRate: TICK_HZ,
@@ -4130,7 +4130,7 @@ const server = http.createServer(function (req, res) {
     sendJson(req, res, 200, {
       ok: true,
       service: 'saltline-mp',
-      version: 'V53',
+      version: 'V54',
       protocol: 2,
       endpoints: ['/healthz', '/metrics', '/api/profile', 'ws://' + (req.headers.host || HOST + ':' + PORT)],
       tick: tick,

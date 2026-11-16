@@ -1,0 +1,314 @@
+{
+  "tool": "prof_v54_alloc",
+  "version": "V54",
+  "generatedAt": "2026-11-16T04:09:15.075Z",
+  "target": "versions/几猫_V53.html",
+  "gpu": "metal",
+  "quality": "medium",
+  "map": "harbor",
+  "frames": 300,
+  "samplingInterval": 16384,
+  "viewport": {
+    "width": 1600,
+    "height": 900,
+    "deviceScaleFactor": 2
+  },
+  "durationMs": 2054,
+  "renderMs": 2012.6,
+  "totalBytes": 229709200,
+  "allocKBps": 109213.9,
+  "allocMBps": 106.65,
+  "sampleCount": 13110,
+  "topCallFrames": [
+    {
+      "functionName": "g",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 29177,
+      "column": 15,
+      "selfBytes": 101344976,
+      "selfKB": 98969.7,
+      "pct": 44.12
+    },
+    {
+      "functionName": "g",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 29177,
+      "column": 15,
+      "selfBytes": 19975688,
+      "selfKB": 19507.5,
+      "pct": 8.7
+    },
+    {
+      "functionName": "join",
+      "url": "(native)",
+      "line": 0,
+      "column": 0,
+      "selfBytes": 14083440,
+      "selfKB": 13753.4,
+      "pct": 6.13
+    },
+    {
+      "functionName": "y",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 29432,
+      "column": 15,
+      "selfBytes": 10706832,
+      "selfKB": 10455.9,
+      "pct": 4.66
+    },
+    {
+      "functionName": "dT",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 27911,
+      "column": 14,
+      "selfBytes": 9671280,
+      "selfKB": 9444.6,
+      "pct": 4.21
+    },
+    {
+      "functionName": "dT",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 27911,
+      "column": 14,
+      "selfBytes": 8769720,
+      "selfKB": 8564.2,
+      "pct": 3.82
+    },
+    {
+      "functionName": "vT",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 27966,
+      "column": 14,
+      "selfBytes": 6622368,
+      "selfKB": 6467.2,
+      "pct": 2.88
+    },
+    {
+      "functionName": "Hn",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 34548,
+      "column": 18,
+      "selfBytes": 5754448,
+      "selfKB": 5619.6,
+      "pct": 2.51
+    },
+    {
+      "functionName": "join",
+      "url": "(native)",
+      "line": 0,
+      "column": 0,
+      "selfBytes": 5233332,
+      "selfKB": 5110.7,
+      "pct": 2.28
+    },
+    {
+      "functionName": "y",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 29432,
+      "column": 15,
+      "selfBytes": 5197008,
+      "selfKB": 5075.2,
+      "pct": 2.26
+    },
+    {
+      "functionName": "vT",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 27966,
+      "column": 14,
+      "selfBytes": 4852032,
+      "selfKB": 4738.3,
+      "pct": 2.11
+    },
+    {
+      "functionName": "join",
+      "url": "(native)",
+      "line": 0,
+      "column": 0,
+      "selfBytes": 3189744,
+      "selfKB": 3115,
+      "pct": 1.39
+    },
+    {
+      "functionName": "dT",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 27911,
+      "column": 14,
+      "selfBytes": 2212920,
+      "selfKB": 2161.1,
+      "pct": 0.96
+    },
+    {
+      "functionName": "gT",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 27955,
+      "column": 14,
+      "selfBytes": 2196528,
+      "selfKB": 2145,
+      "pct": 0.96
+    },
+    {
+      "functionName": "y",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 29432,
+      "column": 15,
+      "selfBytes": 2162064,
+      "selfKB": 2111.4,
+      "pct": 0.94
+    },
+    {
+      "functionName": "gT",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 27955,
+      "column": 14,
+      "selfBytes": 1901472,
+      "selfKB": 1856.9,
+      "pct": 0.83
+    },
+    {
+      "functionName": "$i",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 34456,
+      "column": 18,
+      "selfBytes": 1887504,
+      "selfKB": 1843.3,
+      "pct": 0.82
+    },
+    {
+      "functionName": "dT",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 27911,
+      "column": 14,
+      "selfBytes": 1770336,
+      "selfKB": 1728.8,
+      "pct": 0.77
+    },
+    {
+      "functionName": "pT",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 27930,
+      "column": 14,
+      "selfBytes": 1278576,
+      "selfKB": 1248.6,
+      "pct": 0.56
+    },
+    {
+      "functionName": "pT",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 27930,
+      "column": 14,
+      "selfBytes": 1114656,
+      "selfKB": 1088.5,
+      "pct": 0.49
+    },
+    {
+      "functionName": "x",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 29416,
+      "column": 15,
+      "selfBytes": 1083296,
+      "selfKB": 1057.9,
+      "pct": 0.47
+    },
+    {
+      "functionName": "g",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 29177,
+      "column": 15,
+      "selfBytes": 1054976,
+      "selfKB": 1030.3,
+      "pct": 0.46
+    },
+    {
+      "functionName": "join",
+      "url": "(native)",
+      "line": 0,
+      "column": 0,
+      "selfBytes": 1008952,
+      "selfKB": 985.3,
+      "pct": 0.44
+    },
+    {
+      "functionName": "sort",
+      "url": "(native)",
+      "line": 0,
+      "column": 0,
+      "selfBytes": 882824,
+      "selfKB": 862.1,
+      "pct": 0.38
+    },
+    {
+      "functionName": "wy",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 29607,
+      "column": 14,
+      "selfBytes": 835992,
+      "selfKB": 816.4,
+      "pct": 0.36
+    },
+    {
+      "functionName": "Ic",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 27872,
+      "column": 14,
+      "selfBytes": 786816,
+      "selfKB": 768.4,
+      "pct": 0.34
+    },
+    {
+      "functionName": "y",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 29432,
+      "column": 15,
+      "selfBytes": 774960,
+      "selfKB": 756.8,
+      "pct": 0.34
+    },
+    {
+      "functionName": "Ic",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 27872,
+      "column": 14,
+      "selfBytes": 704856,
+      "selfKB": 688.3,
+      "pct": 0.31
+    },
+    {
+      "functionName": "Hn",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 34548,
+      "column": 18,
+      "selfBytes": 691112,
+      "selfKB": 674.9,
+      "pct": 0.3
+    },
+    {
+      "functionName": "wy",
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "line": 29607,
+      "column": 14,
+      "selfBytes": 688464,
+      "selfKB": 672.3,
+      "pct": 0.3
+    }
+  ],
+  "topUrls": [
+    {
+      "url": "file:///Users/zhouyou/codex_workspace/fps/versions/%E5%87%A0%E7%8C%AB_V53.html?q=medium&noaudio=1&autostart=1&dt=0.1&dynres=0",
+      "selfBytes": 204267704,
+      "selfKB": 199480.2,
+      "pct": 88.92
+    },
+    {
+      "url": "(native)",
+      "selfBytes": 25441496,
+      "selfKB": 24845.2,
+      "pct": 11.08
+    }
+  ],
+  "profileTimes": {
+    "unit": "CDP profile 原始单位，仅参考"
+  },
+  "errors": [],
+  "label": "V53 · 改进",
+  "totalMB": 219.07
+}

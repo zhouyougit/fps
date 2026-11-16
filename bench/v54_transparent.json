@@ -1,0 +1,2640 @@
+{
+  "tool": "test_v54_transparent",
+  "version": "V54",
+  "generatedAt": "2026-11-16T04:20:45.578Z",
+  "target": "/tmp/v54-atlas.html",
+  "gpu": "metal",
+  "quality": "medium",
+  "maps": {
+    "harbor": {
+      "map": "harbor",
+      "current": "harbor",
+      "built": true,
+      "rootName": "level",
+      "meshes": 273,
+      "visibleMeshes": 213,
+      "tris": 876366,
+      "transparentMeshes": 95,
+      "visibleTransparentMeshes": 68,
+      "alphaMeshes": 2,
+      "depthWriteFalseMeshes": 95,
+      "labelMeshes": 93,
+      "labelVisibleMeshes": 66,
+      "labelTextures": [
+        {
+          "uuid": "46e058b6-240f-432d-afe1-f3d2d13fd438",
+          "width": 640,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "e9c7ebfa-093c-4a08-833e-ce26c9035723",
+          "width": 288,
+          "height": 200,
+          "meshes": 1
+        },
+        {
+          "uuid": "d75a9466-e0cd-4756-9c72-da83e10d1e3c",
+          "width": 2048,
+          "height": 2048,
+          "meshes": 1
+        },
+        {
+          "uuid": "426cc1e7-8c35-4df4-bc16-faa9100fe87e",
+          "width": 128,
+          "height": 256,
+          "meshes": 5
+        },
+        {
+          "uuid": "af459cc7-304f-46a2-98bc-8612455a6808",
+          "width": 128,
+          "height": 256,
+          "meshes": 5
+        },
+        {
+          "uuid": "2a492e2e-75cf-4e31-b1ce-657ac31c8a85",
+          "width": 640,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "5d44f5a2-59f5-4cad-82bd-04f9220ec998",
+          "width": 256,
+          "height": 256,
+          "meshes": 5
+        },
+        {
+          "uuid": "11dcad75-0d6a-42c6-bea9-c5577253aa8a",
+          "width": 640,
+          "height": 192,
+          "meshes": 2
+        },
+        {
+          "uuid": "1d5d6a56-54a8-4e56-98a3-3a2dd82fe609",
+          "width": 640,
+          "height": 192,
+          "meshes": 2
+        },
+        {
+          "uuid": "345214a0-c91b-4802-9671-3c3b74a745ce",
+          "width": 384,
+          "height": 192,
+          "meshes": 2
+        },
+        {
+          "uuid": "a0570242-8039-444d-b1ed-f69b71b3df0d",
+          "width": 512,
+          "height": 128,
+          "meshes": 4
+        },
+        {
+          "uuid": "ad82023a-470d-4205-afa4-65a12734182f",
+          "width": 256,
+          "height": 256,
+          "meshes": 2
+        },
+        {
+          "uuid": "5a177a78-61f4-42ba-929c-1f0f34ae8903",
+          "width": 256,
+          "height": 256,
+          "meshes": 8
+        },
+        {
+          "uuid": "638eccbb-765c-4fd3-9ccd-f64d3c7290b5",
+          "width": 640,
+          "height": 128,
+          "meshes": 2
+        },
+        {
+          "uuid": "5310bc5c-26ba-408c-8511-87ddc5bcdb74",
+          "width": 192,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "2f647c89-18c3-43bf-a932-289dbbf00112",
+          "width": 256,
+          "height": 256,
+          "meshes": 2
+        },
+        {
+          "uuid": "e5e79426-bdd2-4556-be1d-1821d6836bb1",
+          "width": 640,
+          "height": 224,
+          "meshes": 1
+        },
+        {
+          "uuid": "629ef9b2-45e8-4347-91fe-e9d165cc15c4",
+          "width": 256,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "0aebe1ef-2b8c-49a7-8818-0061c413aedf",
+          "width": 256,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "25c6d8c9-44d8-4581-ba19-50aa865cc64a",
+          "width": 796,
+          "height": 128,
+          "meshes": 6
+        },
+        {
+          "uuid": "f70590de-fe2a-45ae-ba79-9ccc7b345a9f",
+          "width": 662,
+          "height": 128,
+          "meshes": 6
+        },
+        {
+          "uuid": "cd9e6c86-7f57-46e5-8c71-6b454e1c1020",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "fb968753-319b-47a0-8ede-5fced64af186",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "e091dc80-687d-4a28-b5b7-ab9671b3db3a",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "5c6e0441-55e4-4ffb-9122-548cc1abfebb",
+          "width": 469,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "1393ff3c-a518-477f-96ed-99ac909dc371",
+          "width": 325,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "23bba483-42de-4976-b7c7-128fc3b92af6",
+          "width": 1402,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "33ca0ec0-ecfb-4124-955b-67010f05bfe3",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "068f5d0e-12d7-43c6-8d05-4f380a480b58",
+          "width": 512,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "74ce2722-abcb-47a1-829a-6c45d4d135c6",
+          "width": 512,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "1a256b37-05e8-4d3c-9952-ea8e47a7ae6d",
+          "width": 512,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "94cb7caf-aa94-4618-a3c7-b0aa6c0293fa",
+          "width": 252,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "e88ca676-1884-4860-9103-7e364a9090e2",
+          "width": 512,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "8e4f5987-b1d1-4b9f-bf80-af5134b4e97c",
+          "width": 437,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "2ef2b83b-509f-4547-acee-32f4141b82ec",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "f1b6721b-1c91-4f64-9e19-dbd208be8ffb",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "b5e7ad93-0053-4160-aa98-39b1d2f84ad0",
+          "width": 512,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "fb2c312e-9743-412a-a1d1-267acb72c77c",
+          "width": 512,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "7a86c8bf-ef13-4edb-a9c3-40594e950536",
+          "width": 512,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "780edf92-2ada-466c-83df-7f964145491f",
+          "width": 512,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "2e6bd354-1a8e-4dc3-8b23-0c57b35fa2e0",
+          "width": 512,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "01496e7e-b5af-49f8-be19-5bf9eadd7fe4",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "4590069f-fd81-4a8e-8454-28cb596ef13a",
+          "width": 389,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "f73da0af-e1ac-4116-8872-4d62eedba39b",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "7c9db61c-b490-4a28-9c7f-03ce09ac6f0f",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "d58747fe-287b-4fda-b6ba-36352934d2c6",
+          "width": 490,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "9f03371d-7da9-4e5d-b551-a410237caf71",
+          "width": 512,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "de7ee6d0-edf5-465b-a80b-511a5ef24ab8",
+          "width": 512,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "bc0766df-6803-46d8-aa33-a3dcbc9535b9",
+          "width": 512,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "1b060ec5-1f1c-4da9-b04f-bafa30fd5a40",
+          "width": 352,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "c684a8a3-53fc-4225-8276-8866b4013b6b",
+          "width": 874,
+          "height": 128,
+          "meshes": 3
+        }
+      ],
+      "labelTextureCount": 51,
+      "materials": 151,
+      "transparentMaterials": 53,
+      "types": {
+        "MeshStandardMaterial": 115,
+        "MeshBasicMaterial": 36
+      },
+      "topMaterials": [
+        {
+          "uuid": "b6a2e37a-8bfe-4ae7-ae4c-94c162f3f60f",
+          "name": "paint_grey",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": true,
+          "mapType": 1009,
+          "color": "#5a6068",
+          "meshes": 11,
+          "visibleMeshes": 5,
+          "tris": 41452
+        },
+        {
+          "uuid": "3e807e13-2a89-476d-a263-1a7de051527a",
+          "name": "steel_dark",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#3d4146",
+          "meshes": 10,
+          "visibleMeshes": 4,
+          "tris": 4932
+        },
+        {
+          "uuid": "ef391f50-06fa-42c9-9cae-046f22a145a0",
+          "name": "steel_galv",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#ffffff",
+          "meshes": 10,
+          "visibleMeshes": 4,
+          "tris": 4236
+        },
+        {
+          "uuid": "664bc4c9-f3c2-4820-b129-51a41f36740b",
+          "name": "aluminium",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#c4c8cb",
+          "meshes": 9,
+          "visibleMeshes": 3,
+          "tris": 4116
+        },
+        {
+          "uuid": "d89de0ce-ad67-44ec-9602-2589bfe6edb9",
+          "name": "decal_hazard_general",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 8,
+          "visibleMeshes": 5,
+          "tris": 62
+        },
+        {
+          "uuid": "7147b0a9-7c5e-4f9f-b5d9-183d40218fde",
+          "name": "steel_worn",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#8a8e92",
+          "meshes": 6,
+          "visibleMeshes": 6,
+          "tris": 168
+        },
+        {
+          "uuid": "11b5e8e6-8fb7-407b-9136-272435258ee0",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 6,
+          "visibleMeshes": 3,
+          "tris": 12
+        },
+        {
+          "uuid": "32bfb893-ac29-43ad-bf69-9c6f76e116cd",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 6,
+          "visibleMeshes": 3,
+          "tris": 12
+        },
+        {
+          "uuid": "70fcddc7-7c9a-4d42-99cb-57c27cf9b1c5",
+          "name": "decal_rust_run",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 5,
+          "visibleMeshes": 2,
+          "tris": 1910
+        },
+        {
+          "uuid": "b9bc63f4-7da4-4680-aca5-de2e8ebe8271",
+          "name": "decal_grime_streak",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 5,
+          "visibleMeshes": 2,
+          "tris": 1276
+        }
+      ],
+      "transparentTop": [
+        {
+          "uuid": "d89de0ce-ad67-44ec-9602-2589bfe6edb9",
+          "name": "decal_hazard_general",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 8,
+          "visibleMeshes": 5,
+          "tris": 62
+        },
+        {
+          "uuid": "11b5e8e6-8fb7-407b-9136-272435258ee0",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 6,
+          "visibleMeshes": 3,
+          "tris": 12
+        },
+        {
+          "uuid": "32bfb893-ac29-43ad-bf69-9c6f76e116cd",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 6,
+          "visibleMeshes": 3,
+          "tris": 12
+        },
+        {
+          "uuid": "70fcddc7-7c9a-4d42-99cb-57c27cf9b1c5",
+          "name": "decal_rust_run",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 5,
+          "visibleMeshes": 2,
+          "tris": 1910
+        },
+        {
+          "uuid": "b9bc63f4-7da4-4680-aca5-de2e8ebe8271",
+          "name": "decal_grime_streak",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 5,
+          "visibleMeshes": 2,
+          "tris": 1276
+        },
+        {
+          "uuid": "d0617bce-cce1-49e6-a93b-601f0fc52b54",
+          "name": "decal_hazard_voltage",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 5,
+          "visibleMeshes": 2,
+          "tris": 66
+        },
+        {
+          "uuid": "a461d1db-996d-4019-8532-d8f0309cfd24",
+          "name": "decal_caution_stripes",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 20
+        },
+        {
+          "uuid": "23a509ed-b923-43b0-851d-b05006fef0c1",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "41546102-3623-44a6-8e77-b04292aa148c",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "3de26314-eca6-42c1-88b6-d4091cf1a5cd",
+          "name": "decal_logo_b",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 2,
+          "visibleMeshes": 2,
+          "tris": 1962
+        }
+      ],
+      "renderer": {
+        "programs": 174,
+        "geometries": 421,
+        "textures": 173
+      }
+    },
+    "depot": {
+      "map": "depot",
+      "current": "depot",
+      "built": true,
+      "rootName": "(unnamed)",
+      "meshes": 218,
+      "visibleMeshes": 158,
+      "tris": 741502,
+      "transparentMeshes": 101,
+      "visibleTransparentMeshes": 74,
+      "alphaMeshes": 1,
+      "depthWriteFalseMeshes": 100,
+      "labelMeshes": 88,
+      "labelVisibleMeshes": 61,
+      "labelTextures": [
+        {
+          "uuid": "b4e71eb7-3666-461d-9f2f-b2085dd57df6",
+          "width": 531,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "89277b5e-b4a0-43a5-8f5f-638abc4cd882",
+          "width": 926,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "be7f314a-35df-410b-9bd3-2ae27dd7ed84",
+          "width": 537,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "a58b3ca3-0066-48d1-818f-1441696bee70",
+          "width": 523,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "00e27036-b7d2-4c6e-8b15-5237e39c27ed",
+          "width": 523,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "f73da0af-e1ac-4116-8872-4d62eedba39b",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "638eccbb-765c-4fd3-9ccd-f64d3c7290b5",
+          "width": 640,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "345214a0-c91b-4802-9671-3c3b74a745ce",
+          "width": 384,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "7c9db61c-b490-4a28-9c7f-03ce09ac6f0f",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "d58747fe-287b-4fda-b6ba-36352934d2c6",
+          "width": 490,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "94cb7caf-aa94-4618-a3c7-b0aa6c0293fa",
+          "width": 252,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "1d7464aa-6b85-4fd8-b501-db607f413b52",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "5e9c6324-4c22-4590-ace2-169d2b28b023",
+          "width": 436,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "11dcad75-0d6a-42c6-bea9-c5577253aa8a",
+          "width": 640,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "01496e7e-b5af-49f8-be19-5bf9eadd7fe4",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "1b72ac83-0f07-4ac7-b4c5-a3b116a41673",
+          "width": 432,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "ad82023a-470d-4205-afa4-65a12734182f",
+          "width": 256,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "5c6e0441-55e4-4ffb-9122-548cc1abfebb",
+          "width": 469,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "4590069f-fd81-4a8e-8454-28cb596ef13a",
+          "width": 389,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "b2b79585-5d20-4460-90eb-1641cc387e2f",
+          "width": 774,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "5310bc5c-26ba-408c-8511-87ddc5bcdb74",
+          "width": 192,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "46e058b6-240f-432d-afe1-f3d2d13fd438",
+          "width": 640,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "e9c7ebfa-093c-4a08-833e-ce26c9035723",
+          "width": 288,
+          "height": 200,
+          "meshes": 1
+        },
+        {
+          "uuid": "548074ef-38af-46cc-a641-f909ed60b0e0",
+          "width": 827,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "6bf94835-9e2b-4df4-ba82-30799d582e54",
+          "width": 287,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "93f74298-0521-4fdd-9d4d-900f2470a8d0",
+          "width": 1105,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "961233c9-d7d5-4649-8186-d2b44abc3e17",
+          "width": 1771,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "aff81d80-6d82-43db-87fb-d8733e95e5c8",
+          "width": 867,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "af459cc7-304f-46a2-98bc-8612455a6808",
+          "width": 128,
+          "height": 256,
+          "meshes": 4
+        },
+        {
+          "uuid": "426cc1e7-8c35-4df4-bc16-faa9100fe87e",
+          "width": 128,
+          "height": 256,
+          "meshes": 4
+        },
+        {
+          "uuid": "e6fdc9b6-dee5-41c8-9929-df1c5a18d964",
+          "width": 287,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "2bd2105c-8224-48aa-a6a4-1e4595e989e0",
+          "width": 1105,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "95548efe-0403-49ca-8227-0ce74c403399",
+          "width": 1762,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "e7cbf818-7018-45e4-956e-92da6bed1f4e",
+          "width": 857,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "55beeac8-4748-42fd-b9ed-bc08d08844d6",
+          "width": 662,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "5d44f5a2-59f5-4cad-82bd-04f9220ec998",
+          "width": 256,
+          "height": 256,
+          "meshes": 4
+        },
+        {
+          "uuid": "d2e80550-7874-4026-813e-372032ff6f3d",
+          "width": 158,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "0b7a0e63-5229-45b4-87e7-7f329e6dfe47",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "d7b6fd05-ec7f-4771-b992-c8de323db37b",
+          "width": 344,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "5a177a78-61f4-42ba-929c-1f0f34ae8903",
+          "width": 256,
+          "height": 256,
+          "meshes": 4
+        },
+        {
+          "uuid": "21b13853-7836-4f18-8ee3-f9563d15e403",
+          "width": 926,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "ceb8e20d-26d5-4aea-8083-67c62fa8db40",
+          "width": 796,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "2a492e2e-75cf-4e31-b1ce-657ac31c8a85",
+          "width": 640,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "8e4f5987-b1d1-4b9f-bf80-af5134b4e97c",
+          "width": 437,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "2ef2b83b-509f-4547-acee-32f4141b82ec",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "2f647c89-18c3-43bf-a932-289dbbf00112",
+          "width": 256,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "f1b6721b-1c91-4f64-9e19-dbd208be8ffb",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "23bba483-42de-4976-b7c7-128fc3b92af6",
+          "width": 1402,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "33ca0ec0-ecfb-4124-955b-67010f05bfe3",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "02613039-7f0a-4b03-9970-08441c288280",
+          "width": 2000,
+          "height": 125,
+          "meshes": 1
+        },
+        {
+          "uuid": "e50e7fd7-4229-406a-9b20-61025fb0f1b6",
+          "width": 256,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "9c4ea2fd-6e13-4f25-a123-d9728d89cd85",
+          "width": 256,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "1393ff3c-a518-477f-96ed-99ac909dc371",
+          "width": 325,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "1d5d6a56-54a8-4e56-98a3-3a2dd82fe609",
+          "width": 640,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "cd9e6c86-7f57-46e5-8c71-6b454e1c1020",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "fb968753-319b-47a0-8ede-5fced64af186",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "e091dc80-687d-4a28-b5b7-ab9671b3db3a",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "8595479b-c3f0-431e-9de5-6dc84084ae47",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "e5e79426-bdd2-4556-be1d-1821d6836bb1",
+          "width": 640,
+          "height": 224,
+          "meshes": 1
+        },
+        {
+          "uuid": "629ef9b2-45e8-4347-91fe-e9d165cc15c4",
+          "width": 256,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "25c6d8c9-44d8-4581-ba19-50aa865cc64a",
+          "width": 796,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "f70590de-fe2a-45ae-ba79-9ccc7b345a9f",
+          "width": 662,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "a0570242-8039-444d-b1ed-f69b71b3df0d",
+          "width": 512,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "1b060ec5-1f1c-4da9-b04f-bafa30fd5a40",
+          "width": 352,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "c684a8a3-53fc-4225-8276-8866b4013b6b",
+          "width": 874,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "4b6f0c49-2460-46da-a919-052ffdeefd65",
+          "width": 2048,
+          "height": 2048,
+          "meshes": 1
+        }
+      ],
+      "labelTextureCount": 66,
+      "materials": 160,
+      "transparentMaterials": 73,
+      "types": {
+        "MeshStandardMaterial": 142,
+        "MeshBasicMaterial": 18
+      },
+      "topMaterials": [
+        {
+          "uuid": "ef391f50-06fa-42c9-9cae-046f22a145a0",
+          "name": "steel_galv",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#ffffff",
+          "meshes": 7,
+          "visibleMeshes": 1,
+          "tris": 66996
+        },
+        {
+          "uuid": "3e807e13-2a89-476d-a263-1a7de051527a",
+          "name": "steel_dark",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#3d4146",
+          "meshes": 7,
+          "visibleMeshes": 1,
+          "tris": 14426
+        },
+        {
+          "uuid": "b6a2e37a-8bfe-4ae7-ae4c-94c162f3f60f",
+          "name": "paint_grey",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": true,
+          "mapType": 1009,
+          "color": "#5a6068",
+          "meshes": 7,
+          "visibleMeshes": 1,
+          "tris": 5058
+        },
+        {
+          "uuid": "664bc4c9-f3c2-4820-b129-51a41f36740b",
+          "name": "aluminium",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#c4c8cb",
+          "meshes": 7,
+          "visibleMeshes": 1,
+          "tris": 2788
+        },
+        {
+          "uuid": "56b385a8-e485-4872-ae9d-4cf537324c73",
+          "name": "",
+          "type": "MeshBasicMaterial",
+          "transparent": true,
+          "opacity": 0.055,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 2,
+          "vertexColors": false,
+          "mapType": null,
+          "color": "#bdd9e8",
+          "meshes": 6,
+          "visibleMeshes": 6,
+          "tris": 12
+        },
+        {
+          "uuid": "f7fbadce-cfef-4d49-92c5-a786a1940046",
+          "name": "rubber",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#101010",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 3838
+        },
+        {
+          "uuid": "32b72c9c-6047-45d4-bda8-f20dd97b35a9",
+          "name": "concrete",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": true,
+          "mapType": 1009,
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 2116
+        },
+        {
+          "uuid": "70fcddc7-7c9a-4d42-99cb-57c27cf9b1c5",
+          "name": "decal_rust_run",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 412
+        },
+        {
+          "uuid": "b9bc63f4-7da4-4680-aca5-de2e8ebe8271",
+          "name": "decal_grime_streak",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 322
+        },
+        {
+          "uuid": "d89de0ce-ad67-44ec-9602-2589bfe6edb9",
+          "name": "decal_hazard_general",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 26
+        }
+      ],
+      "transparentTop": [
+        {
+          "uuid": "56b385a8-e485-4872-ae9d-4cf537324c73",
+          "name": "",
+          "type": "MeshBasicMaterial",
+          "transparent": true,
+          "opacity": 0.055,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 2,
+          "vertexColors": false,
+          "mapType": null,
+          "color": "#bdd9e8",
+          "meshes": 6,
+          "visibleMeshes": 6,
+          "tris": 12
+        },
+        {
+          "uuid": "70fcddc7-7c9a-4d42-99cb-57c27cf9b1c5",
+          "name": "decal_rust_run",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 412
+        },
+        {
+          "uuid": "b9bc63f4-7da4-4680-aca5-de2e8ebe8271",
+          "name": "decal_grime_streak",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 322
+        },
+        {
+          "uuid": "d89de0ce-ad67-44ec-9602-2589bfe6edb9",
+          "name": "decal_hazard_general",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 26
+        },
+        {
+          "uuid": "d0617bce-cce1-49e6-a93b-601f0fc52b54",
+          "name": "decal_hazard_voltage",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 14
+        },
+        {
+          "uuid": "11b5e8e6-8fb7-407b-9136-272435258ee0",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "32bfb893-ac29-43ad-bf69-9c6f76e116cd",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "a461d1db-996d-4019-8532-d8f0309cfd24",
+          "name": "decal_caution_stripes",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "23a509ed-b923-43b0-851d-b05006fef0c1",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "41546102-3623-44a6-8e77-b04292aa148c",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        }
+      ],
+      "renderer": {
+        "programs": 213,
+        "geometries": 671,
+        "textures": 211
+      }
+    },
+    "ship": {
+      "map": "ship",
+      "current": "ship",
+      "built": true,
+      "rootName": "(unnamed)",
+      "meshes": 172,
+      "visibleMeshes": 112,
+      "tris": 209656,
+      "transparentMeshes": 76,
+      "visibleTransparentMeshes": 49,
+      "alphaMeshes": 0,
+      "depthWriteFalseMeshes": 75,
+      "labelMeshes": 72,
+      "labelVisibleMeshes": 45,
+      "labelTextures": [
+        {
+          "uuid": "426cc1e7-8c35-4df4-bc16-faa9100fe87e",
+          "width": 128,
+          "height": 256,
+          "meshes": 4
+        },
+        {
+          "uuid": "8e4f5987-b1d1-4b9f-bf80-af5134b4e97c",
+          "width": 437,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "5d44f5a2-59f5-4cad-82bd-04f9220ec998",
+          "width": 256,
+          "height": 256,
+          "meshes": 4
+        },
+        {
+          "uuid": "2ef2b83b-509f-4547-acee-32f4141b82ec",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "2f647c89-18c3-43bf-a932-289dbbf00112",
+          "width": 256,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "ad82023a-470d-4205-afa4-65a12734182f",
+          "width": 256,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "f1b6721b-1c91-4f64-9e19-dbd208be8ffb",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "ceb8e20d-26d5-4aea-8083-67c62fa8db40",
+          "width": 796,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "af459cc7-304f-46a2-98bc-8612455a6808",
+          "width": 128,
+          "height": 256,
+          "meshes": 4
+        },
+        {
+          "uuid": "2a492e2e-75cf-4e31-b1ce-657ac31c8a85",
+          "width": 640,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "5310bc5c-26ba-408c-8511-87ddc5bcdb74",
+          "width": 192,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "1393ff3c-a518-477f-96ed-99ac909dc371",
+          "width": 325,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "1d5d6a56-54a8-4e56-98a3-3a2dd82fe609",
+          "width": 640,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "46e058b6-240f-432d-afe1-f3d2d13fd438",
+          "width": 640,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "e9c7ebfa-093c-4a08-833e-ce26c9035723",
+          "width": 288,
+          "height": 200,
+          "meshes": 1
+        },
+        {
+          "uuid": "548074ef-38af-46cc-a641-f909ed60b0e0",
+          "width": 827,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "6bf94835-9e2b-4df4-ba82-30799d582e54",
+          "width": 287,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "93f74298-0521-4fdd-9d4d-900f2470a8d0",
+          "width": 1105,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "961233c9-d7d5-4649-8186-d2b44abc3e17",
+          "width": 1771,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "aff81d80-6d82-43db-87fb-d8733e95e5c8",
+          "width": 867,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "e6fdc9b6-dee5-41c8-9929-df1c5a18d964",
+          "width": 287,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "2bd2105c-8224-48aa-a6a4-1e4595e989e0",
+          "width": 1105,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "95548efe-0403-49ca-8227-0ce74c403399",
+          "width": 1762,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "e7cbf818-7018-45e4-956e-92da6bed1f4e",
+          "width": 857,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "55beeac8-4748-42fd-b9ed-bc08d08844d6",
+          "width": 662,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "1d7464aa-6b85-4fd8-b501-db607f413b52",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "345214a0-c91b-4802-9671-3c3b74a745ce",
+          "width": 384,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "5e9c6324-4c22-4590-ace2-169d2b28b023",
+          "width": 436,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "11dcad75-0d6a-42c6-bea9-c5577253aa8a",
+          "width": 640,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "01496e7e-b5af-49f8-be19-5bf9eadd7fe4",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "1b72ac83-0f07-4ac7-b4c5-a3b116a41673",
+          "width": 432,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "94cb7caf-aa94-4618-a3c7-b0aa6c0293fa",
+          "width": 252,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "5c6e0441-55e4-4ffb-9122-548cc1abfebb",
+          "width": 469,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "23bba483-42de-4976-b7c7-128fc3b92af6",
+          "width": 1402,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "33ca0ec0-ecfb-4124-955b-67010f05bfe3",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "cd9e6c86-7f57-46e5-8c71-6b454e1c1020",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "fb968753-319b-47a0-8ede-5fced64af186",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "5a177a78-61f4-42ba-929c-1f0f34ae8903",
+          "width": 256,
+          "height": 256,
+          "meshes": 4
+        },
+        {
+          "uuid": "e091dc80-687d-4a28-b5b7-ab9671b3db3a",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "02613039-7f0a-4b03-9970-08441c288280",
+          "width": 2000,
+          "height": 125,
+          "meshes": 1
+        },
+        {
+          "uuid": "d2e80550-7874-4026-813e-372032ff6f3d",
+          "width": 158,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "0b7a0e63-5229-45b4-87e7-7f329e6dfe47",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "d7b6fd05-ec7f-4771-b992-c8de323db37b",
+          "width": 344,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "21b13853-7836-4f18-8ee3-f9563d15e403",
+          "width": 926,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "25c6d8c9-44d8-4581-ba19-50aa865cc64a",
+          "width": 796,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "f70590de-fe2a-45ae-ba79-9ccc7b345a9f",
+          "width": 662,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "a0570242-8039-444d-b1ed-f69b71b3df0d",
+          "width": 512,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "1b060ec5-1f1c-4da9-b04f-bafa30fd5a40",
+          "width": 352,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "c684a8a3-53fc-4225-8276-8866b4013b6b",
+          "width": 874,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "574f9ae9-08c6-4bc0-8c62-41b300e104f6",
+          "width": 2048,
+          "height": 2048,
+          "meshes": 1
+        }
+      ],
+      "labelTextureCount": 50,
+      "materials": 119,
+      "transparentMaterials": 54,
+      "types": {
+        "MeshStandardMaterial": 104,
+        "MeshBasicMaterial": 15
+      },
+      "topMaterials": [
+        {
+          "uuid": "ef391f50-06fa-42c9-9cae-046f22a145a0",
+          "name": "steel_galv",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#ffffff",
+          "meshes": 8,
+          "visibleMeshes": 2,
+          "tris": 26108
+        },
+        {
+          "uuid": "3e807e13-2a89-476d-a263-1a7de051527a",
+          "name": "steel_dark",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#3d4146",
+          "meshes": 7,
+          "visibleMeshes": 1,
+          "tris": 9956
+        },
+        {
+          "uuid": "b6a2e37a-8bfe-4ae7-ae4c-94c162f3f60f",
+          "name": "paint_grey",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": true,
+          "mapType": 1009,
+          "color": "#5a6068",
+          "meshes": 7,
+          "visibleMeshes": 1,
+          "tris": 5058
+        },
+        {
+          "uuid": "664bc4c9-f3c2-4820-b129-51a41f36740b",
+          "name": "aluminium",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#c4c8cb",
+          "meshes": 7,
+          "visibleMeshes": 1,
+          "tris": 3184
+        },
+        {
+          "uuid": "f7fbadce-cfef-4d49-92c5-a786a1940046",
+          "name": "rubber",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#101010",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 6384
+        },
+        {
+          "uuid": "b9bc63f4-7da4-4680-aca5-de2e8ebe8271",
+          "name": "decal_grime_streak",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 554
+        },
+        {
+          "uuid": "70fcddc7-7c9a-4d42-99cb-57c27cf9b1c5",
+          "name": "decal_rust_run",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 466
+        },
+        {
+          "uuid": "d0617bce-cce1-49e6-a93b-601f0fc52b54",
+          "name": "decal_hazard_voltage",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 30
+        },
+        {
+          "uuid": "d89de0ce-ad67-44ec-9602-2589bfe6edb9",
+          "name": "decal_hazard_general",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 18
+        },
+        {
+          "uuid": "32b72c9c-6047-45d4-bda8-f20dd97b35a9",
+          "name": "concrete",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": true,
+          "mapType": 1009,
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 132
+        }
+      ],
+      "transparentTop": [
+        {
+          "uuid": "b9bc63f4-7da4-4680-aca5-de2e8ebe8271",
+          "name": "decal_grime_streak",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 554
+        },
+        {
+          "uuid": "70fcddc7-7c9a-4d42-99cb-57c27cf9b1c5",
+          "name": "decal_rust_run",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 466
+        },
+        {
+          "uuid": "d0617bce-cce1-49e6-a93b-601f0fc52b54",
+          "name": "decal_hazard_voltage",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 30
+        },
+        {
+          "uuid": "d89de0ce-ad67-44ec-9602-2589bfe6edb9",
+          "name": "decal_hazard_general",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 18
+        },
+        {
+          "uuid": "11b5e8e6-8fb7-407b-9136-272435258ee0",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "32bfb893-ac29-43ad-bf69-9c6f76e116cd",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "a461d1db-996d-4019-8532-d8f0309cfd24",
+          "name": "decal_caution_stripes",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "23a509ed-b923-43b0-851d-b05006fef0c1",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "41546102-3623-44a6-8e77-b04292aa148c",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "b79a99e3-23c0-4f2e-945c-726fae5f840e",
+          "name": "decal_logo_a",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 1,
+          "visibleMeshes": 1,
+          "tris": 2384
+        }
+      ],
+      "renderer": {
+        "programs": 222,
+        "geometries": 855,
+        "textures": 213
+      }
+    },
+    "core": {
+      "map": "core",
+      "current": "core",
+      "built": true,
+      "rootName": "(unnamed)",
+      "meshes": 147,
+      "visibleMeshes": 87,
+      "tris": 172470,
+      "transparentMeshes": 61,
+      "visibleTransparentMeshes": 34,
+      "alphaMeshes": 0,
+      "depthWriteFalseMeshes": 58,
+      "labelMeshes": 55,
+      "labelVisibleMeshes": 28,
+      "labelTextures": [
+        {
+          "uuid": "ad82023a-470d-4205-afa4-65a12734182f",
+          "width": 256,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "5c6e0441-55e4-4ffb-9122-548cc1abfebb",
+          "width": 469,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "cd9e6c86-7f57-46e5-8c71-6b454e1c1020",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "fb968753-319b-47a0-8ede-5fced64af186",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "5a177a78-61f4-42ba-929c-1f0f34ae8903",
+          "width": 256,
+          "height": 256,
+          "meshes": 4
+        },
+        {
+          "uuid": "e091dc80-687d-4a28-b5b7-ab9671b3db3a",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "1d7464aa-6b85-4fd8-b501-db607f413b52",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "345214a0-c91b-4802-9671-3c3b74a745ce",
+          "width": 384,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "5e9c6324-4c22-4590-ace2-169d2b28b023",
+          "width": 436,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "11dcad75-0d6a-42c6-bea9-c5577253aa8a",
+          "width": 640,
+          "height": 192,
+          "meshes": 1
+        },
+        {
+          "uuid": "01496e7e-b5af-49f8-be19-5bf9eadd7fe4",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "1b72ac83-0f07-4ac7-b4c5-a3b116a41673",
+          "width": 432,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "23bba483-42de-4976-b7c7-128fc3b92af6",
+          "width": 1402,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "33ca0ec0-ecfb-4124-955b-67010f05bfe3",
+          "width": 450,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "02613039-7f0a-4b03-9970-08441c288280",
+          "width": 2000,
+          "height": 125,
+          "meshes": 1
+        },
+        {
+          "uuid": "426cc1e7-8c35-4df4-bc16-faa9100fe87e",
+          "width": 128,
+          "height": 256,
+          "meshes": 4
+        },
+        {
+          "uuid": "8e4f5987-b1d1-4b9f-bf80-af5134b4e97c",
+          "width": 437,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "5d44f5a2-59f5-4cad-82bd-04f9220ec998",
+          "width": 256,
+          "height": 256,
+          "meshes": 4
+        },
+        {
+          "uuid": "2ef2b83b-509f-4547-acee-32f4141b82ec",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "2f647c89-18c3-43bf-a932-289dbbf00112",
+          "width": 256,
+          "height": 256,
+          "meshes": 1
+        },
+        {
+          "uuid": "f1b6721b-1c91-4f64-9e19-dbd208be8ffb",
+          "width": 238,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "94cb7caf-aa94-4618-a3c7-b0aa6c0293fa",
+          "width": 252,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "b4e71eb7-3666-461d-9f2f-b2085dd57df6",
+          "width": 531,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "89277b5e-b4a0-43a5-8f5f-638abc4cd882",
+          "width": 926,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "be7f314a-35df-410b-9bd3-2ae27dd7ed84",
+          "width": 537,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "a58b3ca3-0066-48d1-818f-1441696bee70",
+          "width": 523,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "00e27036-b7d2-4c6e-8b15-5237e39c27ed",
+          "width": 523,
+          "height": 128,
+          "meshes": 1
+        },
+        {
+          "uuid": "25c6d8c9-44d8-4581-ba19-50aa865cc64a",
+          "width": 796,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "f70590de-fe2a-45ae-ba79-9ccc7b345a9f",
+          "width": 662,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "a0570242-8039-444d-b1ed-f69b71b3df0d",
+          "width": 512,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "1b060ec5-1f1c-4da9-b04f-bafa30fd5a40",
+          "width": 352,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "c684a8a3-53fc-4225-8276-8866b4013b6b",
+          "width": 874,
+          "height": 128,
+          "meshes": 3
+        },
+        {
+          "uuid": "af459cc7-304f-46a2-98bc-8612455a6808",
+          "width": 128,
+          "height": 256,
+          "meshes": 3
+        },
+        {
+          "uuid": "7dfc998f-0c0a-49f5-a46a-fd2a63989238",
+          "width": 2048,
+          "height": 2048,
+          "meshes": 1
+        }
+      ],
+      "labelTextureCount": 34,
+      "materials": 99,
+      "transparentMaterials": 40,
+      "types": {
+        "MeshStandardMaterial": 91,
+        "MeshBasicMaterial": 8
+      },
+      "topMaterials": [
+        {
+          "uuid": "ef391f50-06fa-42c9-9cae-046f22a145a0",
+          "name": "steel_galv",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#ffffff",
+          "meshes": 7,
+          "visibleMeshes": 1,
+          "tris": 13708
+        },
+        {
+          "uuid": "3e807e13-2a89-476d-a263-1a7de051527a",
+          "name": "steel_dark",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#3d4146",
+          "meshes": 7,
+          "visibleMeshes": 1,
+          "tris": 13244
+        },
+        {
+          "uuid": "b6a2e37a-8bfe-4ae7-ae4c-94c162f3f60f",
+          "name": "paint_grey",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": true,
+          "mapType": 1009,
+          "color": "#5a6068",
+          "meshes": 7,
+          "visibleMeshes": 1,
+          "tris": 5490
+        },
+        {
+          "uuid": "664bc4c9-f3c2-4820-b129-51a41f36740b",
+          "name": "aluminium",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#c4c8cb",
+          "meshes": 6,
+          "visibleMeshes": 0,
+          "tris": 2748
+        },
+        {
+          "uuid": "d89de0ce-ad67-44ec-9602-2589bfe6edb9",
+          "name": "decal_hazard_general",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 22
+        },
+        {
+          "uuid": "d0617bce-cce1-49e6-a93b-601f0fc52b54",
+          "name": "decal_hazard_voltage",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 18
+        },
+        {
+          "uuid": "70fcddc7-7c9a-4d42-99cb-57c27cf9b1c5",
+          "name": "decal_rust_run",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 14
+        },
+        {
+          "uuid": "f7fbadce-cfef-4d49-92c5-a786a1940046",
+          "name": "rubber",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#101010",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 2772
+        },
+        {
+          "uuid": "32b72c9c-6047-45d4-bda8-f20dd97b35a9",
+          "name": "concrete",
+          "type": "MeshStandardMaterial",
+          "transparent": false,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": true,
+          "side": 0,
+          "vertexColors": true,
+          "mapType": 1009,
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 132
+        },
+        {
+          "uuid": "11b5e8e6-8fb7-407b-9136-272435258ee0",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        }
+      ],
+      "transparentTop": [
+        {
+          "uuid": "d89de0ce-ad67-44ec-9602-2589bfe6edb9",
+          "name": "decal_hazard_general",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 22
+        },
+        {
+          "uuid": "d0617bce-cce1-49e6-a93b-601f0fc52b54",
+          "name": "decal_hazard_voltage",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 18
+        },
+        {
+          "uuid": "70fcddc7-7c9a-4d42-99cb-57c27cf9b1c5",
+          "name": "decal_rust_run",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 4,
+          "visibleMeshes": 1,
+          "tris": 14
+        },
+        {
+          "uuid": "11b5e8e6-8fb7-407b-9136-272435258ee0",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "32bfb893-ac29-43ad-bf69-9c6f76e116cd",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "a461d1db-996d-4019-8532-d8f0309cfd24",
+          "name": "decal_caution_stripes",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "23a509ed-b923-43b0-851d-b05006fef0c1",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "41546102-3623-44a6-8e77-b04292aa148c",
+          "name": "label",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "b9bc63f4-7da4-4680-aca5-de2e8ebe8271",
+          "name": "decal_grime_streak",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": "CanvasTexture",
+          "color": "#ffffff",
+          "meshes": 3,
+          "visibleMeshes": 0,
+          "tris": 6
+        },
+        {
+          "uuid": "5594b66d-f45b-4913-8d69-6f5e2ef5dd55",
+          "name": "glass_dirty",
+          "type": "MeshStandardMaterial",
+          "transparent": true,
+          "opacity": 1,
+          "alphaTest": 0,
+          "depthWrite": false,
+          "side": 0,
+          "vertexColors": false,
+          "mapType": 1009,
+          "color": "#ffffff",
+          "meshes": 1,
+          "visibleMeshes": 1,
+          "tris": 264
+        }
+      ],
+      "renderer": {
+        "programs": 224,
+        "geometries": 927,
+        "textures": 215
+      }
+    }
+  },
+  "totals": {
+    "meshes": 810,
+    "visibleMeshes": 570,
+    "transparentMeshes": 333,
+    "visibleTransparentMeshes": 225,
+    "labelMeshes": 308,
+    "labelTextureCount": 201,
+    "alphaMeshes": 3,
+    "depthWriteFalseMeshes": 328
+  },
+  "errors": [],
+  "label": "V54 · 收敛"
+}

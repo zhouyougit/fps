@@ -18,7 +18,8 @@
    构建：node tools/build.cjs game_v35.html v35
    ===================================================================== */
 import { chromium } from 'playwright';
-import { PW_ARGS } from './pwargs.mjs';
+import { PW_ARGS, legacyGame } from './pwargs.mjs';
+import { pathToFileURL } from 'node:url';
 import { existsSync } from 'node:fs';
 
 const ROOT = '/Users/zhouyou/codex_workspace/fps';
@@ -70,7 +71,7 @@ const near = (a, b, eps) => Math.abs(a - b) <= (eps == null ? 1e-6 : eps);
 const onGrid = (beat, grid) => Math.abs(beat - Math.round(beat / grid) * grid) < 1e-6;
 
 /* ------------------------------------------------------------ 打开构建 */
-const url = 'file://' + ROOT + '/game_v35.html?q=low&noaudio=1&autostart=1&dt=0.1';
+const url = process.env.SX_URL || pathToFileURL(legacyGame('v35')).href + '?q=low&noaudio=1&autostart=1&dt=0.1';
 await page.goto(url, { waitUntil: 'load', timeout: 240000 });
 await page.waitForFunction(() => window.__ready === true, null, { timeout: 420000 });
 const booted = await page.waitForFunction(() => !!window.__SX_MUSIC, null, { timeout: 60000 }).then(() => true).catch(() => false);

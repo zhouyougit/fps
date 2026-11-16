@@ -1,0 +1,502 @@
+{
+  "tool": "test_v54_heap",
+  "version": "V54",
+  "generatedAt": "2026-11-16T04:24:27.179Z",
+  "target": "/tmp/v54-atlas.html",
+  "gpu": "metal",
+  "quality": "medium",
+  "thresholds": {
+    "heapGrowthMB": 60,
+    "programGrowth": 20
+  },
+  "roundsRequested": 3,
+  "warmupCycles": 1,
+  "framesPerMap": 30,
+  "mapSequence": [
+    "depot",
+    "ship",
+    "core",
+    "harbor"
+  ],
+  "baseline": {
+    "tag": "baseline",
+    "at": 1794803114953,
+    "jsHeap": {
+      "usedSize": 42257748,
+      "totalSize": 46514176,
+      "embedderHeapUsedSize": 12562640,
+      "backingStorageSize": 312768760
+    },
+    "jsHeapMB": 40.3,
+    "label": "V54 · 收敛",
+    "map": "harbor",
+    "quality": "medium",
+    "programs": 218,
+    "geometries": 1060,
+    "textures": 210,
+    "calls": 654,
+    "tris": 2048709,
+    "perfMemory": {
+      "usedJSHeapSize": 364000000,
+      "totalJSHeapSize": 364000000
+    },
+    "cache": [
+      {
+        "id": "ship",
+        "at": 1794803112646
+      },
+      {
+        "id": "core",
+        "at": 1794803113628
+      },
+      {
+        "id": "harbor",
+        "at": 1794803114604
+      }
+    ],
+    "cacheStats": {
+      "releases": 1,
+      "geos": 218,
+      "mats": 1,
+      "total": 218,
+      "skipped": 0
+    },
+    "errors": 0
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "maps": [
+        {
+          "map": "depot",
+          "programs": 218,
+          "geometries": 1186,
+          "textures": 218,
+          "calls": 408,
+          "tris": 1493789,
+          "cache": [
+            {
+              "id": "depot",
+              "at": 1794803115505
+            },
+            {
+              "id": "core",
+              "at": 1794803113628
+            },
+            {
+              "id": "harbor",
+              "at": 1794803114604
+            }
+          ]
+        },
+        {
+          "map": "ship",
+          "programs": 218,
+          "geometries": 1282,
+          "textures": 219,
+          "calls": 397,
+          "tris": 667219,
+          "cache": [
+            {
+              "id": "depot",
+              "at": 1794803115505
+            },
+            {
+              "id": "ship",
+              "at": 1794803115813
+            },
+            {
+              "id": "harbor",
+              "at": 1794803114604
+            }
+          ]
+        },
+        {
+          "map": "core",
+          "programs": 218,
+          "geometries": 1292,
+          "textures": 223,
+          "calls": 276,
+          "tris": 363365,
+          "cache": [
+            {
+              "id": "ship",
+              "at": 1794803115813
+            },
+            {
+              "id": "core",
+              "at": 1794803116095
+            },
+            {
+              "id": "harbor",
+              "at": 1794803114604
+            }
+          ]
+        },
+        {
+          "map": "harbor",
+          "programs": 218,
+          "geometries": 1362,
+          "textures": 216,
+          "calls": 497,
+          "tris": 2010503,
+          "cache": [
+            {
+              "id": "ship",
+              "at": 1794803115813
+            },
+            {
+              "id": "core",
+              "at": 1794803116095
+            },
+            {
+              "id": "harbor",
+              "at": 1794803116232
+            }
+          ]
+        }
+      ],
+      "snap": {
+        "tag": "round-1",
+        "at": 1794803116409,
+        "jsHeap": {
+          "usedSize": 44211856,
+          "totalSize": 48267264,
+          "embedderHeapUsedSize": 12888736,
+          "backingStorageSize": 313053042
+        },
+        "jsHeapMB": 42.16,
+        "label": "V54 · 收敛",
+        "map": "harbor",
+        "quality": "medium",
+        "programs": 218,
+        "geometries": 1362,
+        "textures": 216,
+        "calls": 654,
+        "tris": 2048709,
+        "perfMemory": {
+          "usedJSHeapSize": 364000000,
+          "totalJSHeapSize": 364000000
+        },
+        "cache": [
+          {
+            "id": "ship",
+            "at": 1794803115813
+          },
+          {
+            "id": "core",
+            "at": 1794803116095
+          },
+          {
+            "id": "harbor",
+            "at": 1794803116232
+          }
+        ],
+        "cacheStats": {
+          "releases": 4,
+          "geos": 755,
+          "mats": 4,
+          "total": 755,
+          "skipped": 0
+        },
+        "errors": 0
+      },
+      "heapGrowthMBFromBaseline": 1.86,
+      "programsDeltaFromBaseline": 0
+    },
+    {
+      "round": 2,
+      "maps": [
+        {
+          "map": "depot",
+          "programs": 218,
+          "geometries": 1488,
+          "textures": 224,
+          "calls": 408,
+          "tris": 1493789,
+          "cache": [
+            {
+              "id": "depot",
+              "at": 1794803116973
+            },
+            {
+              "id": "core",
+              "at": 1794803116095
+            },
+            {
+              "id": "harbor",
+              "at": 1794803116232
+            }
+          ]
+        },
+        {
+          "map": "ship",
+          "programs": 218,
+          "geometries": 1584,
+          "textures": 225,
+          "calls": 397,
+          "tris": 667219,
+          "cache": [
+            {
+              "id": "depot",
+              "at": 1794803116973
+            },
+            {
+              "id": "ship",
+              "at": 1794803117291
+            },
+            {
+              "id": "harbor",
+              "at": 1794803116232
+            }
+          ]
+        },
+        {
+          "map": "core",
+          "programs": 218,
+          "geometries": 1594,
+          "textures": 229,
+          "calls": 276,
+          "tris": 363365,
+          "cache": [
+            {
+              "id": "ship",
+              "at": 1794803117291
+            },
+            {
+              "id": "core",
+              "at": 1794803117582
+            },
+            {
+              "id": "harbor",
+              "at": 1794803116232
+            }
+          ]
+        },
+        {
+          "map": "harbor",
+          "programs": 218,
+          "geometries": 1739,
+          "textures": 222,
+          "calls": 497,
+          "tris": 2010503,
+          "cache": [
+            {
+              "id": "ship",
+              "at": 1794803117291
+            },
+            {
+              "id": "core",
+              "at": 1794803117582
+            },
+            {
+              "id": "harbor",
+              "at": 1794803117724
+            }
+          ]
+        }
+      ],
+      "snap": {
+        "tag": "round-2",
+        "at": 1794803117905,
+        "jsHeap": {
+          "usedSize": 45487800,
+          "totalSize": 49053696,
+          "embedderHeapUsedSize": 13096848,
+          "backingStorageSize": 313348050
+        },
+        "jsHeapMB": 43.38,
+        "label": "V54 · 收敛",
+        "map": "harbor",
+        "quality": "medium",
+        "programs": 218,
+        "geometries": 1739,
+        "textures": 222,
+        "calls": 654,
+        "tris": 2048709,
+        "perfMemory": {
+          "usedJSHeapSize": 364000000,
+          "totalJSHeapSize": 364000000
+        },
+        "cache": [
+          {
+            "id": "ship",
+            "at": 1794803117291
+          },
+          {
+            "id": "core",
+            "at": 1794803117582
+          },
+          {
+            "id": "harbor",
+            "at": 1794803117724
+          }
+        ],
+        "cacheStats": {
+          "releases": 7,
+          "geos": 1292,
+          "mats": 7,
+          "total": 1292,
+          "skipped": 0
+        },
+        "errors": 0
+      },
+      "heapGrowthMBFromBaseline": 3.08,
+      "programsDeltaFromBaseline": 0
+    },
+    {
+      "round": 3,
+      "maps": [
+        {
+          "map": "depot",
+          "programs": 218,
+          "geometries": 1865,
+          "textures": 230,
+          "calls": 507,
+          "tris": 2204813,
+          "cache": [
+            {
+              "id": "depot",
+              "at": 1794803118474
+            },
+            {
+              "id": "core",
+              "at": 1794803117582
+            },
+            {
+              "id": "harbor",
+              "at": 1794803117724
+            }
+          ]
+        },
+        {
+          "map": "ship",
+          "programs": 218,
+          "geometries": 2020,
+          "textures": 231,
+          "calls": 322,
+          "tris": 480775,
+          "cache": [
+            {
+              "id": "depot",
+              "at": 1794803118474
+            },
+            {
+              "id": "ship",
+              "at": 1794803118785
+            },
+            {
+              "id": "harbor",
+              "at": 1794803117724
+            }
+          ]
+        },
+        {
+          "map": "core",
+          "programs": 218,
+          "geometries": 2030,
+          "textures": 235,
+          "calls": 276,
+          "tris": 363365,
+          "cache": [
+            {
+              "id": "ship",
+              "at": 1794803118785
+            },
+            {
+              "id": "core",
+              "at": 1794803119064
+            },
+            {
+              "id": "harbor",
+              "at": 1794803117724
+            }
+          ]
+        },
+        {
+          "map": "harbor",
+          "programs": 218,
+          "geometries": 2100,
+          "textures": 228,
+          "calls": 497,
+          "tris": 2010503,
+          "cache": [
+            {
+              "id": "ship",
+              "at": 1794803118785
+            },
+            {
+              "id": "core",
+              "at": 1794803119064
+            },
+            {
+              "id": "harbor",
+              "at": 1794803119199
+            }
+          ]
+        }
+      ],
+      "snap": {
+        "tag": "round-3",
+        "at": 1794803119385,
+        "jsHeap": {
+          "usedSize": 46793868,
+          "totalSize": 50511872,
+          "embedderHeapUsedSize": 13420592,
+          "backingStorageSize": 313627170
+        },
+        "jsHeapMB": 44.63,
+        "label": "V54 · 收敛",
+        "map": "harbor",
+        "quality": "medium",
+        "programs": 218,
+        "geometries": 2161,
+        "textures": 228,
+        "calls": 654,
+        "tris": 2048709,
+        "perfMemory": {
+          "usedJSHeapSize": 364000000,
+          "totalJSHeapSize": 364000000
+        },
+        "cache": [
+          {
+            "id": "ship",
+            "at": 1794803118785
+          },
+          {
+            "id": "core",
+            "at": 1794803119064
+          },
+          {
+            "id": "harbor",
+            "at": 1794803119199
+          }
+        ],
+        "cacheStats": {
+          "releases": 10,
+          "geos": 1829,
+          "mats": 10,
+          "total": 1829,
+          "skipped": 0
+        },
+        "errors": 0
+      },
+      "heapGrowthMBFromBaseline": 4.33,
+      "programsDeltaFromBaseline": 0
+    }
+  ],
+  "growth": {
+    "heapGrowthBytes": 4536120,
+    "heapGrowthMB": 4.33,
+    "programGrowth": 0,
+    "geometryGrowth": 1101,
+    "textureGrowth": 18,
+    "baselineHeapMB": 40.3,
+    "finalHeapMB": 44.63,
+    "monotonic": true
+  },
+  "pass": 4,
+  "fail": 0,
+  "errors": [],
+  "label": "V54 · 收敛"
+}

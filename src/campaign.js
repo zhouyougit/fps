@@ -226,8 +226,105 @@
     }
   ];
 
+  /* =====================================================================
+     V54 · 战役本地化
+     数据（MISSIONS）保留中文作为 zh 回退；界面与 HUD/引擎读取的字段走 getter，
+     EN 从 SXI18n 取词。词典缺键（v32–v34 没有 i18n_extra）时仍返回中文数据。
+     ===================================================================== */
+  function campI18n() {
+    try { return (typeof window !== "undefined" && window.SXI18n) || null; } catch (e) { return null; }
+  }
+  function campHas(key) {
+    var I = campI18n();
+    if (!I) return false;
+    try {
+      if (typeof I.has === "function") return !!I.has(key);
+      return !!(I.dict && I.dict["zh-CN"] && I.dict["zh-CN"][key] != null);
+    } catch (e) { return false; }
+  }
+  /** campT(key, 中文兜底, vars) */
+  function campT(key, zh, vars) {
+    var I = campI18n();
+    if (I && typeof I.t === "function" && campHas(key)) {
+      try { return I.t(key, vars); } catch (e) { /* 取词失败回退中文 */ }
+    }
+    var s = zh == null ? key : String(zh);
+    if (vars) {
+      s = s.replace(/\{(\w+)\}/g, function (_, name) {
+        return vars[name] == null ? "" : String(vars[name]);
+      });
+    }
+    return s;
+  }
+  function missionT(m, field, zh) {
+    return campT("mission." + (m && m.id) + "." + field, zh);
+  }
+
+  var MISSION_TEXT_FIELDS = ["name", "chapter", "sub", "desc", "goal", "extractText", "locTitle", "locSub", "speaker", "threats", "recommend", "intro", "all", "done", "bossName"];
+  var MISSION_ARRAY_FIELDS = ["brief", "interlude"];
+  (function localizeMissionData() {
+    MISSIONS.forEach(function (m) {
+      var raw = { __override: {} };
+      MISSION_TEXT_FIELDS.forEach(function (f) {
+        if (m[f] == null) return;
+        raw[f] = m[f];
+        Object.defineProperty(m, f, {
+          enumerable: true, configurable: true,
+          get: function () {
+            if (raw.__override[f]) return raw[f];
+            return campT("mission." + m.id + "." + f, raw[f]);
+          },
+          set: function (v) { raw[f] = v; raw.__override[f] = true; }
+        });
+      });
+      MISSION_ARRAY_FIELDS.forEach(function (f) {
+        if (!m[f]) return;
+        raw[f] = m[f];
+        Object.defineProperty(m, f, {
+          enumerable: true, configurable: true,
+          get: function () {
+            var list = raw[f];
+            return list.map(function (v, i) { return campT("mission." + m.id + "." + f + "." + (i + 1), v); });
+          },
+          set: function (v) { raw[f] = v; }
+        });
+      });
+      if (m.relays) {
+        raw.relays = m.relays;
+        Object.defineProperty(m, "relays", {
+          enumerable: true, configurable: true,
+          get: function () {
+            return raw.relays.map(function (r, i) {
+              var copy = {}, key = "mission." + m.id + ".relayLabels." + (i + 1);
+              for (var k in r) if (Object.prototype.hasOwnProperty.call(r, k)) copy[k] = r[k];
+              copy.label = campT(key, r.label);
+              return copy;
+            });
+          },
+          set: function (v) { raw.relays = v; }
+        });
+      }
+      if (m.objectivesGraph) {
+        raw.objectivesGraph = m.objectivesGraph;
+        Object.defineProperty(m, "objectivesGraph", {
+          enumerable: true, configurable: true,
+          get: function () {
+            return raw.objectivesGraph.map(function (o, i) {
+              var copy = {}, key = "mission." + m.id + ".obj." + (i + 1);
+              for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) copy[k] = o[k];
+              if (copy.text) copy.text = campT(key, copy.text);
+              return copy;
+            });
+          },
+          set: function (v) { raw.objectivesGraph = v; }
+        });
+      }
+    });
+  })();
+
   var CAMP_KEY = "saltline.campaign.v1";
   var camp = { unlocked: 1, best: {}, current: 0, trainSel: false, challenges: {} };
+  var missionRadioArmed = null;   // V54：本次行动已发过 sx:mission-radio intro，避免暂停恢复重复触发
   var relayPool = {};
   var CAMP = null;
 
@@ -388,7 +485,7 @@
     if (!G || !G.physics || !G.level) return out;
     var start = G.level.playerStart && G.level.playerStart.pos;
     var list = (G.level.objectives || []).slice();
-    if (G.level.extraction) list.push({ id: "extract", label: "撤离点", pos: G.level.extraction.pos });
+    if (G.level.extraction) list.push({ id: "extract", label: campT("campaign.obj.extract", "撤离点"), pos: G.level.extraction.pos });
     list.forEach(function (o) {
       var near = nearestWalkable(o.pos.x, o.pos.z, 2.2);
       var floor = G.physics.groundHeight(o.pos.x, o.pos.z, 2.5);
@@ -411,6 +508,7 @@
     var m = MISSIONS[idx];
     if (!m) return;
     camp.current = idx;
+    missionRadioArmed = null;
     var mapId = m.map || "harbor";
     if (typeof MapKit !== "undefined" && MapKit.current() !== mapId) {
       MapKit.load(mapId);
@@ -458,19 +556,22 @@
       }
     } catch (e) {}
     var spk = document.querySelector(".comms-who");
-    if (spk) spk.textContent = m.speaker || "指挥中心";
+    if (spk) spk.textContent = m.speaker || campT("radio.command", "指挥中心");
     var lc = document.querySelector(".loc-card b");
     if (lc) lc.textContent = m.locTitle;
     var ls = document.querySelector(".loc-card span");
     if (ls) ls.textContent = m.locSub;
     var dim = document.querySelector(".m-title .m-eyebrow .m-dim");
-    if (dim) dim.textContent = camp.ending ? "几猫港区 · 档案 B4-0271 已封存" : "几猫港区 · 已解锁 " + camp.unlocked + "/" + MISSIONS.length;
+    if (dim) dim.textContent = camp.ending
+      ? campT("campaign.sealed", "几猫港区 · 档案 B4-0271 已封存")
+      : campT("campaign.unlocked", "几猫港区 · 已解锁 {n}/{total}", { n: camp.unlocked, total: MISSIONS.length });
     var premise = document.querySelector(".m-title .m-premise");
-    if (premise) premise.textContent = "当前行动 " + m.code + " · " + m.name + " · 已解锁 " + camp.unlocked + "/" + MISSIONS.length;
+    if (premise) premise.textContent = campT("campaign.now", "当前行动 {code} · {name} · 已解锁 {n}/{total}",
+      { code: m.code, name: m.name, n: camp.unlocked, total: MISSIONS.length });
     var dk = document.querySelector(".m-debrief .m-k");
-    if (dk) dk.textContent = "行动 " + m.code + " · " + m.name + " · 行动简报";
+    if (dk) dk.textContent = campT("campaign.debriefTitle", "行动 {code} · {name} · 行动简报", { code: m.code, name: m.name });
     var dh = document.querySelector(".m-debrief .m-h");
-    if (dh) dh.textContent = m.done || "行动完成";
+    if (dh) dh.textContent = m.done || campT("campaign.doneFallback", "行动完成");
     try {
       var vr = validateObjectives();
       var bad = vr.filter(function (x) { return !x.ok; });
@@ -486,9 +587,9 @@
   function challengeDefs(m) {
     var c = m.challenges || { time: 999, head: 999 };
     return [
-      { key: "time", label: "限时 ≤ " + fmtClock(c.time) },
-      { key: "head", label: "爆头击杀 ≥ " + c.head },
-      { key: "clean", label: "无死亡通关" }
+      { key: "time", label: campT("mission." + m.id + ".chal.time", "限时 ≤ {time}", { time: fmtClock(c.time) }) },
+      { key: "head", label: campT("mission." + m.id + ".chal.head", "爆头击杀 ≥ {n}", { n: c.head }) },
+      { key: "clean", label: campT("mission." + m.id + ".chal.clean", "无死亡通关") }
     ];
   }
   function challengeDone(id) {
@@ -517,19 +618,24 @@
     if (old) old.remove();
     var defs = challengeDefs(MISSIONS[camp.current]);
     var count = (done.time ? 1 : 0) + (done.head ? 1 : 0) + (done.clean ? 1 : 0);
-    var names = { time: "限时", head: "爆头", clean: "无死亡" };
+    var names = {
+      time: campT("ui2.chal.name.time", "限时"),
+      head: campT("ui2.chal.name.head", "爆头"),
+      clean: campT("ui2.chal.name.clean", "无死亡")
+    };
     var note = document.createElement("div");
     note.className = "x-chal";
     var unlock = "";
     var total = challengeCount();
-    if (total >= 9) unlock = "解锁：金色准星";
-    else if (total >= 6) unlock = "解锁：红色准星";
-    else if (total >= 3) unlock = "解锁：绿色准星";
-    note.innerHTML = "<b>挑战 " + count + "/3</b><span>" +
+    if (total >= 9) unlock = campT("ui2.chal.unlock.gold", "解锁：金色准星");
+    else if (total >= 6) unlock = campT("ui2.chal.unlock.red", "解锁：红色准星");
+    else if (total >= 3) unlock = campT("ui2.chal.unlock.green", "解锁：绿色准星");
+    var newNames = newly.map(function (k) { return names[k]; }).join(" / ");
+    note.innerHTML = "<b>" + campT("ui2.camp.challenge", "挑战 {n}/3", { n: count }) + "</b><span>" +
       defs.map(function (d) {
         return '<i class="' + (done[d.key] ? "ok" : "") + '">' + (done[d.key] ? "✓ " : "○ ") + d.label + "</i>";
       }).join("") +
-      (newly.length ? "<em>新完成：" + newly.map(function (k) { return names[k]; }).join(" / ") + "</em>" : "") +
+      (newly.length ? "<em>" + campT("ui2.chal.new", "新完成：{names}", { names: newNames }) + "</em>" : "") +
       (unlock ? "<em class='unlock'>" + unlock + "</em>" : "") +
       "</span>";
     var actions = panel.querySelector(".m-actions");
@@ -538,7 +644,7 @@
 
   function buildNarrativeUI() {
     INT = el("div", "x-interlude");
-    INT.innerHTML = '<div class="x-int-veil"></div><div class="x-int-card"><div class="m-k" data-int-k></div><h2 data-int-h></h2><div class="sub" data-int-sub></div><div class="x-int-lines" data-int-lines></div><button class="btn primary" data-int-go>继续 · 行动简报</button></div>';
+    INT.innerHTML = '<div class="x-int-veil"></div><div class="x-int-card"><div class="m-k" data-int-k></div><h2 data-int-h></h2><div class="sub" data-int-sub></div><div class="x-int-lines" data-int-lines></div><button class="btn primary" data-int-go>' + campT("ui2.int.go", "继续 · 行动简报") + '</button></div>';
     document.getElementById("ui").appendChild(INT);
     INT.querySelector(".x-int-veil").onclick = function () { INT.classList.remove("on"); };
     INT.querySelector("[data-int-go]").onclick = function () {
@@ -550,7 +656,10 @@
       openBriefing(to);
     };
     ARCH = el("div", "x-archive");
-    ARCH.innerHTML = '<div class="x-arc-veil"></div><div class="x-arc-panel"><div class="m-k">几猫 · 剧情档案</div><h2>B4-0271</h2><div class="x-arc-sub">一夜港区 · 六幕行动</div><div class="x-arc-list"></div><div class="x-arc-end"></div><div class="x-arc-actions"><button class="btn" data-ar-back>返回</button></div></div>';
+    ARCH.innerHTML = '<div class="x-arc-veil"></div><div class="x-arc-panel"><div class="m-k">' + campT("ui2.arc.kicker", "几猫 · 剧情档案") +
+      '</div><h2>B4-0271</h2><div class="x-arc-sub">' + campT("campaign.arcSub", "一夜港区 · 六幕行动") +
+      '</div><div class="x-arc-list"></div><div class="x-arc-end"></div><div class="x-arc-actions"><button class="btn" data-ar-back>' +
+      campT("ui2.arc.back", "返回") + '</button></div></div>';
     document.getElementById("ui").appendChild(ARCH);
     ARCH.querySelector(".x-arc-veil").onclick = function () { ARCH.classList.remove("on"); };
     ARCH.querySelector("[data-ar-back]").onclick = function () { ARCH.classList.remove("on"); };
@@ -560,7 +669,7 @@
     var a = MISSIONS[from], b = MISSIONS[to];
     if (!INT || !a || !b) return;
     INT.dataset.to = to;
-    INT.querySelector("[data-int-k]").textContent = b.chapter || "下一行动";
+    INT.querySelector("[data-int-k]").textContent = b.chapter || campT("ui2.int.next", "下一行动");
     INT.querySelector("[data-int-h]").textContent = b.name;
     INT.querySelector("[data-int-sub]").textContent = b.locTitle || b.sub;
     INT.querySelector("[data-int-lines]").innerHTML = (a.interlude || []).map(function (x) { return "<p>" + x + "</p>"; }).join("");
@@ -573,11 +682,21 @@
       var best = camp.best[m.id];
       var ch = challengeDone(m.id);
       var lock = i >= camp.unlocked;
-      var st = lock ? "未解锁" : best ? (best.rating || "已完成") + " · 挑战 " + ch + "/3" : "尚未完成";
-      return '<div class="x-arc-row' + (lock ? " lock" : "") + '"><b>行动 ' + m.code + ' · ' + m.name + '</b><span>' + (m.chapter || "") + '</span><em>' + st + '</em></div>';
+      var st = lock
+        ? campT("ui2.arc.locked", "未解锁")
+        : best
+          ? (best.rating || campT("ui2.arc.done", "已完成")) + " · " + campT("ui2.camp.challenge", "挑战 {n}/3", { n: ch })
+          : campT("ui2.arc.unfinished", "尚未完成");
+      return '<div class="x-arc-row' + (lock ? " lock" : "") + '"><b>' +
+        campT("ui2.arc.row", "行动 {code} · {name}", { code: m.code, name: m.name }) +
+        '</b><span>' + (m.chapter || "") + '</span><em>' + st + '</em></div>';
     }).join("");
     ARCH.querySelector(".x-arc-list").innerHTML = rows;
-    var end = camp.ending ? '<div class="x-arc-final">档案已封存 · ' + (camp.ending === "open" ? "公开" : "沉默") + '<br>' + endingText(camp.ending) + '</div>' : "";
+    var end = camp.ending
+      ? '<div class="x-arc-final">' +
+        campT("ui2.arc.sealed", "档案已封存 · {kind}", { kind: camp.ending === "open" ? campT("ui2.arc.kind.open", "公开") : campT("ui2.arc.kind.silent", "沉默") }) +
+        '<br>' + endingText(camp.ending) + '</div>'
+      : "";
     ARCH.querySelector(".x-arc-end").innerHTML = end;
     ARCH.classList.add("on");
   }
@@ -615,16 +734,21 @@
     if (!m || !BRIEF) { launchMission(idx); return; }
     camp.briefIdx = idx;
     var q = function (s) { return BRIEF.querySelector(s); };
-    q(".x-br-k").textContent = (m.chapter || "行动") + " · 行动 " + m.code + " · " + m.name;
+    q(".x-br-k").textContent = (m.chapter || campT("campaign.op", "行动")) + " · " +
+      campT("ui2.brief.opCode", "行动 {code}", { code: m.code }) + " · " + m.name;
     q(".x-br-h").textContent = m.name;
     q(".x-br-sub").textContent = m.sub;
-    q(".x-br-threats").textContent = m.threats || "未知";
-    q(".x-br-rec").textContent = m.recommend || "自由配装";
-    q(".x-br-diff").textContent = (DIFFICULTY[access.difficulty] || DIFFICULTY.normal).label;
+    q(".x-br-threats").textContent = m.threats || campT("campaign.brief.threatsUnknown", "未知");
+    q(".x-br-rec").textContent = m.recommend || campT("campaign.brief.recommendFree", "自由配装");
+    q(".x-br-diff").textContent = campT("ui2.settings.diff." + access.difficulty,
+      (DIFFICULTY[access.difficulty] || DIFFICULTY.normal).label);
     var best = camp.best && camp.best[m.id];
     q(".x-br-best").textContent = best
-      ? "最佳 " + Math.floor(best.time / 60) + ":" + String(Math.floor(best.time % 60)).padStart(2, "0") + " · " + (best.rating || "")
-      : "尚未完成";
+      ? campT("ui2.camp.best", "最佳 {time} · {rating}", {
+        time: Math.floor(best.time / 60) + ":" + String(Math.floor(best.time % 60)).padStart(2, "0"),
+        rating: best.rating || ""
+      })
+      : campT("ui2.camp.unfinished", "尚未完成");
     var ul = q(".x-br-list");
     ul.innerHTML = (m.brief || []).map(function (x) { return "<li>" + x + "</li>"; }).join("");
     var done = camp.challenges[m.id] || {};
@@ -643,17 +767,17 @@
         '<h2 class="x-br-h"></h2>' +
         '<div class="x-br-sub"></div>' +
         '<div class="x-br-meta">' +
-          '<div><span>威胁</span><b class="x-br-threats"></b></div>' +
-          '<div><span>建议装备</span><b class="x-br-rec"></b></div>' +
-          '<div><span>难度</span><b class="x-br-diff"></b></div>' +
-          '<div><span>记录</span><b class="x-br-best"></b></div>' +
+          '<div><span>' + campT("ui2.brief.section.threats", "威胁") + '</span><b class="x-br-threats"></b></div>' +
+          '<div><span>' + campT("ui2.brief.section.recommend", "建议装备") + '</span><b class="x-br-rec"></b></div>' +
+          '<div><span>' + campT("ui2.brief.section.difficulty", "难度") + '</span><b class="x-br-diff"></b></div>' +
+          '<div><span>' + campT("ui2.brief.section.record", "记录") + '</span><b class="x-br-best"></b></div>' +
         '</div>' +
         '<ul class="x-br-list"></ul>' +
-        '<div class="x-br-chal-wrap"><b>挑战</b><ul class="x-br-chal"></ul></div>' +
+        '<div class="x-br-chal-wrap"><b>' + campT("ui2.brief.challenge", "挑战") + '</b><ul class="x-br-chal"></ul></div>' +
         '<div class="x-br-actions">' +
-          '<button class="btn primary" data-x="brief-go">出击</button>' +
-          '<button class="btn" data-x="brief-arm">武器改装</button>' +
-          '<button class="btn" data-x="brief-back">返回</button>' +
+          '<button class="btn primary" data-x="brief-go">' + campT("ui2.brief.go", "出击") + '</button>' +
+          '<button class="btn" data-x="brief-arm">' + campT("ui2.brief.armory", "武器改装") + '</button>' +
+          '<button class="btn" data-x="brief-back">' + campT("ui2.brief.back", "返回") + '</button>' +
         '</div>' +
       '</div>';
     document.getElementById("ui").appendChild(overlay);
@@ -681,16 +805,16 @@
     overlay.innerHTML =
       '<div class="x-camp-veil"></div>' +
       '<div class="x-camp-panel">' +
-        '<div class="m-k">几猫突击小队 · 行动档案</div>' +
-        '<h2 class="x-camp-h">选择行动</h2>' +
-        '<div class="x-camp-sub">同一港区，三种时段与目标编成。完成行动可解锁下一阶段。</div>' +
+        '<div class="m-k">' + campT("ui2.camp.kicker", "几猫突击小队 · 行动档案") + '</div>' +
+        '<h2 class="x-camp-h">' + campT("ui2.camp.title", "选择行动") + '</h2>' +
+        '<div class="x-camp-sub">' + campT("campaign.campSub", "同一港区，三种时段与目标编成。完成行动可解锁下一阶段。") + '</div>' +
         '<div class="x-camp-list"></div>' +
         '<div class="x-camp-actions">' +
-          '<button class="btn primary" data-x="go">出动</button>' +
-          '<button class="btn" data-x="close">返回</button>' +
-          '<button class="btn" data-x="arm">武器改装</button>' +
+          '<button class="btn primary" data-x="go">' + campT("ui2.camp.go", "出动") + '</button>' +
+          '<button class="btn" data-x="close">' + campT("ui2.menu.back", "返回") + '</button>' +
+          '<button class="btn" data-x="arm">' + campT("ui2.brief.armory", "武器改装") + '</button>' +
         '</div>' +
-        '<div class="x-camp-note">进度自动保存 · 评级与用时记录在本地</div>' +
+        '<div class="x-camp-note">' + campT("ui2.camp.note", "进度自动保存 · 评级与用时记录在本地") + '</div>' +
       '</div>';
     document.getElementById("ui").appendChild(overlay);
     CAMP = overlay;
@@ -731,7 +855,7 @@
     if (!b) return "";
     var t = "—";
     if (b.time != null) t = Math.floor(b.time / 60) + ":" + String(Math.floor(b.time % 60)).padStart(2, "0");
-    return "最佳 " + t + " · " + (b.rating || "—");
+    return campT("ui2.camp.best", "最佳 {time} · {rating}", { time: t, rating: b.rating || "—" });
   }
 
   function renderMissionCards() {
@@ -741,22 +865,26 @@
     for (var i = 0; i < MISSIONS.length; i++) {
       var m = MISSIONS[i], locked = i >= camp.unlocked;
       html += '<button class="x-mcard' + (i === camp.current && !camp.trainSel ? " sel" : "") + (locked ? " locked" : "") + '" data-idx="' + i + '">' +
-        (locked ? '<span class="lock">未解锁</span>' : "") +
-        '<span class="code">' + (m.chapter || "行动") + ' · ' + m.code + '</span>' +
+        (locked ? '<span class="lock">' + campT("ui2.camp.locked", "未解锁") + '</span>' : "") +
+        '<span class="code">' + (m.chapter || campT("campaign.op", "行动")) + ' · ' + m.code + '</span>' +
         '<h3>' + m.name + '</h3><div class="sub">' + m.sub + '</div>' +
         '<p>' + m.desc + '</p>' +
-        (locked ? "" : '<div class="x-mchal">挑战 ' + challengeDone(m.id) + '/3</div>') +
-        '<div class="meta">' + (locked ? "完成上一行动后解锁" : ratingOf(m.id) || "尚未完成") + '</div></button>';
+        (locked ? "" : '<div class="x-mchal">' + campT("ui2.camp.challenge", "挑战 {n}/3", { n: challengeDone(m.id) }) + '</div>') +
+        '<div class="meta">' + (locked ? campT("ui2.camp.lockHint", "完成上一行动后解锁") : ratingOf(m.id) || campT("ui2.camp.unfinished", "尚未完成")) + '</div></button>';
     }
     html += '<button class="x-mcard x-train-card' + (camp.trainSel ? " sel" : "") + '" data-train="1">' +
-      '<span class="code">训练 ' + TRAINING.code + '</span>' +
+      '<span class="code">' + campT("ui2.camp.trainingCard", "训练 {code}", { code: TRAINING.code }) + '</span>' +
       "<h3>" + TRAINING.name + "</h3><div class=\"sub\">" + TRAINING.sub + "</div>" +
       "<p>" + TRAINING.desc + "</p>" +
-      '<div class="meta">' + (camp.best && camp.best.train ? "最佳 " + camp.best.train.score + " 分" : "无限弹药 · 随时进入") + "</div></button>";
+      '<div class="meta">' + (camp.best && camp.best.train
+        ? campT("ui2.camp.trainingBest", "最佳 {score} 分", { score: camp.best.train.score })
+        : campT("ui2.camp.trainingMeta", "无限弹药 · 随时进入")) + "</div></button>";
     list.innerHTML = html;
     list.classList.toggle("x-eight", MISSIONS.length >= 8);
     var go = CAMP && CAMP.querySelector('.x-camp-actions [data-x="go"]');
-    if (go) go.textContent = camp.trainSel ? "出动 · 训练场" : "出动 · " + MISSIONS[camp.current].name;
+    if (go) go.textContent = campT("ui2.camp.goNamed", "出动 · {name}", {
+      name: camp.trainSel ? campT("ui2.camp.training", "训练场") : MISSIONS[camp.current].name
+    });
   }
 
   function returnToTitle() {
@@ -779,20 +907,20 @@
   function addMenuEntry() {
     var acts = document.querySelector(".m-title .m-actions");
     if (acts && !acts.querySelector('[data-x="campaign"]')) {
-      var b = el("button", "btn", "行动简报");
+      var b = el("button", "btn", campT("campaign.brief.title", "行动简报"));
       b.setAttribute("data-x", "campaign");
       b.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); openMissionScreen(); });
       acts.insertBefore(b, acts.children[1] || null);
     }
     var pacts = document.querySelector('.m-screen[data-s="paused"] .m-actions');
     if (pacts && !pacts.querySelector('[data-x="campaign"]')) {
-      var p = el("button", "btn", "行动简报");
+      var p = el("button", "btn", campT("campaign.brief.title", "行动简报"));
       p.setAttribute("data-x", "campaign");
       p.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); openMissionScreen(); });
       pacts.insertBefore(p, pacts.lastElementChild);
     }
     if (pacts && !pacts.querySelector('[data-x="to-title"]')) {
-      var back = el("button", "btn", "返回标题");
+      var back = el("button", "btn", campT("ui2.menu.title", "返回标题"));
       back.setAttribute("data-x", "to-title");
       back.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); returnToTitle(); });
       pacts.appendChild(back);
@@ -808,7 +936,8 @@
     if (next >= MISSIONS.length || next >= camp.unlocked) return;
     var redeploy = actions.querySelector('[data-act="redeploy"]');
     if (redeploy) { redeploy.classList.remove("primary"); }
-    var b = el("button", "btn primary x-next", "下一行动 · " + MISSIONS[next].name);
+    var b = el("button", "btn primary x-next",
+      campT("ui2.menu.next", "下一行动 · {name}", { name: MISSIONS[next].name }));
     b.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); openInterlude(camp.current, next); });
     actions.insertBefore(b, actions.firstChild);
   }
@@ -865,19 +994,22 @@
     }
     var note = document.createElement("p");
     note.className = "x-final";
-    note.textContent = isFinal ? "全部 " + MISSIONS.length + " 个行动完成 · 最后的决定" : "全部 " + MISSIONS.length + " 个行动完成 · 港区行动结束";
+    note.textContent = isFinal
+      ? campT("ui2.final.last", "全部 {n} 个行动完成 · 最后的决定", { n: MISSIONS.length })
+      : campT("ui2.final.all", "全部 {n} 个行动完成 · 港区行动结束", { n: MISSIONS.length });
     panel.insertBefore(note, actions);
     if (isFinal) {
       var choice = document.createElement("div");
       choice.className = "x-end-choice";
-      choice.innerHTML = '<button class="btn primary" data-end="silent">沉船 · 沉默</button><button class="btn" data-end="open">带核心回港 · 公开</button>';
+      choice.innerHTML = '<button class="btn primary" data-end="silent">' + campT("ui2.end.choice.silent", "沉船 · 沉默") +
+        '</button><button class="btn" data-end="open">' + campT("ui2.end.choice.open", "带核心回港 · 公开") + '</button>';
       panel.insertBefore(choice, actions);
       choice.querySelector('[data-end="silent"]').onclick = function () { showEnding("silent", panel, actions, true); };
       choice.querySelector('[data-end="open"]').onclick = function () { showEnding("open", panel, actions, true); };
     }
     var back = document.createElement("button");
     back.className = "btn x-final-back";
-    back.textContent = "返回标题";
+    back.textContent = campT("ui2.menu.title", "返回标题");
     back.addEventListener("click", function (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -898,9 +1030,17 @@
 
   function endingText(kind) {
     if (kind === "open") {
-      return "你把核心搬上接驳艇。全港广播被劫持，一个不属于任何人的声音开始念名单。<br>岸台没有回答。她的频道在 05:43 之后一直是空的。<br><b>蜃：第 4 次。</b>";
+      return [
+        campT("ui2.end.open.1", "你把核心搬上接驳艇。全港广播被劫持，一个不属于任何人的声音开始念名单。"),
+        campT("ui2.end.open.2", "岸台没有回答。她的频道在 05:43 之后一直是空的。"),
+        "<b>" + campT("ui2.end.open.3", "蜃：第 4 次。") + "</b>"
+      ].join("<br>");
     }
-    return "接驳艇撤到安全距离。港区主控在日出前下线。<br>四号泊位在 06:20 恢复作业，调度表上多了三个名字，又很快被划掉。<br><b>蜃：第 4 次。</b>";
+    return [
+      campT("ui2.end.silent.1", "接驳艇撤到安全距离。港区主控在日出前下线。"),
+      campT("ui2.end.silent.2", "四号泊位在 06:20 恢复作业，调度表上多了三个名字，又很快被划掉。"),
+      "<b>" + campT("ui2.end.silent.3", "蜃：第 4 次。") + "</b>"
+    ].join("<br>");
   }
 
   function showEnding(kind, panel, actions, save) {
@@ -919,7 +1059,7 @@
     if (!panel.querySelector(".x-final-back")) {
       var back = document.createElement("button");
       back.className = "btn x-final-back";
-      back.textContent = "返回标题";
+      back.textContent = campT("ui2.menu.title", "返回标题");
       back.addEventListener("click", function (e) {
         e.preventDefault(); e.stopPropagation();
         G.game.menus.show("none");
@@ -932,7 +1072,7 @@
       actions.appendChild(back);
     }
     var dim = document.querySelector(".m-title .m-eyebrow .m-dim");
-    if (dim) dim.textContent = "几猫港区 · 档案 B4-0271 已封存";
+    if (dim) dim.textContent = campT("campaign.sealed", "几猫港区 · 档案 B4-0271 已封存");
   }
 
   /*__TRAINING__*/
@@ -947,9 +1087,9 @@
       m3.boss = false;
       m3.evac = 40;
       m3.waves = m3.waves.map(function (w) { return { gull: w.gull, hound: w.hound }; });
-      m3.locSub = "几猫突击小队 · 撤离窗口 40 秒";
-      m3.all = "四处中继全部断开！撤离窗口开始计时，守住阵地！";
-      m3.intro = "最后一班接驳即将到港。切断四处中继，然后守住撤离点。";
+      m3.locSub = campT("campaign.v3.locSub", "几猫突击小队 · 撤离窗口 40 秒");
+      m3.all = campT("campaign.v3.all", "四处中继全部断开！撤离窗口开始计时，守住阵地！");
+      m3.intro = campT("campaign.v3.intro", "最后一班接驳即将到港。切断四处中继，然后守住撤离点。");
     }
     if (profile === "v2") {
       applyMission(0);
@@ -967,7 +1107,7 @@
     }
     var campActs = CAMP && CAMP.querySelector(".x-camp-actions");
     if (campActs && !campActs.querySelector('[data-x="archive"]')) {
-      var ab = el("button", "btn", "剧情档案");
+      var ab = el("button", "btn", campT("campaign.archive", "剧情档案"));
       ab.setAttribute("data-x", "archive");
       ab.onclick = function (e) { e.preventDefault(); e.stopPropagation(); openArchive(); };
       campActs.insertBefore(ab, campActs.querySelector('[data-x="close"]'));
@@ -980,11 +1120,11 @@
       e.stopImmediatePropagation();
       b.dataset.confirm = "1";
       b.dataset.label = b.textContent;
-      b.textContent = "确认重试？";
+      b.textContent = campT("campaign.confirmRetry", "确认重试？");
       (typeof UICLOCK !== "undefined" && UICLOCK ? UICLOCK : { after: function (s, f) { return setTimeout(f, s * 1000); } }).after(2.6, function () {
         if (b.isConnected) {
           b.dataset.confirm = "";
-          b.textContent = b.dataset.label || "重新开始行动";
+          b.textContent = b.dataset.label || campT("campaign.restart", "重新开始行动");
         }
       });
     }, true);
@@ -1011,6 +1151,15 @@
           UICLOCK.after(0.4, onMissionComplete);
         } else {
           setTimeout(onMissionComplete, 400);
+        }
+      }
+      // V54：任务电台不再靠中文前缀识别。行动开始（每次行动只一次）发稳定事件，
+      // ext.js 收到后把下一条引擎开场电台替换成当前任务的 intro（中英都由 getter 取词）。
+      if (e.state === "intro") {
+        var cm = G.game && G.game.currentMission;
+        if (cm && cm.intro && missionRadioArmed !== cm.id) {
+          missionRadioArmed = cm.id;
+          try { G.events.emit("sx:mission-radio", { kind: "intro", id: cm.id }); } catch (err) { /* 事件失败不影响开局 */ }
         }
       }
     });

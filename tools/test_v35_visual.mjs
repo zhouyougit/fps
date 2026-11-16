@@ -1,9 +1,10 @@
 import { chromium } from 'playwright';
-import { PW_ARGS } from './pwargs.mjs';
+import { PW_ARGS, legacyGame } from './pwargs.mjs';
+import { pathToFileURL } from 'node:url';
 import fs from 'fs';
 
 const exe = process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const URL = 'file:///Users/zhouyou/codex_workspace/fps/game_v35.html?q=low&noaudio=1&autostart=1&dt=0.1';
+const URL = process.env.SX_URL || pathToFileURL(legacyGame('v35')).href + '?q=low&noaudio=1&autostart=1&dt=0.1';
 const browser = await chromium.launch({ headless: true, executablePath: exe,
   args: PW_ARGS });
 const page = await browser.newPage({ viewport: { width: 1000, height: 560 } });

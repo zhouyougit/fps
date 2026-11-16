@@ -14,7 +14,7 @@ import path from 'path';
 
 const root = process.cwd();
 const exe = process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const candidates = [process.env.SX_TARGET, 'game_v39.html', 'game_v35.html'].filter(Boolean);
+const candidates = [process.env.SX_TARGET, 'game_v39.html', 'game_v35.html', 'versions/几猫_V39.html', 'versions/几猫_V35.html'].filter(Boolean);
 let target = candidates.find((f) => fs.existsSync(path.join(root, f)));
 if (!target) { console.error('[v39-visual] 找不到可测 html'); process.exit(1); }
 const URL = 'file://' + path.join(root, target) + '?q=medium&noaudio=1&autostart=1&dt=0.1';

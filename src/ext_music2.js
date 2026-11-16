@@ -20,6 +20,23 @@
      ===================================================================== */
   (function () {
     "use strict";
+    // V54 ARCH-2：空 catch 不再静默吞错。软错误统一走 window.SXErrors.soft("music2:<tag>")：
+    // 按标签计数、每个标签只记一条诊断，热路径不会刷屏；缺少诊断接口时退回 window.__errors。
+    function soft(tag, e) {
+      if (typeof window === "undefined" || !window) return;
+      var forwarded = false;
+      try {
+        if (window.SXErrors && typeof window.SXErrors.soft === "function") { window.SXErrors.soft("music2:" + tag, e); forwarded = true; }
+      } catch (_) { forwarded = false; }
+      if (forwarded) return;
+      try {
+        if (window.__errors) {
+          window.__errors.push("[music2:" + tag + "] " + ((e && e.stack) || e));
+          while (window.__errors.length > 200) window.__errors.shift();
+        }
+      } catch (_) { return; }
+    }
+
     if (window.__SX_MUSIC) return;
 
     var VERSION = "V35 · 世界";
@@ -208,8 +225,8 @@
       S.wirePending++;
       if (h) {
         s.alive = !!h.alive;
-        try { h.setGain(1); } catch (e) {}          /* 基线 1：音量交给 __SX_AUDIO2 的 music bus */
-        try { h.setPitch(1); } catch (e) {}
+        try { h.setGain(1); } catch (e) { soft("stem-gain", e); }          /* 基线 1：音量交给 __SX_AUDIO2 的 music bus */
+        try { h.setPitch(1); } catch (e) { soft("stem-pitch", e); }
       }
       return s;
     }
@@ -240,7 +257,7 @@
       if (s.g && c) {
         try {
           s.g.gain.setTargetAtTime(Math.max(0.00002, s.target), c.currentTime, Math.max(0.04, (fade || 0.3) / 3));
-        } catch (e) {}
+        } catch (e) { soft("stem-target", e); }
       }
     }
     /* intensity → 低通（perc/brass 最明显；ost 较缓；drone/motif 固定） */
@@ -256,7 +273,7 @@
       for (var i = 0; i < STEMS.length; i++) {
         var s = stems[STEMS[i]];
         if (!s || !s.fs || !c) continue;
-        try { s.fs.frequency.setTargetAtTime(cutoffFor(s.id), c.currentTime, fade || 0.25); } catch (e) {}
+        try { s.fs.frequency.setTargetAtTime(cutoffFor(s.id), c.currentTime, fade || 0.25); } catch (e) { soft("stem-filter", e); }
       }
     }
     function gainFor(id) {
@@ -304,8 +321,8 @@
         });
       } catch (e) { L.h = null; }
       if (L.h) {
-        try { L.h.setGain(1); } catch (e) {}
-        try { L.h.setPitch(spec.p); } catch (e) {}
+        try { L.h.setGain(1); } catch (e) { soft("bed-gain", e); }
+        try { L.h.setPitch(spec.p); } catch (e) { soft("bed-pitch", e); }
       }
       return L;
     }
@@ -385,7 +402,7 @@
         var L = amb.list[i];
         if (!L || L.map !== mapId) continue;
         keys.push(L.key);
-        try { if (L.h && typeof L.h.stop === "function") { L.h.stop(0.5); stopped++; } } catch (e) {}
+        try { if (L.h && typeof L.h.stop === "function") { L.h.stop(0.5); stopped++; } } catch (e) { soft("bed-evict", e); }
         L.active = false;
         if (amb.layers[L.key] === L) delete amb.layers[L.key];
         amb.list.splice(i, 1);
@@ -414,7 +431,7 @@
         var on = L.map === amb.id;
         var target = on ? (L.spec.g * S.ambDuck) : 0;
         if (L.g && c) {
-          try { L.g.gain.setTargetAtTime(Math.max(0.00002, target), c.currentTime, Math.max(0.05, (fade || 0.9) / 3)); } catch (e) {}
+          try { L.g.gain.setTargetAtTime(Math.max(0.00002, target), c.currentTime, Math.max(0.05, (fade || 0.9) / 3)); } catch (e) { soft("amb-gain", e); }
         }
         L.active = on;
       }
@@ -453,7 +470,7 @@
           jitter: 0.05, ref: spec.ref || 8, __sxM: 1
         });
         S.ambEvents++;
-      } catch (e) {}
+      } catch (e) { soft("amb-event", e); }
     }
 
     /* ------------------------------------------------------------ 节拍量化状态机 */
@@ -507,16 +524,16 @@
       if (st === "ending") {
         S.ended = true;
         var d = stems.drone;
-        if (d) { try { d.h.setPitch(0.62); } catch (e) {} }
+        if (d) { try { d.h.setPitch(0.62); } catch (e) { soft("ending-pitch", e); } }
         try {
           G.audio.play("foghorn", { gain: 0.16, pitch: 0.32, delay: 0.05, jitter: 0, __sxM: 1 });
-        } catch (e) {}
+        } catch (e) { soft("ending-foghorn", e); }
       }
     }
     function resetEnding() {
       S.ended = false;
       var d = stems.drone;
-      if (d) { try { d.h.setPitch(1); } catch (e) {} }
+      if (d) { try { d.h.setPitch(1); } catch (e) { soft("reset-pitch", e); } }
     }
     function desiredState() {
       if (G.game && G.game.state === "complete") return "ending";
@@ -548,8 +565,8 @@
     }
     function currentMap() {
       var id = "";
-      try { if (window.__SX && window.__SX.mapId) id = window.__SX.mapId(); } catch (e) {}
-      if (!id) { try { var m = G.game.currentMission; if (m && m.map) id = m.map; } catch (e) {} }
+      try { if (window.__SX && window.__SX.mapId) id = window.__SX.mapId(); } catch (e) { soft("map-id", e); }
+      if (!id) { try { var m = G.game.currentMission; if (m && m.map) id = m.map; } catch (e) { soft("mission-map", e); } }
       return id || S.map || "harbor";
     }
     function switchMap(id) {
@@ -723,8 +740,8 @@
         g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
         o.connect(g); g.connect(dest);
         o.start(when); o.stop(when + dur + 0.02);
-        o.onended = function () { try { o.disconnect(); g.disconnect(); } catch (e) {} };
-      } catch (e) {}
+        o.onended = function () { try { o.disconnect(); g.disconnect(); } catch (e) { soft("pulse-disconnect", e); } };
+      } catch (e) { soft("pulse-fire", e); }
     }
 
     /* ------------------------------------------------------------ 电台质感 */
@@ -752,7 +769,7 @@
         } catch (e) { hissHandle = null; }
       }
       if (hissHandle) {
-        try { hissHandle.setPitch(2.0 * pitch); hissHandle.setGain(0.05); } catch (e) {}
+        try { hissHandle.setPitch(2.0 * pitch); hissHandle.setGain(0.05); } catch (e) { soft("hiss-start", e); }
         S.hissT = S.t + Math.min(2.4, S.radioDur);
       }
     }
@@ -772,7 +789,7 @@
         G.audio.play("whiz", { gain: 0.045, pitch: 3.2 * pitch, delay: 0.01, jitter: 0.02, __sxM: 1 });
         G.audio.play("whiz", { gain: 0.030, pitch: 2.6, delay: Math.max(0.2, dur - 0.22), jitter: 0.03, __sxM: 1 });
         G.audio.play("ui_click", { gain: 0.045, pitch: 1.85, delay: 0.005, jitter: 0.01, __sxM: 1 });
-      } catch (e) {}
+      } catch (e) { soft("radio-sfx", e); }
       /* 短促合成音节：按说话人音高逐字打点，不生成真实语音 */
       var n = clamp(Math.round(dur / 0.14), 4, 12);
       var step = dur / n;
@@ -784,7 +801,7 @@
           G.audio.play(names[i % 2], {
             gain: 0.045 + Math.random() * 0.03, pitch: p, delay: at, jitter: 0.012, __sxM: 1
           });
-        } catch (e) {}
+        } catch (e) { soft("radio-syllable", e); }
       }
       radioHiss(pitch);
       return { speaker: speaker, pitch: pitch, dur: dur };
@@ -855,7 +872,7 @@
     function updateHiss() {
       if (hissHandle && S.hissT > 0 && S.t > S.hissT) {
         S.hissT = -1;
-        try { hissHandle.setGain(0); } catch (e) {}
+        try { hissHandle.setGain(0); } catch (e) { soft("hiss-stop", e); }
       }
     }
     function ambienceStep(dt) {
@@ -929,7 +946,7 @@
         try {
           var def = AMB[S.map] || AMB.harbor;
           if (!(opts && opts.__sxM) && def.suppress && def.suppress.indexOf(name) >= 0) return false;
-        } catch (e) {}
+        } catch (e) { soft("suppress-check", e); }
         return orig.apply(this, arguments);
       };
     }
@@ -1063,7 +1080,7 @@
       },
       begin: function () {
         if (!booted) return false;
-        try { if (G.audio && G.audio.resume) G.audio.resume(); } catch (e) {}
+        try { if (G.audio && G.audio.resume) G.audio.resume(); } catch (e) { soft("resume", e); }
         ensureStateStems(S.state);
         applyMix(0.8, "begin");
         return true;

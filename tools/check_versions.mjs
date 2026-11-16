@@ -41,7 +41,8 @@ const EXPECT = [
   { profile: 'v50', file: '几猫_V50.html', label: 'V50 · 设置', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 },
   { profile: 'v51', file: '几猫_V51.html', label: 'V51 · 可读', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 },
   { profile: 'v52', file: '几猫_V52.html', label: 'V52 · 收口', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 },
-  { profile: 'v53', file: '几猫_V53.html', label: 'V53 · 改进', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 }
+  { profile: 'v53', file: '几猫_V53.html', label: 'V53 · 改进', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 },
+  { profile: 'v54', file: '几猫_V54.html', label: 'V54 · 收敛', weapons: 6, missions: 8, budget: 3.5 * 1024 * 1024 }
 ];
 const WEAPON_IDS = ['pac9', 'breaker12', 'dmr', 'smg', 'lmg', 'sidearm'];
 

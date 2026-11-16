@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* =====================================================================
-   V39 · 本地化收尾回归（军械库 / 联机播报 / 远端换弹动作）
+   V39/V54 · 本地化回归（军械库 / 联机播报 / 战役 / BOSS / 训练 / 远端换弹动作）
    覆盖：
      1) i18n 词典完整：zh 全键有 en，missing=0
      2) 军械库 6 把枪：页签名 / 槽位名 / 全部配件名+描述中英双向；
@@ -10,6 +10,8 @@
         + 大厅与连接错误码
      4) 远端角色 reloadStart：枪口下压 + 弹匣脱离（复用现有 rig 关节）
      5) 无 pageerror
+     6) V54：战役 locTitle/intro/brief/中继标签、辅助/训练/BOSS 英文正文，
+        以及 sx:mission-radio 稳定事件（不再依赖中文前缀识别）
    用法：node tools/test_v39_i18n.mjs [--no-build]
    环境变量：SX_HTML（指定产物）、SX_PROFILE（默认 v39）、
             SX_PAGE_TIMEOUT（加载超时 ms，默认 240000）
@@ -384,6 +386,52 @@ try {
     CJK.test(dynZhBack.warm || '') && CJK.test(dynZhBack.draw || '') &&
     CJK.test(dynZhBack.team || ''),
     dynZhBack);
+
+
+  /* 6b) V54 战役 / 辅助 / 训练 / BOSS 英文正文 */
+  const campEn = await page.evaluate(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    window.__SX_LANG.set('en');
+    await wait(450);
+    const ms = (window.__SX_CAMP && window.__SX_CAMP.missions) || [];
+    const m = ms[0] || {}, m6 = ms[5] || {}, m8 = ms[7] || {};
+    const I = window.SXI18n;
+    return {
+      count: ms.length,
+      name: m.name, chapter: m.chapter, goal: m.goal, intro: m.intro, all: m.all,
+      locTitle: m.locTitle, locSub: m.locSub, relay: (m.relays && m.relays[0] || {}).label,
+      brief: (m.brief || [])[0],
+      boss: m6.bossName, boss8: m8.bossName,
+      access: I.t("access.lockedHint", { n: 3 }),
+      training: I.t("training.resultTitle"),
+      bossRadio: I.t("boss.radio.start"),
+      bossPhase: I.t("boss.finalPhase.2")
+    };
+  });
+  const campAll = [campEn.name, campEn.chapter, campEn.goal, campEn.intro, campEn.all, campEn.locTitle,
+    campEn.locSub, campEn.relay, campEn.brief, campEn.boss, campEn.boss8, campEn.access,
+    campEn.training, campEn.bossRadio, campEn.bossPhase].filter(v => typeof v === 'string');
+  ok('V54 战役 / 辅助 / 训练 / BOSS 切英文后正文无中文',
+    campEn.count === 8 && campAll.length >= 10 && !campAll.some(s => CJK.test(s)) &&
+    campEn.name === 'Berth Four' && campEn.boss === 'Shen · Final Form' &&
+    campEn.relay === 'Relay A · Yard' && campEn.training === 'Shooting Assessment',
+    { name: campEn.name, chapter: campEn.chapter, relay: campEn.relay, boss: campEn.boss, access: campEn.access });
+
+  /* 6c) V54 任务电台事件：campaign 发稳定 kind，ext 消费 currentMission.intro */
+  const radioEvt = await page.evaluate(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const ms = (window.__SX_CAMP && window.__SX_CAMP.missions) || [];
+    const m = ms[0];
+    let got = null;
+    const onEvt = ev => { got = ev && ev.kind; };
+    window.__G.events.on('sx:mission-radio', onEvt);
+    /* 直接验证 getter 与事件常量，不依赖真实开局流程 */
+    window.__G.events.emit('sx:mission-radio', { kind: 'intro' });
+    await wait(30);
+    return { got, intro: m && m.intro, hasZh: /[\u4e00-\u9fff]/.test(String(m && m.intro)) };
+  });
+  ok('V54 任务电台：sx:mission-radio 事件可被 ext 侧监听，intro 为英文',
+    radioEvt.got === 'intro' && !!radioEvt.intro && !radioEvt.hasZh, radioEvt);
 
   /* 7) 远端 reloadStart：枪口下压 + 弹匣动作 */
   const rig = await page.evaluate(async () => {

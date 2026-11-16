@@ -1,8 +1,8 @@
 # AGENTS.md · 《几猫 · SALTLINE》开发约定
 
-本文件是给后续 coding agent / 协作者的“经验压缩包”。项目是单文件 3D FPS：源码拆在 `src/`、`packages/`、`server/`，构建时拼成一个约 3.62MB 的 HTML。
+本文件是给后续 coding agent / 协作者的“经验压缩包”。项目是单文件 3D FPS：源码拆在 `src/`、`packages/`、`server/`，构建时拼成一个约 2.22MB（minified）的 HTML。
 
-**当前状态（以实际构建为准）**：最新产物 `versions/几猫_V53.html`，`game.html` 也是 V53（改进）；V52 是收口版、V51 是可读版、V50 是设置版、V49 是视距版、V48 是稳定版、V47 是打磨版、V46 是内存版、V45 是精简版、V44 是平衡版、V43 是角色版、V42 是架构版、V41 是性能版。`package.json` 版本 0.53.0。判断版本请看 `window.__VERSION_LABEL` / `__BUILD__.version`。
+**当前状态（以实际构建为准）**：最新产物 `versions/几猫_V54.html`，`game.html` 也是 V54（收敛，minified 2.22MB）；V53 是改进版、V52 是收口版、V51 是可读版、V50 是设置版、V49 是视距版、V48 是稳定版、V47 是打磨版、V46 是内存版、V45 是精简版、V44 是平衡版、V43 是角色版、V42 是架构版、V41 是性能版。`package.json` 版本 0.54.0。判断版本请看 `window.__VERSION_LABEL` / `__BUILD__.version`。
 
 ---
 
@@ -21,14 +21,14 @@
 
 构建必须显式给 target 和 profile：
 
-    node tools/build.cjs versions/几猫_V53.html v53
-    node tools/build.cjs game.html v53
+    node tools/build.cjs versions/几猫_V54.html v54 --minify
+    node tools/build.cjs game.html v54
 
-- profile：`v32..v53` / `dev`；v41+ 在 v39 功能集上加入 `ext_lights.js`（固定灯池）与 `mp_avatar.js`（联机士兵）。
+- profile：`v32..v54` / `dev`；v41+ 在 v39 功能集上加入 `ext_lights.js`（固定灯池）与 `mp_avatar.js`（联机士兵）。
 - **不要无参数运行**：旧默认会把 `game.html` 覆盖成 v32；构建脚本现在会直接报错退出。
 - **历史快照只读**：目标在 `versions/` 下且已存在时，构建会拒绝覆盖；确需重建必须显式加 `--force`。
-- **不要为了修一个版本重建所有版本**：V32–V52 是历史快照，平时只构建当前版本；发布/校验时才用 `check_versions.mjs`。
-- 体积预算：V40–V53 临时放宽到 6MB（当前约 3.62MB）；后续优化目标回到 3.5MB。新增内容先看构建输出明细。
+- **发布默认 `--minify`**：terser 只压缩每个内联 script、保留全局名；调试构建可显式不加该参数。V54 产物 2.22MB/gzip 715KB，预算 3.5MB。
+- **不要为了修一个版本重建所有版本**：V32–V53 是历史快照，平时只构建当前版本；发布/校验时才用 `check_versions.mjs`。
 - 构建会拼接 `src/config/*` + `src/game/manifest.json` 列出的 6 个 game 片段 + 扩展 + sim/net；缺失模块会明确报错，不要绕过。
 - `src/game.js` 已拆到 `src/game/`；不要重新生成/覆盖单文件，改片段并保持 manifest 顺序。可用 `node tools/game_bundle.mjs --check` 还原检查。
 - 不要并发构建同一个 target；`tools/build.cjs`、`package.json` 由 lead 统一改。
@@ -41,7 +41,7 @@
 
     npm run test:fast        # lint + unit + 12 项浏览器冒烟，约 20s
     npm run serve:test       # 另开终端；test:full 的 85 项默认连 127.0.0.1:3311
-    npm run test:full        # unit + 85 项 + V53 专项 + V32–V53 版本 + 双端 e2e + server
+    npm run test:full        # unit + 85 项 + V54 专项 + V32–V54 版本 + 双端 e2e + server
     npm run test:domain ui   # ui/gameplay/map/net/visual/audio/save/perf
     node tools/run_tests.mjs --only=tools/test_v39_visual.mjs
 
@@ -120,7 +120,7 @@
 - **联机远端 LOD**：>55m 隐藏全身切 `mp-far` 轮廓；改模型时保持 `r.far` 与 `lodFar` 可见性切换。
 - **敌人接地阴影**：hound/siege/emp 由 `ext_enemies2.attachGroundBlob` 挂共享圆形阴影；gull 不加。
 - **架构文档**：模块边界/新增模块流程见 `ARCHITECTURE.md`；`tests/unit/architecture.test.mjs` 会校验关键契约。
-- **构建体积**：V40–V53 临时 ≤6MB（当前 3.62MB），后续优化目标 ≤3.5MB；新增模块/资源先看构建明细。
+- **构建体积**：V54 起预算 ≤3.5MB（当前 minified 2.22MB）；新增模块/资源先看构建明细，发布默认 `--minify`。
 
 ### 4.3 调试入口
 
@@ -191,7 +191,7 @@
 2. 更新 `CHANGELOG.md`（本轮问题、修复、验证、已知限制）。
 3. 更新 `README.md` 最新版链接/轮数/测试命令。
 4. 需要时截图到 `versions/screens/`。
-5. 跑 `node tools/check_versions.mjs --all`（V32–V53 产物）与当前版本的地图/画面/性能/服务器回归。
+5. 跑 `node tools/check_versions.mjs --all`（V32–V54 产物）与当前版本的地图/画面/性能/服务器回归。
 6. 不要用新源码重建历史版本；历史产物是快照，语义应对应当时源码。
 7. `package.json` 版本与产物版本可能不同步；以产物内 `__BUILD__.version` 为准。
 
@@ -233,7 +233,7 @@
 - [ ] `npm run test:fast` 绿（lint + unit + 12 项）。
 - [ ] 受影响域测试绿；发布前 `npm run test:full` 85/85。
 - [ ] 没有新增 pageerror / `window.__errors`。
-- [ ] 构建 target/profile 正确，V40 体积 ≤6MB（后续目标 3.5MB），`__VERSION_LABEL` 正确。
+- [ ] 构建 target/profile 正确，V54 起体积 ≤3.5MB（当前 minified 2.22MB），`__VERSION_LABEL` 正确。
 - [ ] 新文案中英同键、`missing()===0`。
 - [ ] 改地图/协议/存档/共享 sim 时，对应的服务端/客户端回归都跑过。
 - [ ] CHANGELOG/README 已更新；产物已留档。

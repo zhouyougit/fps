@@ -16,8 +16,21 @@
   window.__SX_BOSS2_LOADED = true;
 
   var VERSION = "V34 · WP34-5";
-  var PHASE_NAMES = ["一·扫描", "二·吊装", "三·过载"];
-  var FINAL_NAMES = ["一·防壁", "二·镜像", "三·坍缩"];
+  /* V54 · BOSS 播报/阶段名走 SXI18n；缺键时回退中文。 */
+  function boss2T(key, zh, vars) {
+    try {
+      var I = typeof window !== "undefined" ? window.SXI18n : null;
+      if (I && typeof I.t === "function" && typeof I.has === "function" && I.has(key)) return I.t(key, vars);
+    } catch (e) { /* 取词失败回退中文 */ }
+    var s = zh == null ? key : String(zh);
+    if (vars) s = s.replace(/\{(\w+)\}/g, function (_, name) { return vars[name] == null ? "" : String(vars[name]); });
+    return s;
+  }
+  function phaseName(i, final) {
+    var n = Math.max(0, Math.min(2, i | 0));
+    return boss2T((final ? "boss.finalPhase." : "boss.phase.") + n,
+      (final ? ["一·防壁", "二·镜像", "三·坍缩"] : ["一·扫描", "二·吊装", "三·过载"])[n]);
+  }
   var ORDER = ["volley", "stomp", "barrage", "summon", "dash", "emp", "echo"];
   var WARN_COLOR = 0xff5a2e;
   var HOT_COLOR = 0xffb060;
@@ -283,7 +296,7 @@
     } catch (e) { soft("bar-base", e); }
     if (!base) {
       var m = mission();
-      base = (m && m.bossName) || "港区主控 · 蜃";
+      base = (m && m.bossName) || boss2T("boss.core.name", "港区主控 · 蜃");
     }
     S.barBase = base;
   }
@@ -309,8 +322,8 @@
       var pips = barPips;
       for (var i = 0; pips && i < pips.length; i++) pips[i].classList.toggle("on", i >= S.phase);
       if (barTitle && barTitle.isConnected) {
-        var base = S.barBase || "港区主控 · 蜃";
-        var tag = (S.final ? FINAL_NAMES : PHASE_NAMES)[S.phase];
+        var base = S.barBase || boss2T("boss.core.name", "港区主控 · 蜃");
+        var tag = phaseName(S.phase, S.final);
         var want = base + " ｜ " + tag;
         if (barTitle.textContent !== want) barTitle.textContent = want;
       } else {
@@ -327,11 +340,15 @@
     var finalNow = S.final;
     var warn = "", radio = "";
     if (n === 1) {
-      warn = finalNow ? "蜃·终形 · 镜像投射" : "主控装甲剥落 · 吊装臂启动";
-      radio = finalNow ? "它开始投射镜像了。扫描分辨真身——打错会挨反击。" : "它把吊机接进了身体。注意地面红环，别站在落点里。";
+      warn = finalNow ? boss2T("boss.announce.mirror", "蜃·终形 · 镜像投射") : boss2T("boss.announce.hoist", "主控装甲剥落 · 吊装臂启动");
+      radio = finalNow
+        ? boss2T("boss.radio.mirror", "它开始投射镜像了。扫描分辨真身——打错会挨反击。")
+        : boss2T("boss.radio.hoist", "它把吊机接进了身体。注意地面红环，别站在落点里。");
     } else if (n === 2) {
-      warn = finalNow ? "蜃·终形 · 坍缩开始" : "主控过载 · 核心脱离吊臂";
-      radio = finalNow ? "反应堆失稳！安全区在缩小，借柱子躲开贯穿光束。" : "核心落地了！躲开冲刺，EMP 能让它短路。";
+      warn = finalNow ? boss2T("boss.announce.collapse", "蜃·终形 · 坍缩开始") : boss2T("boss.announce.overload", "主控过载 · 核心脱离吊臂");
+      radio = finalNow
+        ? boss2T("boss.radio.collapse", "反应堆失稳！安全区在缩小，借柱子躲开贯穿光束。")
+        : boss2T("boss.radio.overload", "核心落地了！躲开冲刺，EMP 能让它短路。");
     }
     try { if (G.hud && G.hud.warn) G.hud.warn(warn, 3.4); } catch (e) { soft("announce", e); }
     try { if (G.hud && G.hud.radio) G.hud.radio(radio, 4.2); } catch (e) { soft("announce", e); }
@@ -687,7 +704,7 @@
     }
     emit("sx:boss2-summon", { count: made.length, kinds: made, at: S.clock });
     if (made.length) {
-      try { G.hud.warn("蜃 · 护盾无人机 ×" + made.length, 2.8); } catch (err) { soft("summon", err); }
+      try { G.hud.warn(boss2T("boss.summon.warn", "蜃 · 护盾无人机 ×{n}", { n: made.length }), 2.8); } catch (err) { soft("summon", err); }
       sfx("impact_metal", { gain: 0.6, pitch: 0.7 });
     }
   }
@@ -760,7 +777,7 @@
       source: "boss", enemy: S.ref, at: S.clock, duration: 1.5,
       radius: 999, pos: S.ref ? vec3(S.ref.pos) : null
     });
-    try { if (G.hud && G.hud.warn) G.hud.warn("EMP 脉冲 · HUD 故障 1.5s", 2.6); } catch (e) { soft("emp", e); }
+    try { if (G.hud && G.hud.warn) G.hud.warn(boss2T("boss.emp.warn", "EMP 脉冲 · HUD 故障 1.5s"), 2.6); } catch (e) { soft("emp", e); }
     sfx("alert", { gain: 0.7, pitch: 0.5 });
     S.shotsFired++;
   }
@@ -790,7 +807,7 @@
     }
     emit("sx:boss2-echo", { count: S.echoes.length, hp: hp, at: S.clock });
     if (S.echoes.length) {
-      try { G.hud.warn("残响 · 幻影投射 ×" + S.echoes.length, 3); } catch (e) { soft("echo", e); }
+      try { G.hud.warn(boss2T("boss.echo.warn", "残响 · 幻影投射 ×{n}", { n: S.echoes.length }), 3); } catch (e) { soft("echo", e); }
     }
     return S.echoes.length;
   }
@@ -1022,7 +1039,7 @@
     }
     var e = S.ref || {};
     var pct = (e.maxHp ? Math.round((e.hp / e.maxHp) * 100) : 0);
-    var name = (S.final ? FINAL_NAMES : PHASE_NAMES)[S.phase];
+    var name = phaseName(S.phase, S.final);
     html += '<div class="row">' + name + " · HP " + pct + "%" + (S.final ? " · 终形" : "") + "</div>";
     var mv = S.move ? MOVES[S.move] : null;
     html += '<div class="row">当前 ' + (mv ? mv.label + (S.stage === "telegraph" ? "（预警 " + Math.max(0, mv.telegraph - S.t).toFixed(1) + "s）" : "（执行）") : "—") + "</div>";
@@ -1062,7 +1079,7 @@
       active: S.active,
       phase: S.phase,
       phaseNo: S.phase + 1,
-      phaseName: (S.final ? FINAL_NAMES : PHASE_NAMES)[S.phase],
+      phaseName: phaseName(S.phase, S.final),
       final: S.final,
       rateMul: rateMul(),
       hp: e ? Math.round(e.hp) : 0,
@@ -1125,14 +1142,14 @@
     var ratios = [0.95, 0.60, 0.20];
     e.hp = Math.max(1, Math.round(2600 * ratios[S.phase]));
     e.bossPhase = S.phase;
-    e.variant = "蜃 · 终形";
+    e.variant = boss2T("boss.final.name", "蜃 · 终形");
     S.final = true;
-    S.barBase = "蜃 · 终形";
+    S.barBase = boss2T("boss.final.name", "蜃 · 终形");
     S.once.echo = 0;
     spawnEchoes();
     syncBar(true);
     emit("sx:boss2-final", { enemy: e, at: S.clock });
-    try { if (G.hud && G.hud.warn) G.hud.warn("蜃 · 终形 · 残响展开", 3.5); } catch (err) { soft("final", err); }
+    try { if (G.hud && G.hud.warn) G.hud.warn(boss2T("boss.final.warn", "蜃 · 终形 · 残响展开"), 3.5); } catch (err) { soft("final", err); }
     sfx("alert", { gain: 0.8, pitch: 0.55 });
     return stateSnapshot();
   }

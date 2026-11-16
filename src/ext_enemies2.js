@@ -8,6 +8,22 @@
    ===================================================================== */
 (function () {
   "use strict";
+  // V54 ARCH-2：空 catch 不再静默吞错。软错误统一走 window.SXErrors.soft("enemies2:<tag>")：
+  // 按标签计数、每个标签只记一条诊断，热路径不会刷屏；缺少诊断接口时退回 window.__errors。
+  function soft(tag, e) {
+    if (typeof window === "undefined" || !window) return;
+    var forwarded = false;
+    try {
+      if (window.SXErrors && typeof window.SXErrors.soft === "function") { window.SXErrors.soft("enemies2:" + tag, e); forwarded = true; }
+    } catch (_) { forwarded = false; }
+    if (forwarded) return;
+    try {
+      if (window.__errors) {
+        window.__errors.push("[enemies2:" + tag + "] " + ((e && e.stack) || e));
+        while (window.__errors.length > 200) window.__errors.shift();
+      }
+    } catch (_) { return; }
+  }
 
   var G = null, T = null, booted = false;
   // V42：特殊机体数值统一在 src/config/balance.js 的 enemies.variants
@@ -41,8 +57,11 @@
   function boot(g) {
     if (booted) return;
     G = g; T = g.THREE;
+    // V54 ARCH-1：防重入标记挂在宿主对象（g.enemies）上，先写标记再包覆；
+    // 别人之后再包一层也不会让标记失效。重复 init 直接返回，包覆顺序不变。
+    if (g.enemies.__sxE2Spawn) return;
     var baseSpawn = g.enemies.spawn;
-    if (baseSpawn.__sxE2) return;
+    g.enemies.__sxE2Spawn = true;
     var wrapped = function (type, pos, opts) {
       var def = DEFS[type];
       if (!def) {
@@ -73,17 +92,18 @@
       if (def.base === "hound") attachGroundBlob(en);
       return en;
     };
-    wrapped.__sxE2 = true;
     g.enemies.spawn = wrapped;
 
     var baseUpdate = g.enemies.update;
-    var upd = function (dt) {
-      var r = baseUpdate.call(g.enemies, dt);
-      try { tick(dt); } catch (err) { if (!state.err) state.err = String(err && err.message || err); }
-      return r;
-    };
-    upd.__sxE2 = true;
-    g.enemies.update = upd;
+    if (!g.enemies.__sxE2Update) {
+      g.enemies.__sxE2Update = true;
+      var upd = function (dt) {
+        var r = baseUpdate.call(g.enemies, dt);
+        try { tick(dt); } catch (err) { if (!state.err) state.err = String(err && err.message || err); }
+        return r;
+      };
+      g.enemies.update = upd;
+    }
 
     g.events.on("enemy:fire", onFire);
     // V37：切图 / 重开 / 死亡时清空曲射弹并移除场景网格
@@ -101,8 +121,8 @@
       var e = ev && ev.enemy;
       if (e && e.variant === "scout" && !e.__sxScoutPaid) {
         e.__sxScoutPaid = true;
-        try { if (window.__SX_PROGRESS && window.__SX_PROGRESS.add) window.__SX_PROGRESS.add(5); } catch (err) {}
-        try { G.events.emit("sx:kill-reward", { amount: 5, reason: "scout", enemy: e }); } catch (err) {}
+        try { if (window.__SX_PROGRESS && window.__SX_PROGRESS.add) window.__SX_PROGRESS.add(5); } catch (err) { soft("progress-add", err); }
+        try { G.events.emit("sx:kill-reward", { amount: 5, reason: "scout", enemy: e }); } catch (err) { soft("emit-kill-reward", err); }
       }
     });
     booted = true;
@@ -122,9 +142,9 @@
   function detachWardenMesh(en) {
     var mesh = en.wardenMesh;
     if (!mesh) return;
-    try { if (mesh.parent) mesh.parent.remove(mesh); } catch (e) {}
-    try { if (mesh.geometry && mesh.geometry.dispose) mesh.geometry.dispose(); } catch (e) {}
-    try { if (mesh.material && mesh.material.dispose) mesh.material.dispose(); } catch (e) {}
+    try { if (mesh.parent) mesh.parent.remove(mesh); } catch (e) { soft("detach-mesh", e); }
+    try { if (mesh.geometry && mesh.geometry.dispose) mesh.geometry.dispose(); } catch (e) { soft("detach-geo", e); }
+    try { if (mesh.material && mesh.material.dispose) mesh.material.dispose(); } catch (e) { soft("detach-mat", e); }
     en.wardenMesh = null;
   }
 
@@ -253,7 +273,7 @@
     wrapDamage(en);
     state.variants[type] = (state.variants[type] || 0) + 1;
     state.stats.spawns++;
-    try { G.events.emit("sx:enemy-variant", { enemy: en, variant: type, hp: en.hp }); } catch (err) {}
+    try { G.events.emit("sx:enemy-variant", { enemy: en, variant: type, hp: en.hp }); } catch (err) { soft("emit-variant", err); }
   }
 
   function wrapDamage(en) {
@@ -277,14 +297,14 @@
         a -= absorbed;
         state.stats.shieldHits++;
         if (e.sx2) e.sx2.shieldUp = true;
-        try { G.events.emit("sx:warden-shield", { enemy: e, shield: e.wardenShield, max: e.wardenMaxShield, hit: true }); } catch (err) {}
+        try { G.events.emit("sx:warden-shield", { enemy: e, shield: e.wardenShield, max: e.wardenMaxShield, hit: true }); } catch (err) { soft("emit-shield-hit", err); }
         if (e.wardenShield <= 0.01) {
           e.wardenShield = 0;
           if (e.sx2) { e.sx2.shieldUp = false; e.sx2.shieldCd = 6; }
           if (e.wardenMesh) e.wardenMesh.visible = false;
           state.stats.shieldBreaks++;
-          try { G.events.emit("sx:warden-shield", { enemy: e, broken: true, shield: 0 }); } catch (err) {}
-          try { if (G.fx) G.fx.sparks(e.pos, new T.Vector3(0, 1, 0), 14); } catch (err) {}
+          try { G.events.emit("sx:warden-shield", { enemy: e, broken: true, shield: 0 }); } catch (err) { soft("emit-shield-break", err); }
+          try { if (G.fx) G.fx.sparks(e.pos, new T.Vector3(0, 1, 0), 14); } catch (err) { soft("fx-shield-break", err); }
         }
       }
       return e._sx2BaseDamage.call(e, a, point, dir, part);
@@ -304,7 +324,7 @@
       mesh.visible = true;
       en.rig.group.add(mesh);
       en.wardenMesh = mesh;
-    } catch (err) {}
+    } catch (err) { soft("warden-mesh", err); }
   }
 
   function nearestWarden(e) {
@@ -339,8 +359,8 @@
         var from = en.sensor || en.pos;
         if (distXZ(en.pos, p.pos) < 38 && G.physics.lineOfSight(from, eye)) {
           state.stats.scoutMarks++;
-          try { G.events.emit("sx:scout-mark", { pos: p.pos.clone(), enemy: en }); } catch (err) {}
-          try { G.enemies.debug.ctx.rally(en.pos, 26, p.pos, en); } catch (err) {}
+          try { G.events.emit("sx:scout-mark", { pos: p.pos.clone(), enemy: en }); } catch (err) { soft("emit-scout-mark", err); }
+          try { G.enemies.debug.ctx.rally(en.pos, 26, p.pos, en); } catch (err) { soft("scout-rally", err); }
         }
       }
       if (en.lens && en.lens.color) {
@@ -359,7 +379,7 @@
         if (sx.shieldT <= 0) {
           sx.shieldT = 0.5;
           state.stats.wardenTicks++;
-          try { G.events.emit("sx:warden-shield", { enemy: en, shield: en.wardenShield, max: en.wardenMaxShield, targets: wardenTargets(en) }); } catch (err) {}
+          try { G.events.emit("sx:warden-shield", { enemy: en, shield: en.wardenShield, max: en.wardenMaxShield, targets: wardenTargets(en) }); } catch (err) { soft("emit-shield-tick", err); }
         }
       } else {
         sx.shieldCd -= dt;
@@ -401,7 +421,7 @@
       sx.empCool = Math.max(0, sx.empCool - dt);
       if (sx.empCharge < 0 && de < 3.3 && sx.empCool <= 0) {
         sx.empCharge = 0.75;
-        try { G.events.emit("enemy:telegraph", { enemy: en, type: "emp", time: 0.75, pos: en.pos }); } catch (err) {}
+        try { G.events.emit("enemy:telegraph", { enemy: en, type: "emp", time: 0.75, pos: en.pos }); } catch (err) { soft("emit-emp-telegraph", err); }
       }
       if (sx.empCharge >= 0) {
         sx.empCharge -= dt;
@@ -460,7 +480,7 @@
     try {
       var hit = G.physics.raycast(en.pos, dir, step + 0.5);
       if (hit) allowed = Math.max(0, Math.min(step, hit.dist - 0.4));
-    } catch (err) {}
+    } catch (err) { soft("raycast", err); }
     en.pos.addScaledVector(dir, allowed);
     en.yaw = Math.atan2(dir.x, dir.z);
     if (en.rig && en.rig.group) en.rig.group.rotation.set(en.pitch || 0, en.yaw, en.roll || 0);
@@ -498,10 +518,10 @@
       mesh.position.set(target.x, target.y + 0.06, target.z);
       G.scene.add(mesh);
       shell.mesh = mesh;
-    } catch (err) {}
+    } catch (err) { soft("shell-mesh", err); }
     state.shells.push(shell);
     state.stats.shells++;
-    try { G.events.emit("sx:siege-warn", { pos: target.clone(), radius: 4.2, time: flight, enemy: en }); } catch (err) {}
+    try { G.events.emit("sx:siege-warn", { pos: target.clone(), radius: 4.2, time: flight, enemy: en }); } catch (err) { soft("emit-siege-warn", err); }
   }
 
   function clearShells() {
@@ -512,7 +532,7 @@
         if (s.mesh.parent) s.mesh.parent.remove(s.mesh);
         if (s.mesh.geometry && s.mesh.geometry.dispose) s.mesh.geometry.dispose();
         if (s.mesh.material && s.mesh.material.dispose) s.mesh.material.dispose();
-      } catch (e) {}
+      } catch (e) { soft("clear-shells", e); }
     }
     state.shells.length = 0;
   }
@@ -534,15 +554,15 @@
 
   function impact(s) {
     var p = G.player;
-    try { if (s.mesh) { G.scene.remove(s.mesh); s.mesh.geometry.dispose && s.mesh.geometry.dispose(); s.mesh.material.dispose && s.mesh.material.dispose(); } } catch (err) {}
-    try { if (G.fx && G.fx.explosion) G.fx.explosion(s.target, 1.1); } catch (err) {}
+    try { if (s.mesh) { G.scene.remove(s.mesh); s.mesh.geometry.dispose && s.mesh.geometry.dispose(); s.mesh.material.dispose && s.mesh.material.dispose(); } } catch (err) { soft("shell-remove", err); }
+    try { if (G.fx && G.fx.explosion) G.fx.explosion(s.target, 1.1); } catch (err) { soft("fx-impact", err); }
     if (!p || p.alive === false) return;
     var d = Math.hypot(p.pos.x - s.target.x, p.pos.z - s.target.z);
     if (d < s.radius) {
       var dmg = s.damage * (1 - d / s.radius);
       // 曲射溅射：不要求视线（专打掩体后目标）
-      try { p.damage(dmg, s.target); } catch (err) {}
-      try { if (p.addShake) p.addShake(0.4); } catch (err) {}
+      try { p.damage(dmg, s.target); } catch (err) { soft("player-damage", err); }
+      try { if (p.addShake) p.addShake(0.4); } catch (err) { soft("player-shake", err); }
     }
   }
 
@@ -557,7 +577,7 @@
       p.damage(5, muzzle);
     } catch (err) { return; }
     state.stats.emp++;
-    try { G.events.emit("sx:emp", { duration: 1.5, power: 0.7, enemy: en, pos: p.pos.clone() }); } catch (err) {}
+    try { G.events.emit("sx:emp", { duration: 1.5, power: 0.7, enemy: en, pos: p.pos.clone() }); } catch (err) { soft("emit-emp", err); }
   }
 
   function empBurst(en) {
@@ -568,15 +588,15 @@
       // 不致命：最多打到 20HP，剩余伤害被 EMP 吸收
       var lethal = Math.max(0, p.health - 20);
       var dmg = Math.min(14, lethal);
-      if (dmg > 0) { try { p.damage(dmg, en.pos); } catch (err) {} }
-      try { if (p.addShake) p.addShake(0.65); } catch (err) {}
+      if (dmg > 0) { try { p.damage(dmg, en.pos); } catch (err) { soft("burst-damage", err); } }
+      try { if (p.addShake) p.addShake(0.65); } catch (err) { soft("burst-shake", err); }
     }
     state.stats.empBursts++;
-    try { G.events.emit("sx:emp", { duration: 2.6, power: 1, enemy: en, burst: true, pos: en.pos.clone() }); } catch (err) {}
-    try { if (G.fx && G.fx.explosion) G.fx.explosion(en.pos, 1.25); } catch (err) {}
-    try { if (G.fx && G.fx.sparks) G.fx.sparks(en.pos, new T.Vector3(0, 1, 0), 18); } catch (err) {}
+    try { G.events.emit("sx:emp", { duration: 2.6, power: 1, enemy: en, burst: true, pos: en.pos.clone() }); } catch (err) { soft("emit-emp-burst", err); }
+    try { if (G.fx && G.fx.explosion) G.fx.explosion(en.pos, 1.25); } catch (err) { soft("burst-fx", err); }
+    try { if (G.fx && G.fx.sparks) G.fx.sparks(en.pos, new T.Vector3(0, 1, 0), 18); } catch (err) { soft("burst-sparks", err); }
     if (en.sx2) en.sx2.dead = true;
-    try { G.enemies.debug.ctx.retire(en); } catch (err) {}
+    try { G.enemies.debug.ctx.retire(en); } catch (err) { soft("emp-retire", err); }
   }
 
   /* --------------------------------------------------------------- tick */

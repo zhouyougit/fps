@@ -2,6 +2,17 @@
   /* =====================================================================
      V7 训练场：90 秒靶场挑战、无限弹药、三武器自由试用
      ===================================================================== */
+  /* V54 · 训练场文案：词典缺键（旧构建）时回退中文。 */
+  function trainingT(key, zh, vars) {
+    try {
+      var I = typeof window !== "undefined" ? window.SXI18n : null;
+      if (I && typeof I.t === "function" && typeof I.has === "function" && I.has(key)) return I.t(key, vars);
+    } catch (e) { /* 取词失败回退中文 */ }
+    var s = zh == null ? key : String(zh);
+    if (vars) s = s.replace(/\{(\w+)\}/g, function (_, name) { return vars[name] == null ? "" : String(vars[name]); });
+    return s;
+  }
+
   var TRAINING = {
     id: "train",
     code: "TR",
@@ -18,14 +29,24 @@
     ]
   };
 
+  ["name", "sub", "desc"].forEach(function (f) {
+    var raw = TRAINING[f];
+    Object.defineProperty(TRAINING, f, {
+      enumerable: true, configurable: true,
+      get: function () { return trainingT("training." + f, raw); },
+      set: function (v) { raw = v; }
+    });
+  });
+
   var trainUI = null;
   var trainHud = null;
   var trainResult = null;
 
   function buildTrainingUI() {
     var hud = el("div", "x-train-hud",
-      '<div class="k">训练 · 靶场</div>' +
-      '<div class="row"><b class="t">90.0</b><span>剩余</span><i class="s">0</i><span>得分</span></div>');
+      '<div class="k">' + trainingT("training.kicker", "训练 · 靶场") + '</div>' +
+      '<div class="row"><b class="t">90.0</b><span class="lbl-t">' + trainingT("training.remaining", "剩余") +
+      '</span><i class="s">0</i><span class="lbl-s">' + trainingT("training.score", "得分") + '</span></div>');
     G.hud.root.appendChild(hud);
     trainHud = {
       el: hud,
@@ -39,18 +60,18 @@
     res.innerHTML =
       '<div class="x-tr-veil"></div>' +
       '<div class="x-tr-panel">' +
-        '<div class="m-k">训练结束 · 靶场成绩</div>' +
-        '<h2>射击评估</h2>' +
-        '<div class="x-tr-score"><b>0</b><span>得分</span></div>' +
+        '<div class="m-k">' + trainingT("training.resultKicker", "训练结束 · 靶场成绩") + '</div>' +
+        '<h2>' + trainingT("training.resultTitle", "射击评估") + '</h2>' +
+        '<div class="x-tr-score"><b>0</b><span>' + trainingT("training.score", "得分") + '</span></div>' +
         '<dl class="x-tr-stats">' +
-          '<div><dt>命中率</dt><dd data-f="acc">—</dd></div>' +
-          '<div><dt>击中靶机</dt><dd data-f="kills">0</dd></div>' +
-          '<div><dt>爆头</dt><dd data-f="head">0</dd></div>' +
-          '<div><dt>最佳成绩</dt><dd data-f="best">0</dd></div>' +
+          '<div><dt>' + trainingT("training.acc", "命中率") + '</dt><dd data-f="acc">—</dd></div>' +
+          '<div><dt>' + trainingT("training.kills", "击中靶机") + '</dt><dd data-f="kills">0</dd></div>' +
+          '<div><dt>' + trainingT("training.head", "爆头") + '</dt><dd data-f="head">0</dd></div>' +
+          '<div><dt>' + trainingT("training.best", "最佳成绩") + '</dt><dd data-f="best">0</dd></div>' +
         '</dl>' +
         '<div class="x-tr-actions">' +
-          '<button class="btn primary" data-x="again">再来一次</button>' +
-          '<button class="btn" data-x="back">返回标题</button>' +
+          '<button class="btn primary" data-x="again">' + trainingT("training.again", "再来一次") + '</button>' +
+          '<button class="btn" data-x="back">' + trainingT("training.back", "返回标题") + '</button>' +
         '</div>' +
       '</div>';
     document.getElementById("ui").appendChild(res);
@@ -138,7 +159,10 @@
     G.game.flow.patrol = { gull: 0, hound: 0 };
     G.game.flow.maxAlive = 0;
     G.game.currentMission = {
-      id: "train", code: "TR", name: "训练场", goal: "训练 · 击中靶机", extractText: "训练结束",
+      id: "train", code: "TR",
+      name: trainingT("training.name", "训练场"),
+      goal: trainingT("training.objective", "训练 · 击中靶机"),
+      extractText: trainingT("training.extract", "训练结束"),
       evac: 0, waves: [], patrol: { gull: 0, hound: 0 }, maxAlive: 0
     };
     S.missionDamage = 1;
@@ -156,7 +180,7 @@
       G.player.invulnerable = true;
     } catch (e) {}
     G.hud.show(true);
-    G.hud.setObjective("训练 · 击中靶机");
+    G.hud.setObjective(trainingT("training.objective", "训练 · 击中靶机"));
     var relays = document.querySelector(".h-relays");
     if (relays) relays.style.display = "none";
     if (trainHud) {
@@ -170,7 +194,7 @@
     };
     try { G.events.emit("sx:training-start", {}); } catch (e) {}
     for (var i = 0; i < TRAINING.targets; i++) spawnTrainingTarget();
-    G.hud.message("训练开始 · 90 秒内击中悬浮靶机", 3);
+    G.hud.message(trainingT("training.startMsg", "训练开始 · 90 秒内击中悬浮靶机"), 3);
     try { G.input.requestLock && G.input.requestLock(); } catch (e) {}
   }
 
@@ -268,8 +292,43 @@
     camp.trainSel = false;
   }
 
+  function refreshTrainingText() {
+    if (trainHud && trainHud.el) {
+      var k = trainHud.el.querySelector(".k");
+      if (k) k.textContent = trainingT("training.kicker", "训练 · 靶场");
+      var lt = trainHud.el.querySelector(".lbl-t");
+      if (lt) lt.textContent = trainingT("training.remaining", "剩余");
+      var ls = trainHud.el.querySelector(".lbl-s");
+      if (ls) ls.textContent = trainingT("training.score", "得分");
+    }
+    if (trainResult && trainResult.el) {
+      var el = trainResult.el;
+      var mk = el.querySelector(".m-k");
+      if (mk) mk.textContent = trainingT("training.resultKicker", "训练结束 · 靶场成绩");
+      var h2 = el.querySelector("h2");
+      if (h2) h2.textContent = trainingT("training.resultTitle", "射击评估");
+      var sc = el.querySelector(".x-tr-score span");
+      if (sc) sc.textContent = trainingT("training.score", "得分");
+      var labels = [trainingT("training.acc", "命中率"), trainingT("training.kills", "击中靶机"), trainingT("training.head", "爆头"), trainingT("training.best", "最佳成绩")];
+      var dts = el.querySelectorAll(".x-tr-stats dt");
+      for (var i = 0; i < dts.length && i < labels.length; i++) dts[i].textContent = labels[i];
+      var again = el.querySelector('[data-x="again"]');
+      if (again) again.textContent = trainingT("training.again", "再来一次");
+      var back = el.querySelector('[data-x="back"]');
+      if (back) back.textContent = trainingT("training.back", "返回标题");
+    }
+    var m = G && G.game && G.game.currentMission;
+    if (m && m.id === "train") {
+      m.name = trainingT("training.name", "训练场");
+      m.goal = trainingT("training.objective", "训练 · 击中靶机");
+      m.extractText = trainingT("training.extract", "训练结束");
+    }
+  }
+
   function initTraining() {
     buildTrainingUI();
+    try { if (G && G.events) G.events.on("sx:lang", refreshTrainingText); } catch (e) { /* 语言事件不可用 */ }
+    try { addEventListener("sx:i18n-extra", refreshTrainingText); } catch (e) { /* 非浏览器环境 */ }
     G.events.on("enemy:spawn", function (ev) {
       var e = ev && ev.enemy;
       if (e && e.__trainRing && !e.trainTarget) e.__trainRing.visible = false;

@@ -29,6 +29,33 @@
     } catch (_) { /* 只读 / 被冻结的 __errors：仍然吞掉并继续 */ }
   }
 
+  /* V54 · 扩展层文案：词典缺键（旧构建 / i18n_extra 尚未挂载）时回退中文。 */
+  function extI18n() {
+    try { return (typeof window !== "undefined" && window.SXI18n) || null; } catch (e) { return null; }
+  }
+  function extHas(key) {
+    var I = extI18n();
+    if (!I) return false;
+    try {
+      if (typeof I.has === "function") return !!I.has(key);
+      return !!(I.dict && I.dict["zh-CN"] && I.dict["zh-CN"][key] != null);
+    } catch (e) { return false; }
+  }
+  /** extT(key, 中文兜底, vars) */
+  function extT(key, zh, vars) {
+    var I = extI18n();
+    if (I && typeof I.t === "function" && extHas(key)) {
+      try { return I.t(key, vars); } catch (e) { soft("i18n", e); }
+    }
+    var s = zh == null ? key : String(zh);
+    if (vars) {
+      s = s.replace(/\{(\w+)\}/g, function (_, name) {
+        return vars[name] == null ? "" : String(vars[name]);
+      });
+    }
+    return s;
+  }
+
   function gameAfter(sec, fn, group) {
     var done = false;
     function once() { if (done) return; done = true; try { fn(); } catch (e) { soft("timer", e); } }
@@ -296,10 +323,12 @@
 
   /* ------------------------------------------------------------ HUD */
   var HUD = null;
+  var radioArm = null;   // V54：sx:mission-radio 预置；下一条 hud.radio 消费
+  var lastMissionIntro = null;   // V54：切语言时重播当前任务 intro（ext_ui2 会重播引擎原文）
 
   // V53 PERF-4：没有武器系统（无 w.list / w.slots）时的缓存槽位数组。
   // 复用同一个对象、只原地改 ammo，固定步不再新建数组。
-  var SLOT_FALLBACK = [{ short: "九式", ammo: 0 }];
+  var SLOT_FALLBACK = [{ short: extT("ui2.ar.weapon.pac9.short", "九式"), ammo: 0 }];
 
   // 槽位 HTML：纯函数，便于单测；输出与旧实现一致（槽位 + 手雷数字/空态）。
   function buildSlotsHtml(list, active, grenades) {
@@ -332,13 +361,15 @@
   }
 
   function buildHUD() {
+    // i18n_extra 在 ext 之后加载；HUD 构建时再取一次，EN 下无武器系统的兜底槽位也不残留中文。
+    SLOT_FALLBACK[0].short = extT("ui2.ar.weapon.pac9.short", "九式");
     var root = G.hud.root;
-    var armor = el("div", "x-armor", '<div class="h-k">护甲</div><div class="x-armor-row"><b class="x-armor-n">0</b><div class="x-armor-bar">' +
+    var armor = el("div", "x-armor", '<div class="h-k">' + extT("hud.armor", "护甲") + '</div><div class="x-armor-row"><b class="x-armor-n">0</b><div class="x-armor-bar">' +
       new Array(11).join("<i class='off'></i>") + "</div></div>");
     var loadout = el("div", "x-loadout");
     var toast = el("div", "x-toast");
     var scope = el("div", "x-scope", '<i class="x-scope-dot"></i><b class="x-scope-h"></b><b class="x-scope-v"></b>');
-    var scanChip = el("div", "x-scan", '<b>Q</b><span>战术扫描</span><i class="x-scan-cd"></i>');
+    var scanChip = el("div", "x-scan", '<b>Q</b><span>' + extT("hud.scan", "战术扫描") + '</span><i class="x-scan-cd"></i>');
     var scanMarks = el("div", "x-scan-marks");
     var scanPulse = el("div", "x-scan-pulse");
     root.appendChild(armor);
@@ -588,17 +619,21 @@
   function applyPickup(p) {
     var P = G.player, ok = false, msg = "";
     if (p.type === "medkit") {
-      if (P.health < P.maxHealth - 0.5) { P.heal(45); ok = true; msg = "医疗包  +45"; }
+      if (P.health < P.maxHealth - 0.5) { P.heal(45); ok = true; msg = extT("ext.pickup.medkitGain", "医疗包  +45"); }
     } else if (p.type === "armor") {
-      if (P.armor < P.maxArmor - 0.5) { P.armor = Math.min(P.maxArmor, P.armor + 50); S.armor = P.armor; ok = true; msg = "护甲板  +50"; }
+      if (P.armor < P.maxArmor - 0.5) { P.armor = Math.min(P.maxArmor, P.armor + 50); S.armor = P.armor; ok = true; msg = extT("ext.pickup.armorGain", "护甲板  +50"); }
     } else if (p.type === "ammo") {
       var w = G.weapon;
       if (w && w.addAmmoAll) { ok = w.addAmmoAll(0.45); }
       else if (w && w.addAmmo) { w.addAmmo(60); ok = true; }
-      if (ok) msg = "弹药补给";
-      if (S.grenades < S.maxGrenades) { S.grenades = Math.min(S.maxGrenades, S.grenades + 1); ok = true; msg = msg ? msg + " · 手雷 +1" : "手雷 +1"; }
+      if (ok) msg = extT("ext.pickup.ammoGain", "弹药补给");
+      if (S.grenades < S.maxGrenades) {
+        S.grenades = Math.min(S.maxGrenades, S.grenades + 1);
+        ok = true;
+        msg = msg ? extT("ext.pickup.ammoGainWithGrenade", "弹药补给 · 手雷 +1") : extT("ext.pickup.grenadeGain", "手雷 +1");
+      }
     } else if (p.type === "grenade") {
-      if (S.grenades < S.maxGrenades) { S.grenades = Math.min(S.maxGrenades, S.grenades + 2); ok = true; msg = "手雷  +2"; }
+      if (S.grenades < S.maxGrenades) { S.grenades = Math.min(S.maxGrenades, S.grenades + 2); ok = true; msg = extT("ext.pickup.grenadeGain2", "手雷  +2"); }
     }
     if (!ok) return false;
     p.taken = true;
@@ -730,7 +765,7 @@
     try { G.events.emit("weapon:melee", {}); } catch (e) { soft("melee-emit", e); }
     P.addRecoil(-0.008, (Math.random() - 0.5) * 0.004);
     P.addShake(0.1);
-    if (hit && hit.surface === "enemy") HUD && HUD.toast("近战击杀", false);
+    if (hit && hit.surface === "enemy") HUD && HUD.toast(extT("ext.melee.kill", "近战击杀"), false);
   }
 
   /* ------------------------------------------------------- CHECKPOINT */
@@ -749,7 +784,7 @@
     var scr = deadScreen();
     if (!scr || !S.checkpoint) return;
     if (!cpBtn) {
-      cpBtn = el("button", "btn primary x-cp", "从检查点继续");
+      cpBtn = el("button", "btn primary x-cp", extT("ext.checkpoint.resume", "从检查点继续"));
       cpBtn.addEventListener("click", function (e) {
         e.preventDefault(); e.stopPropagation();
         reviveFromCheckpoint();
@@ -794,7 +829,7 @@
     G.render.post.fade = 0;
     try { G.input.setGameplay(true); G.input.requestLock && G.input.requestLock(); } catch (e) { soft("revive-input", e); }
     hideDeadCheckpointButton();
-    G.hud.message("检查点已恢复", 2.2);
+    G.hud.message(extT("ext.checkpoint.restored", "检查点已恢复"), 2.2);
     G.events.emit("game:state", { state: "playing", prev: "dead" });
     G.events.emit("sx:revive", {});
   }
@@ -880,7 +915,7 @@
 
   function setSpeaker(name) {
     var el = document.querySelector(".comms-who");
-    if (el) el.textContent = name || "指挥中心";
+    if (el) el.textContent = name || extT("radio.command", "指挥中心");
   }
 
   /* ------------------------------------------------- V10 enemy feedback */
@@ -902,7 +937,7 @@
         try { G.fx.sparks(e.pos, new G.THREE.Vector3(0, 1, 0), 14); } catch (err) { soft("shield-break-sparks", err); }
         try { G.audio.play("impact_metal", { pos: e.pos, gain: 1, pitch: 0.7 }); } catch (err) { soft("shield-break-sfx", err); }
       }
-      G.hud.feed("<b>重装盾卫</b> 护盾破碎");
+      G.hud.feed(extT("ext.shield.break", "<b>重装盾卫</b> 护盾破碎"));
     });
   }
 
@@ -999,17 +1034,17 @@
     if (G.input && G.input.touch) {
       try {
         var ui = document.getElementById("ui");
-        var gb = el("button", "t-btn", "手雷");
+        var gb = el("button", "t-btn", extT("hud.grenade", "手雷"));
         gb.style.cssText = "width:56px;height:56px;right:calc(20px + var(--sar));bottom:calc(258px + var(--sab));";
         gb.addEventListener("pointerdown", function (e) { e.preventDefault(); S.grenadeTouch = true; beginGrenadeAim(); });
         gb.addEventListener("pointerup", function (e) { e.preventDefault(); S.grenadeTouch = false; releaseGrenade(); });
         gb.addEventListener("pointercancel", function () { S.grenadeTouch = false; cancelGrenadeAim(); });
         ui.appendChild(gb);
-        var scb = el("button", "t-btn", "扫描");
+        var scb = el("button", "t-btn", extT("ext.touch.scan", "扫描"));
         scb.style.cssText = "width:56px;height:56px;right:calc(156px + var(--sar));bottom:calc(258px + var(--sab));";
         scb.addEventListener("pointerdown", function (e) { e.preventDefault(); triggerScan(); });
         ui.appendChild(scb);
-        var sb = el("button", "t-btn", "换枪");
+        var sb = el("button", "t-btn", extT("ext.touch.swap", "换枪"));
         sb.style.cssText = "width:56px;height:56px;right:calc(88px + var(--sar));bottom:calc(196px + var(--sab));";
         sb.addEventListener("pointerdown", function (e) {
           e.preventDefault();
@@ -1048,27 +1083,51 @@
       saveCheckpoint();
       gameAfter(0.6, function () {
         if (G.game.state === "playing") {
-          G.hud.message("接驳准备中 · 坚守撤离点", 3.5);
+          G.hud.message(extT("ext.hold.message", "接驳准备中 · 坚守撤离点"), 3.5);
           G.events.emit("sx:hold-start", {});
         }
       }, "mission");
     });
 
-    // 任务专属无线电：覆盖引擎默认的开场/全断文案
-    // V53 ARCH-1：宿主对象标记，重复 init 不再二次包覆；命中任务文案时依旧只调用一次 baseRadio。
+    // 任务专属无线电：覆盖引擎默认的开场文案。
+    // V54：不再用 text.indexOf 匹配中文前缀；campaign 在 enter intro 时发
+    // sx:mission-radio {kind:"intro"}，这里只消费稳定事件。all 文案由引擎直接读
+    // currentMission.all（campaign getter 已按语言取词），不需要再拦截。
+    // V53 ARCH-1：宿主对象标记，重复 init 不再二次包覆；事件监听也只挂一次。
+    if (!G.hud.__sxMissionRadioEvent) {
+      G.hud.__sxMissionRadioEvent = true;
+      G.events.on("sx:mission-radio", function (ev) {
+        if (ev && ev.kind) radioArm = { kind: ev.kind, at: Date.now() };
+      });
+      // 死亡/结算/回标题时清掉未消费的预置，避免下一条无关电台被误替换。
+      G.events.on("game:state", function (ev) {
+        if (ev && (ev.state === "dead" || ev.state === "complete" || ev.state === "title")) radioArm = null;
+      });
+    }
     if (!G.hud.__sxExtRadio) {
       var baseRadio = G.hud.radio;
       G.hud.__sxExtRadio = true;
       G.hud.radio = function (text, secs) {
         var m = G.game.currentMission;
-        if (m && typeof text === "string") {
-          if (m.intro && text.indexOf("几猫队员，这里是指挥中心") === 0)
-            return baseRadio.call(G.hud, m.intro, secs || 4.2);
-          if (m.all && text.indexOf("三处中继全部断开") === 0)
-            return baseRadio.call(G.hud, m.all, secs || 4.5);
+        var arm = radioArm;
+        radioArm = null;
+        if (m && arm && arm.kind === "intro" && m.intro && (Date.now() - arm.at) < 4000) {
+          lastMissionIntro = { id: m.id, text: m.intro, secs: secs || 4.2 };
+          return baseRadio.call(G.hud, m.intro, secs || 4.2);
         }
+        lastMissionIntro = null;
         return baseRadio.call(G.hud, text, secs);
       };
+      // ext_ui2 切语言时会用 lastRadio.src（引擎中文原文）重播；这里在 sx:lang 之后
+      // 用当前语言的 mission intro 覆盖，避免 EN 下电台回落中文。
+      G.events.on("sx:lang", function () {
+        if (!lastMissionIntro) return;
+        var m = G.game && G.game.currentMission;
+        if (!m || m.id !== lastMissionIntro.id) return;
+        try {
+          if (document.querySelector(".comms.on")) G.hud.radio(lastMissionIntro.text, lastMissionIntro.secs);
+        } catch (e) { soft("i18n-radio", e); }
+      });
     }
 
     // 首次进入战斗的操作提示
@@ -1076,17 +1135,15 @@
     G.events.on("game:state", function (e) {
       if (e && e.state === "playing" && !tipsShown) {
         tipsShown = true;
-        (UICLOCK ? UICLOCK.after(2.6, function () {
+        var showTips = function () {
           if (G.game.state !== "playing") return;
           var m = G.game.currentMission;
-          var label = m && m.id === "train" ? "训练 · 靶场" : m ? "行动 " + (m.code || "") + " · " + (m.name || "") : "";
-          G.hud.message((label ? label + "  |  " : "") + "1/2 切换武器 · G 手雷 · V 近战", 5);
-        }) : setTimeout(function () {
-          if (G.game.state !== "playing") return;
-          var m = G.game.currentMission;
-          var label = m && m.id === "train" ? "训练 · 靶场" : m ? "行动 " + (m.code || "") + " · " + (m.name || "") : "";
-          G.hud.message((label ? label + "  |  " : "") + "1/2 切换武器 · G 手雷 · V 近战", 5);
-        }, 2600));
+          var label = m && m.id === "train"
+            ? extT("ext.tip.training", "训练 · 靶场")
+            : m ? extT("ext.tip.mission", "行动 {code} · {name}", { code: m.code || "", name: m.name || "" }) : "";
+          G.hud.message((label ? label + "  |  " : "") + extT("ext.tip.controls", "1/2 切换武器 · G 手雷 · V 近战"), 5);
+        };
+        (UICLOCK ? UICLOCK.after(2.6, showTips) : setTimeout(showTips, 2600));
       }
     });
 

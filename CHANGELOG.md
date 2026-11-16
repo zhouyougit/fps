@@ -1,6 +1,46 @@
 # 更新日志
 
-## V53 · 改进（当前）
+## V54 · 收敛（当前）
+
+V54 只收敛 V53 未完成项，不新增玩法。重点是 **体积/本地化/可观测性**：发布产物从 3.62MB 降到 2.22MB，EN 正文补齐，性能门禁和清理工具落地。
+
+### 构建与体积（ENG-6）
+- `tools/build.cjs` 新增 `--minify`：独立 minify 每个内联 script（保留全局名），terser 为 devDependency。
+- V54 产物 **2,273.6KB / 2.22MB**（V53 3.62MB），gzip 约 **715KB**；预算收紧到 3.5MB。
+- `__BUILD__` 增加 `minified`；`build`/`build:release` 默认 minify，调试可手动不加参数。
+
+### 本地化（I18N 全量）
+- campaign / mp / armory / ext_boss2 / ext_net2 / access / boss / training / ext.js 全部接入 `SXI18n`；词典 1107 键/语言，中英同键、missing=0。
+- 任务电台删除两处中文 `text.indexOf` 前缀识别，改为 `sx:mission-radio {kind:"intro"}` 事件；EN 下开场/全断电台不再回落中文。
+- 8 关行动卡/简报/档案/结算/结局、军械库、联机大厅/HUD/计分板、BOSS/训练/设置全部按语言取词；`test_v39_i18n` 20/20。
+
+### 错误与架构（ARCH-1/2 短期）
+- 10 个高频模块的 168 处空 catch 改为 `SXErrors.soft("<module>:<tag>")`，只剩 6 处纯 console 日志白名单；高频模块空 catch 清零。
+- `G.render.__sxVisualFrame`、`G.enemies.__sxAIUpdate/__sxE2*`、`G.game.__sxM2*` 等宿主标记先写后包覆，重复 init 不再叠层。
+
+### 性能（PERF-3/5/6/7）
+- 标签图集：mapkit 的 372 个 label 从“每标签 1 canvas/材质/mesh”烘焙成每图 1–2 张 2048² 图集；透明 mesh 397→333（-16%），标签 mesh 372→308，四图中档帧时间约再降 7–9%。
+- 合并后的静态地图网格关闭 `matrixAutoUpdate`；medium 四图 harbor 12.1 / depot 13.1 / ship 9.8 / core 9.7ms。
+- 新增 high 档门禁：四图 avg ≤16.7ms、p95 ≤18.5ms、allocKBps ≤81900；实测 36/36（high 分配 51–61MB/s）。
+- 新增 3 圈强制 GC heap 测试：heap 40.3→44.63MB（+4.33MB），programs 0 增长，通过。
+- PERF-1/2（three.js program cache key 分配、切图 shader/几何长任务）完成采样并记录为引擎级问题，未做高风险内核改造。
+
+### 联机（NET-5）/ 清理（ENG-8）
+- 客户端使用 `welcome.snapRate` 计算插值缓冲（tick 60 / snap 30），state 暴露 snapRate。
+- 新增 `tools/clean_workspace.mjs`：dry-run 可释放 **429MB**（mapwork shots、tools 探针图、.npmcache、根目录旧构建），`--apply` 才删除；保留 versions/screens。
+
+### 验证
+- 单元 210/210；`test:fast` 12/12；V54 专项 14/14；UI/i18n 20/20；save/map/gameplay/visual/audio/perf/net 全绿。
+- 服务器 profiles/round/net2 64+31+110 全绿；双端 e2e 9/9；`check_versions --all` **161/161**（含 V54）。
+- 全量 `test:full` **exit 0，1112.2s**（lint/unit/suite85 85/v54/versions 161/e2e 9/server；需 `serve:test` 3311）。
+
+### 仍未做（V55 候选）
+- PERF-1：three.js `getProgramCacheKey`/uniform cache 每帧分配，属 vendor 引擎内部；不改内核只能做外围小修。
+- PERF-2：切图 first-frame 的 shader/几何长任务需要分帧编译/异步 build，改动面大。
+- PERF-3 余量：剩余透明物主要是引擎 decal/CanvasTexture，非 mapkit label；图集化会改变混合/排序，暂不冒险。
+- ARCH-1 完整钩子表/ARCH-4 卸载路径、TEST-3 孤儿归档、SRV-11 配件等级（属新 schema/玩法）未做。
+
+## V53 · 改进
 
 V53 按 `TECH_TASKS_V53.md` 做了一轮以“不丢数据、联机正确、测试可信”为主的收口，不做新玩法。多 agent 分文件并行，lead 统一构建与验收。
 

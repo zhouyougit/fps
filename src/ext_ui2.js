@@ -10,6 +10,22 @@
    ===================================================================== */
 (function () {
   "use strict";
+  // V54 ARCH-2：空 catch 不再静默吞错。软错误统一走 window.SXErrors.soft("ui2:<tag>")：
+  // 按标签计数、每个标签只记一条诊断，热路径不会刷屏；缺少诊断接口时退回 window.__errors。
+  function soft(tag, e) {
+    if (typeof window === "undefined" || !window) return;
+    var forwarded = false;
+    try {
+      if (window.SXErrors && typeof window.SXErrors.soft === "function") { window.SXErrors.soft("ui2:" + tag, e); forwarded = true; }
+    } catch (_) { forwarded = false; }
+    if (forwarded) return;
+    try {
+      if (window.__errors) {
+        window.__errors.push("[ui2:" + tag + "] " + ((e && e.stack) || e));
+        while (window.__errors.length > 200) window.__errors.shift();
+      }
+    } catch (_) { return; }
+  }
 
   var VERSION = "V35 · WP35-10";
   var LANG_KEY = "saltline.lang";
@@ -67,12 +83,12 @@
             obj.hudOpacity = state.hudOpacity;
             obj.hud = state.hud;
             value = JSON.stringify(obj);
-          } catch (e) {}
+          } catch (e) { soft("access-merge", e); }
         }
         return orig(key, value);
       };
       ls.__sxPatched = true;
-    } catch (e) {}
+    } catch (e) { soft("storage-patch", e); }
   }
   function saveState() {
     try {
@@ -84,14 +100,14 @@
       obj.hudOpacity = state.hudOpacity;
       obj.hud = state.hud;
       localStorage.setItem(ACCESS_KEY, JSON.stringify(obj));
-    } catch (e) {}
+    } catch (e) { soft("save-state", e); }
   }
 
   /* --------------------------------------------------------------- i18n core */
   function t(key, vars) {
     if (!I) return key;
     if (window.__SX_I18N_EXTRA && I.dict && I.dict.en && !I.dict.en[key]) {
-      try { window.__SX_I18N_EXTRA.mount(); } catch (e) {}
+      try { window.__SX_I18N_EXTRA.mount(); } catch (e) { soft("i18n-extra", e); }
     }
     return I.t(key, vars);
   }
@@ -309,7 +325,7 @@
       body.classList.toggle("sx-hide-health", !state.hud.health);
       body.classList.toggle("sx-hide-feed", !state.hud.feed);
       body.classList.toggle("sx-hide-cross", !state.hud.cross);
-    } catch (e) {}
+    } catch (e) { soft("apply-state", e); }
     saveState();
     updateControls();
   }
@@ -521,7 +537,7 @@
       var done = 0, total = 0;
       try {
         if (G && G.level && G.level.objectives) { total = G.level.objectives.length; done = G.level.objectives.filter(function (o) { return o.cut; }).length; }
-      } catch (e) {}
+      } catch (e) { soft("menu-progress", e); }
       var lineText = c ? t("ui2.pause.meta", { code: ms ? ms.code : "", name: ms ? missionField(ms, "name") : (c.mission || "") }) : t("ui2.pause.title");
       if (total) lineText += " · " + t("ui2.pause.progress", { done: done, total: total, time: fmtTime(run && run.time) });
       meta.textContent = lineText;
@@ -956,7 +972,7 @@
     typingPlain = plain;
     el.__sxDone = null;
     var reduce = false;
-    try { reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+    try { reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { soft("reduce-motion", e); }
     var full = lines.join("\n");
     if (reduce) {
       el.textContent = full;
@@ -1120,7 +1136,7 @@
   }
   function suspendObserver() {
     if (!mo) { observing = false; return; }
-    try { mo.disconnect(); } catch (e) {}
+    try { mo.disconnect(); } catch (e) { soft("observer-stop", e); }
     for (var i = 0; i < observedNodes.length; i++) observedNodes[i].__sxObs = false;
     observedNodes.length = 0;
     observing = false;
@@ -1133,11 +1149,11 @@
   /* --------------------------------------------------- 覆盖层补充本地化 */
   function setText(el, v) { if (el && el.textContent !== v) el.textContent = v; }
   function campMissions() {
-    try { var c = window.__SX_CAMP; if (c && c.missions && c.missions.length) return c.missions; } catch (e) {}
+    try { var c = window.__SX_CAMP; if (c && c.missions && c.missions.length) return c.missions; } catch (e) { soft("camp-missions", e); }
     return [];
   }
   function campIndex() {
-    try { var c = window.__SX_CAMP; if (c && typeof c.index === "function") return c.index(); } catch (e) {}
+    try { var c = window.__SX_CAMP; if (c && typeof c.index === "function") return c.index(); } catch (e) { soft("camp-index", e); }
     return 0;
   }
   /* 记录中文原文：若 DOM 已被游戏重写（当前值不等于我们上次渲染的值），以新内容为准，
@@ -1345,11 +1361,11 @@
       patchHud();
       if (observing) observeNodes();
     } catch (e) {
-      try { console.error("[sx-ui2] refresh", e); } catch (err) {}
+      try { console.error("[sx-ui2] refresh", e); } catch (err) { /* 纯日志输出：诊断通道自身不可用，保持静默（ARCH-2 白名单） */ }
     }
     applying = false;
     lastRefreshAt = Date.now();
-    if (mo && observing) { try { mo.takeRecords(); } catch (e) {} }
+    if (mo && observing) { try { mo.takeRecords(); } catch (e) { soft("observer-drain", e); } }
   }
 
   /* 至少 120ms 合并一次：旧实现用 requestAnimationFrame（约 16ms）全量重绘，
@@ -1375,18 +1391,18 @@
           G.hud.clearRadio();
           G.hud.radio(lastRadio.src, lastRadio.secs);
         }
-      } catch (e) {}
+      } catch (e) { soft("lang-radio", e); }
     }
     if (lastObjective) {
-      try { G.hud.setObjective(lastObjective); } catch (e) {}
+      try { G.hud.setObjective(lastObjective); } catch (e) { soft("lang-objective", e); }
     }
     if (lastPrompt) {
-      try { G.hud.setPrompt(lastPrompt.label, lastPrompt.prog); } catch (e) {}
+      try { G.hud.setPrompt(lastPrompt.label, lastPrompt.prog); } catch (e) { soft("lang-prompt", e); }
     }
     refresh();
     try {
       if (G && G.events) G.events.emit("sx:lang", { lang: lang });
-    } catch (e) {}
+    } catch (e) { soft("lang-emit", e); }
   }
 
   /* ---------------------------------------------------------------- keyboard */
@@ -1447,7 +1463,7 @@
     state.colorblind = v === "rg" || v === "by" ? v : "none";
     applyState();
     saveState();
-    try { refresh(); } catch (e) {}
+    try { refresh(); } catch (e) { soft("refresh-colorblind", e); }
     return state.colorblind;
   }
   function setAccess(patch) {
@@ -1462,7 +1478,7 @@
     }
     applyState();
     saveState();
-    try { refresh(); } catch (e) {}
+    try { refresh(); } catch (e) { soft("refresh-access", e); }
     return state;
   }
   function exposeAPI() {
@@ -1472,7 +1488,7 @@
       setColorblind: setColorblind,
       setAccess: setAccess,
       setLang: setLang,
-      refresh: function () { try { refresh(); } catch (e) {} },
+      refresh: function () { try { refresh(); } catch (e) { soft("refresh-api", e); } },
       /* 性能计数器（V38）：供测试与调试读取 refresh 频率 / 打字机状态 */
       stats: function () {
         return {
@@ -1495,13 +1511,13 @@
     I = window.SXI18n;
     G = window.__G;
     if (!window.__SX_I18N_EXTRA) {
-      try { console.warn("[sx-ui2] i18n_extra 未加载，保持原语言"); } catch (e) {}
-      try { exposeAPI(); } catch (e) {}
+      try { console.warn("[sx-ui2] i18n_extra 未加载，保持原语言"); } catch (e) { /* 纯日志输出：诊断通道自身不可用，保持静默（ARCH-2 白名单） */ }
+      try { exposeAPI(); } catch (e) { soft("expose-api-early", e); }
       return;
     }
     booted = true;
     if (window.__SX_I18N_EXTRA && window.__SX_I18N_EXTRA.mount) {
-      try { window.__SX_I18N_EXTRA.mount(); } catch (e) {}
+      try { window.__SX_I18N_EXTRA.mount(); } catch (e) { soft("i18n-mount", e); }
     }
     loadState();
     buildReverse();
@@ -1509,7 +1525,7 @@
     injectCSS();
     patchStorage();
     applyState();
-    try { document.documentElement.lang = I.getLang() === "en" ? "en" : "zh-CN"; } catch (e) {}
+    try { document.documentElement.lang = I.getLang() === "en" ? "en" : "zh-CN"; } catch (e) { soft("doc-lang", e); }
     buildSettings();
 
     mo = new MutationObserver(function (records) { if (!records || !records.length) return; schedule(); });
@@ -1528,11 +1544,11 @@
       state: function () { return JSON.parse(JSON.stringify(state)); }
     };
 
-    try { exposeAPI(); } catch (e) {}
+    try { exposeAPI(); } catch (e) { soft("expose-api", e); }
     refresh();
     setTimeout(refresh, 400);
     setTimeout(refresh, 1500);
-    try { console.log("[ext] " + VERSION + " 界面与本地化已加载"); } catch (e) {}
+    try { console.log("[ext] " + VERSION + " 界面与本地化已加载"); } catch (e) { /* 纯日志输出：诊断通道自身不可用，保持静默（ARCH-2 白名单） */ }
   }
 
   function wait() {
