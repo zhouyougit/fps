@@ -19,6 +19,7 @@ const UNIT = { name: 'unit', cmd: process.execPath, argv: ['--test', 'tests/unit
 const FAST = { name: 'fast', cmd: process.execPath, argv: ['tools/test_fast.mjs'], timeout: 180000 };
 const SUITE = { name: 'suite85', cmd: process.execPath, argv: ['tools/test_suite.mjs'], timeout: 2400000 };
 const CHECK = { name: 'versions', cmd: process.execPath, argv: ['tools/check_versions.mjs', '--all'], timeout: 900000 };
+const V53 = { name: 'v53', cmd: process.execPath, argv: ['tools/test_v53_acceptance.mjs'], timeout: 180000 };
 const E2E = { name: 'mp-e2e', cmd: process.execPath, argv: ['tools/test_v39_mp_e2e2.mjs'], timeout: 600000 };
 const SERVER = { name: 'server', cmd: process.execPath, argv: ['tools/run_server_tests.mjs'], timeout: 600000 };
 
@@ -30,7 +31,7 @@ const DOMAINS = {
   visual: ['test_v35_visual.mjs', 'test_v39_visual.mjs', 'test_v43_avatar.mjs'],
   audio: ['test_v38_audio_perf.mjs', 'test_v35_audio.mjs'],
   save: ['test_save_migration.mjs', 'test_v38_armory_sim.mjs'],
-  perf: ['test_v41_perf.mjs', 'test_v38_mp_perf.mjs', 'test_v39_perf.mjs']
+  perf: ['test_v41_perf.mjs', 'test_v38_mp_perf.mjs']
 };
 
 let plan = [];
@@ -39,7 +40,7 @@ if (only) {
 } else if (mode === 'fast') {
   plan = [LINT, UNIT, FAST];
 } else if (mode === 'full') {
-  plan = [LINT, UNIT, SUITE, CHECK, E2E, SERVER];
+  plan = [LINT, UNIT, SUITE, V53, CHECK, E2E, SERVER];
 } else if (DOMAINS[mode]) {
   plan = [UNIT, ...DOMAINS[mode].map(f => ({ name: f.replace(/\.mjs$/, ''), cmd: process.execPath, argv: ['tools/' + f], timeout: 600000 }))];
 } else {
@@ -63,8 +64,8 @@ function runOne(item) {
       let text = '';
       try { text = readFileSync(logPath, 'utf8'); } catch (e) {}
       const tail = text.split('\n').filter(Boolean).slice(-3).join(' | ');
-      const green = /全部通过|ALL PASS|PASS \d+ · FAIL 0|PASS \d+ PASS \/ 0 FAIL|0 FAIL|pass \d+[\s\S]*fail 0/.test(text);
-      const okRes = !killed && (code === 0 || green);
+      // TEST-1：只信退出码。旧的“绿色正则”会把 20 FAIL 当成 0 FAIL 并覆盖非 0 退出码。
+      const okRes = !killed && code === 0;
       console.log((okRes ? 'PASS' : 'FAIL') + ' · ' + item.name + ' · ' + (ms / 1000).toFixed(1) + 's' + (killed ? ' (超时)' : '') + ' · ' + tail.slice(0, 180));
       if (!okRes) console.log('  log: ' + logPath);
       resolve({ name: item.name, ms, ok: okRes, log: logPath });

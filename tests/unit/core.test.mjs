@@ -182,12 +182,14 @@ test("save: 非法字段逐字段回退默认，合法字段保留", () => {
   const loaded = fresh("core_save.js").load();
 
   assert.equal(loaded.settings.quality, "auto");
-  assert.equal(loaded.settings.sens, 1);
+  // V53 SAVE-2：越界数值钳制到区间边界（sens 99 -> 3），不再重置为默认 1
+  assert.equal(loaded.settings.sens, 3);
   assert.equal(loaded.settings.fov, 74);
-  assert.equal(loaded.settings.volume.master, 0.9);
+  assert.equal(loaded.settings.volume.master, 1);
   assert.equal(loaded.access.difficulty, "normal");
   assert.equal(loaded.access.shake, 1);
-  assert.equal(loaded.access.hudScale, 1);
+  // V53 SAVE-2：hudScale=5 钳制到 1.5
+  assert.equal(loaded.access.hudScale, 1.5);
   assert.equal(loaded.access.subSize, "m");
   assert.equal(loaded.access.cross, "cyan");
   assert.equal(loaded.campaign.unlocked, 1);
@@ -238,7 +240,7 @@ test("save: commit 先写 .bak 再写主档；set/get/subscribe/debounce 工作"
   off();
 });
 
-test("save: 导出/导入 JSON，mirrorLegacy 默认不写、显式调用才写旧键", () => {
+test("save: 导出/导入 JSON，导入成功立即镜像旧键（V53 SAVE-1）", () => {
   const storage = installEnv();
   const save = fresh("core_save.js");
   save.load();
@@ -260,10 +262,7 @@ test("save: 导出/导入 JSON，mirrorLegacy 默认不写、显式调用才写�
   assert.equal(bad.ok, false);
   assert.match(bad.error, /JSON/);
 
-  assert.equal(storage.getItem("saltline.campaign.v1"), null);
-  assert.equal(storage.getItem("saltline.access.v1"), null);
-  const mirrored = save.mirrorLegacy();
-  assert.ok(mirrored["saltline.campaign.v1"]);
+  // V53 SAVE-1：导入成功写盘后自动 mirrorLegacy，旧键与统一档一致（不需要显式调用）
   const camp = JSON.parse(storage.getItem("saltline.campaign.v1"));
   assert.equal(camp.unlocked, 2);
   assert.equal(camp.current, 1); // m2 -> index 1
@@ -275,6 +274,11 @@ test("save: 导出/导入 JSON，mirrorLegacy 默认不写、显式调用才写�
   assert.equal(storage.getItem("saltline.guide.v1"), "0");
   const settings = JSON.parse(storage.getItem("saltline.settings.v1"));
   assert.equal(settings.volume, 0.9);
+
+  // 显式 mirrorLegacy 仍然可用且幂等（旧模块写回路径）
+  const mirrored = save.mirrorLegacy();
+  assert.ok(mirrored["saltline.campaign.v1"]);
+  assert.deepEqual(JSON.parse(storage.getItem("saltline.campaign.v1")), camp);
 });
 
 /* ----------------------------------------------------------------- clock */

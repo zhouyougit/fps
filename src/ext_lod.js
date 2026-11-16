@@ -73,8 +73,24 @@
     return { far: FAR, near: FAR - NEAR_GAP };
   }
 
+  /* ---------- 恢复：清空注册表前把被本模块改过的可见性还原 ---------- */
+  function restoreGroup(g) {
+    if (!g) return;
+    try { if (g.obj) g.obj.visible = g.baseVisible !== false; } catch (e) {}
+    try { if (g.farMesh) g.farMesh.visible = !!g.baseFarVisible; } catch (e) {}
+    g.hidden = false;
+  }
+  function restoreAll() {
+    for (var i = 0; i < groups.length; i++) restoreGroup(groups[i]);
+    stats.hidden = 0;
+    stats.visible = groups.length;
+  }
+
   /* ---------- 收集：切图后重建注册表 ---------- */
   function rebuild() {
+    // V53 CLI-4：先恢复上一张图（或同一张图）被隐藏的组与远距替身。
+    // 否则 rebuild 只清数组不恢复可见性，被隐藏的组会在切图后永久不可见。
+    restoreAll();
     groups.length = 0;
     if (!G || !G.scene) return 0;
     var self = this;
@@ -96,9 +112,13 @@
           radius = box.getSize(new T.Vector3()).length() * 0.5;
         }
       } catch (e) {}
+      var farMesh = o.userData.sxLodFarMesh || null;
       groups.push({
         obj: o, pos: pos, radius: radius, far: cfg.far, near: cfg.near,
-        farMesh: o.userData.sxLodFarMesh || null, hidden: false
+        farMesh: farMesh, hidden: false,
+        // 原始可见性：rebuild/setEnabled(false) 时按它还原
+        baseVisible: o.visible !== false,
+        baseFarVisible: farMesh ? farMesh.visible !== false : false
       });
     });
     stats.groups = groups.length;
@@ -135,7 +155,7 @@
         if (hide !== g.hidden) stats.toggles++;
         g.hidden = hide;
         try {
-          g.obj.visible = !hide;
+          g.obj.visible = !hide && g.baseVisible !== false;
           if (g.farMesh) g.farMesh.visible = hide && enabled;
         } catch (e) {}
       }
@@ -194,14 +214,7 @@
     enabled = !!on;
     stats.enabled = enabled;
     if (!enabled) {
-      for (var i = 0; i < groups.length; i++) {
-        try {
-          groups[i].obj.visible = true;
-          groups[i].hidden = false;
-          if (groups[i].farMesh) groups[i].farMesh.visible = false;
-        } catch (e) {}
-      }
-      stats.hidden = 0; stats.visible = groups.length;
+      restoreAll();
     } else {
       apply(true);
     }
@@ -234,7 +247,8 @@
       get enabled() { return enabled; },
       setDistance: setDistance,
       rebuild: rebuild,
-      groups: function () { return groups.map(function (g) { return { far: g.far, near: g.near, hidden: g.hidden, radius: g.radius, pos: [g.pos.x, g.pos.y, g.pos.z] }; }); }
+      groups: function () { return groups.map(function (g) { return { far: g.far, near: g.near, hidden: g.hidden, radius: g.radius, pos: [g.pos.x, g.pos.y, g.pos.z] }; }); },
+      get ready() { return true; }
     };
   }
 

@@ -357,9 +357,9 @@ kbd { display: inline-block; font: 500 10px/1 var(--f-mono); color: var(--bone);
   </div>
 </div>
 <script>
-window.__BUILD__ = {"version":"0.52.0","profile":"v52","target":"game.html","commit":"local"};
-window.__SX_PROFILE = "v52";
-window.__VERSION_LABEL = "V52 · 收口";
+window.__BUILD__ = {"version":"0.53.0","profile":"v53","target":"game.html","three":"r180","commit":"bc90f50"};
+window.__SX_PROFILE = "v53";
+window.__VERSION_LABEL = "V53 · 改进";
 /* =====================================================================
    SALTLINE · src/config/quality.js — 画质档位（V42 配置层）
    ---------------------------------------------------------------------
@@ -76296,7 +76296,7 @@ errors ${window.__errors.length}${
 
   var VERSION = 2;
   var OP = { SNAP: 1, INPUT: 2, WELCOME: 3, PONG: 4, ACK: 5 };
-  var BTN = { FIRE: 1, ADS: 2, JUMP: 4, SPRINT: 8, CROUCH: 16, RELOAD: 32, MELEE: 64, GRENADE: 128, INTERACT: 256, SCAN: 512 };
+  var BTN = { FIRE: 1, ADS: 2, JUMP: 4, SPRINT: 8, CROUCH: 16, RELOAD: 32, MELEE: 64, GRENADE: 128, INTERACT: 256, SCAN: 512, LEAN_L: 1024, LEAN_R: 2048 };
   var MAX_PLAYERS = 16;
 
   function clampQ(v, min, max) { v = v < min ? min : v > max ? max : v; return v; }
@@ -76438,9 +76438,9 @@ errors ${window.__errors.length}${
 
 </script>
 <script id="salttime-core">
-window.__BUILD__ = {"version":"0.52.0","profile":"v52","target":"game.html","commit":"local"};
-window.__SX_PROFILE = "v52";
-window.__VERSION_LABEL = "V52 · 收口";
+window.__BUILD__ = {"version":"0.53.0","profile":"v53","target":"game.html","three":"r180","commit":"bc90f50"};
+window.__SX_PROFILE = "v53";
+window.__VERSION_LABEL = "V53 · 改进";
 
 
 /* src/core_errors.js */
@@ -76472,6 +76472,9 @@ window.__VERSION_LABEL = "V52 · 收口";
   var guardStates = Object.create(null);
   var disabledListeners = [];
   var adopted = false;
+  // ARCH-2：被吞掉的软错误按标签计数，每个标签只记一条诊断，避免日志刷屏。
+  var softCounts = Object.create(null);
+  var softSeen = Object.create(null);
 
   function win() {
     try { return typeof window !== "undefined" ? window : null; }
@@ -76556,6 +76559,16 @@ window.__VERSION_LABEL = "V52 · 收口";
       } catch (e) { /* 只读 / 被冻结的 window.__errors：内部环形缓冲仍然生效 */ }
     }
     return entry;
+  }
+
+  function soft(tag, e) {
+    var key = String(tag == null ? "soft" : tag);
+    softCounts[key] = (softCounts[key] || 0) + 1;
+    if (!softSeen[key]) {
+      softSeen[key] = true;
+      try { report(e, { system: "soft", phase: key }); } catch (err) { /* 诊断失败不能影响调用方 */ }
+    }
+    return undefined;
   }
 
   function guardState(system) {
@@ -76730,6 +76743,7 @@ window.__VERSION_LABEL = "V52 · 收口";
       commandCapacity: COMMAND_CAP,
       bySystem: byS,
       byPhase: byP,
+      bySoft: Object.assign({}, softCounts),
       disabled: disabled
     };
   }
@@ -76783,6 +76797,8 @@ window.__VERSION_LABEL = "V52 · 收口";
     lifetime = 0;
     bySystem = {};
     byPhase = {};
+    softCounts = Object.create(null);
+    softSeen = Object.create(null);
     adopted = true;
     var w = win();
     if (w && Array.isArray(w.__errors)) w.__errors.length = 0;
@@ -76797,6 +76813,7 @@ window.__VERSION_LABEL = "V52 · 收口";
     DISABLE_AFTER: DISABLE_AFTER,
     REPORT_EVERY: REPORT_EVERY,
     report: report,
+    soft: soft,
     guard: guard,
     isDisabled: isDisabled,
     enable: enable,
@@ -77096,8 +77113,9 @@ window.__VERSION_LABEL = "V52 · 收口";
       if (field.type === "number") {
         if (typeof normalized !== "number" || !isFinite(normalized)) return def;
         if (field.int && Math.floor(normalized) !== normalized) return def;
-        if (field.min != null && normalized < field.min) return def;
-        if (field.max != null && normalized > field.max) return def;
+        // V53 SAVE-2：越界值钳制到合法区间，而不是整段重置为默认值
+        if (field.min != null && normalized < field.min) normalized = field.min;
+        if (field.max != null && normalized > field.max) normalized = field.max;
         return normalized;
       }
       if (field.type === "enum") {
@@ -77132,8 +77150,9 @@ window.__VERSION_LABEL = "V52 · 收口";
     if (type === "number") {
       if (typeof value !== "number" || !isFinite(value)) return def;
       if (field.int && Math.floor(value) !== value) return def;
-      if (field.min != null && value < field.min) return def;
-      if (field.max != null && value > field.max) return def;
+      // V53 SAVE-2：越界值钳制而不是重置（旧档 sens=99 保留为 3 而不是回到 1）
+      if (field.min != null && value < field.min) value = field.min;
+      if (field.max != null && value > field.max) value = field.max;
       return value;
     }
     if (type === "boolean") return typeof value === "boolean" ? value : def;
@@ -77237,6 +77256,45 @@ window.__VERSION_LABEL = "V52 · 收口";
       }
     }
     return target;
+  }
+
+  /* V53 SAVE-2：收集 schema 之外的字段（顶层 + 已知对象段里的未知子键）。
+     高版本存档（v > CURRENT）只做尽力读取，但任何后续写回都不能把这些字段裁掉。 */
+  function collectUnknown(raw, schema, into) {
+    if (!isPlain(raw) || !isPlain(schema)) return false;
+    var found = false;
+    var keys = Object.keys(raw);
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      if (!has(schema, key)) { into[key] = raw[key]; found = true; continue; }
+      var field = schema[key];
+      if (field && field.type === "object" && isPlain(field.fields) && isPlain(raw[key])) {
+        var sub = {}, any = false;
+        var subKeys = Object.keys(raw[key]);
+        for (var j = 0; j < subKeys.length; j++) {
+          if (!has(field.fields, subKeys[j])) { sub[subKeys[j]] = raw[key][subKeys[j]]; any = true; }
+        }
+        if (any) { into[key] = sub; found = true; }
+      }
+    }
+    return found;
+  }
+
+  function withFutureFields(base) {
+    if (!futureFields) return base;
+    var out = copy(base);
+    for (var key in futureFields) {
+      if (!has(futureFields, key)) continue;
+      var extra = futureFields[key];
+      if (isPlain(out[key]) && isPlain(extra)) {
+        var merged = copy(out[key]);
+        for (var sub in extra) if (has(extra, sub) && !has(merged, sub)) merged[sub] = extra[sub];
+        out[key] = merged;
+      } else if (!has(out, key)) {
+        out[key] = extra;
+      }
+    }
+    return out;
   }
 
   function migrateLegacySix() {
@@ -77346,6 +77404,12 @@ window.__VERSION_LABEL = "V52 · 收口";
   var timer = null;
   var dirty = false;
   var debounceMs = 250;
+  // V53 SAVE-2：更高版本存档里 schema 之外的字段。写回时原样保留，避免降级裁字段。
+  var futureFields = null;
+  var lastWriteError = null;
+  var writeRetries = 0;
+  var retryTimer = null;
+  var lifecycleBound = false;
 
   function notify(reason) {
     var snapshot = listeners.slice();
@@ -77356,22 +77420,66 @@ window.__VERSION_LABEL = "V52 · 收口";
 
   function writeState(next) {
     var text;
-    try { text = JSON.stringify(next); } catch (e) { return false; }
-    try {
-      var store = storage();
-      var prev = store.getItem(KEY);
-      var prevValid = false;
-      if (prev != null) {
-        try { prevValid = isPlain(JSON.parse(prev)); } catch (e) { prevValid = false; }
-      }
-      // 只有合法旧主档才允许写进备份；否则会把唯一可用的备份覆盖成坏文本
+    try { text = JSON.stringify(withFutureFields(next)); }
+    catch (e) { lastWriteError = "序列化失败"; return false; }
+    // V53 SAVE-2：写失败重试一次（配额/瞬时异常），仍失败时保留内存态并交给 retryLater。
+    for (var attempt = 0; attempt < 2; attempt++) {
       try {
-        if (!prevValid) store.setItem(BAK, text);
-        else store.setItem(BAK, prev);
-      } catch (e) { /* 备份写失败（配额）不应阻止主档写入 */ }
-      store.setItem(KEY, text);
-      return true;
-    } catch (e) { return false; }
+        var store = storage();
+        var prev = store.getItem(KEY);
+        var prevValid = false;
+        if (prev != null) {
+          try { prevValid = isPlain(JSON.parse(prev)); } catch (e) { prevValid = false; }
+        }
+        // 只有合法旧主档才允许写进备份；否则会把唯一可用的备份覆盖成坏文本
+        try {
+          if (!prevValid) store.setItem(BAK, text);
+          else store.setItem(BAK, prev);
+        } catch (e) { /* 备份写失败（配额）不应阻止主档写入 */ }
+        store.setItem(KEY, text);
+        lastWriteError = null;
+        writeRetries = 0;
+        return true;
+      } catch (e) {
+        lastWriteError = String((e && e.message) || e);
+      }
+    }
+    return false;
+  }
+
+  function retryLater() {
+    if (retryTimer || typeof setTimeout !== "function") return false;
+    if (writeRetries >= 3) return false;
+    var delay = 500 * Math.pow(2, writeRetries++);
+    retryTimer = setTimeout(function () {
+      retryTimer = null;
+      if (!dirty) return;
+      var ok = writeState(state || DEFAULTS());
+      if (ok) { dirty = false; notify("save"); }
+      else retryLater();
+    }, delay);
+    if (retryTimer && typeof retryTimer.unref === "function") retryTimer.unref();
+    return true;
+  }
+
+  // V53 SAVE-2：移动端切后台/关闭页面时（不只 beforeunload）也落盘，避免丢最后 250ms。
+  function bindLifecycle() {
+    if (lifecycleBound) return;
+    lifecycleBound = true;
+    try {
+      if (typeof document !== "undefined" && document && typeof document.addEventListener === "function") {
+        document.addEventListener("visibilitychange", function () {
+          try { if (document.hidden === true) saveNow(); } catch (e) { /* ignore */ }
+        });
+      }
+    } catch (e) { /* no document */ }
+    try {
+      if (typeof window !== "undefined" && window && typeof window.addEventListener === "function") {
+        window.addEventListener("pagehide", function () {
+          try { saveNow(); } catch (e) { /* ignore */ }
+        });
+      }
+    } catch (e) { /* no window */ }
   }
 
   function readCandidate(key) {
@@ -77403,22 +77511,33 @@ window.__VERSION_LABEL = "V52 · 收口";
     if (parsed) {
       var v = typeof parsed.v === "number" ? parsed.v : null;
       var needsMigration = v === null || v < CURRENT;
+      var isFuture = typeof v === "number" && v > CURRENT;
       var next = migrateRaw(parsed);
       state = sanitize(next, SCHEMA);
       loadedSource = source;
+      // V53 SAVE-2：高版本存档只做尽力读取；记下未知字段，后续写回时原样带上。
+      if (isFuture) {
+        var extra = {};
+        futureFields = collectUnknown(parsed, SCHEMA, extra) ? extra : null;
+      } else {
+        futureFields = null;
+      }
       // 主档 v1/无版本或来自备份：迁移/修复后回写主档；旧键保留。
       if ((needsMigration && source === "main") || source === "backup") writeState(state);
     } else if (hasLegacyKeys()) {
       state = sanitize(migrateLegacySix(), SCHEMA);
       loadedSource = "legacy";
+      futureFields = null;
       writeState(state); // 旧键不删，新主档落盘
     } else {
       state = DEFAULTS();
       loadedSource = "default";
+      futureFields = null;
     }
     if (bootSource === null) bootSource = loadedSource;
     dirty = false;
     if (timer) { clearTimeout(timer); timer = null; }
+    bindLifecycle();
     return state;
   }
 
@@ -77427,6 +77546,7 @@ window.__VERSION_LABEL = "V52 · 收口";
     if (!state) state = DEFAULTS();
     var ok = writeState(state);
     if (ok) { dirty = false; notify("commit"); }
+    else { dirty = true; retryLater(); } // 写失败时保留内存态并安排重试，别让下次 reload 丢掉
     return ok;
   }
 
@@ -77435,6 +77555,7 @@ window.__VERSION_LABEL = "V52 · 收口";
     if (!dirty) return true;
     var ok = writeState(state || DEFAULTS());
     if (ok) { dirty = false; notify("save"); }
+    else retryLater();
     return ok;
   }
 
@@ -77447,6 +77568,7 @@ window.__VERSION_LABEL = "V52 · 收口";
       if (!dirty) return;
       var ok = writeState(state || DEFAULTS());
       if (ok) { dirty = false; notify("save"); }
+      else retryLater();
     }, debounceMs);
     if (timer && typeof timer.unref === "function") timer.unref();
   }
@@ -77502,8 +77624,12 @@ window.__VERSION_LABEL = "V52 · 收口";
   function reset() {
     state = DEFAULTS();
     loadedSource = "reset";
+    futureFields = null;
     var ok = writeState(state);
-    dirty = false;
+    dirty = !ok;
+    if (!ok) retryLater();
+    // V53 SAVE-1：重置后同步镜像旧键，避免旧模块再读回重置前进度并推回统一档。
+    try { mirrorLegacy(); } catch (e) { /* mirror 失败不影响重置 */ }
     notify("reset");
     return state;
   }
@@ -77511,7 +77637,8 @@ window.__VERSION_LABEL = "V52 · 收口";
   /* ------------------------------------------------------- export / import */
 
   function exportJSON() {
-    return JSON.stringify(state || load(), null, 2);
+    // V53 SAVE-2：高版本存档的未知字段也导出，避免“读入再导出”丢数据
+    return JSON.stringify(withFutureFields(state || load()), null, 2);
   }
 
   function exportFile(filename) {
@@ -77542,12 +77669,22 @@ window.__VERSION_LABEL = "V52 · 收口";
     try {
       var migrated = migrateRaw(rawState);
       var next = sanitize(migrated, SCHEMA);
+      var importV = typeof rawState.v === "number" ? rawState.v : null;
       // 先写盘成功再提交内存态；失败时保持原存档不变
       var ok = writeState(next);
       if (!ok) return { ok: false, error: "存档写入失败" };
+      // V53 SAVE-2：导入高版本存档时同样保留未知字段。
+      if (importV !== null && importV > CURRENT) {
+        var extra = {};
+        futureFields = collectUnknown(rawState, SCHEMA, extra) ? extra : null;
+      } else {
+        futureFields = null;
+      }
       state = next;
       loadedSource = "import";
       dirty = false;
+      // V53 SAVE-1：导入成功写盘后立即镜像旧键，下一次 saveCamp 才不会把旧进度推回。
+      try { mirrorLegacy(); } catch (e) { /* mirror 失败不应让导入回滚 */ }
       notify("import");
       return { ok: true, state: state };
     } catch (e) {
@@ -77660,6 +77797,8 @@ window.__VERSION_LABEL = "V52 · 收口";
     importJSON: importJSON,
     importFile: importFile,
     mirrorLegacy: mirrorLegacy,
+    // V53 SAVE-2：最近一次写盘失败原因（成功后清空），供 UI/调试提示
+    writeError: function () { return lastWriteError; },
     state: function () { return state || load(); }
   };
   return api;
@@ -78698,10 +78837,22 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
   var booted = false;
   var frameCount = 0;
   var stepsThisFrame = 0;
-  var stats = { steps: 0, frames: 0, simMs: 0, maxSteps: 0, lastSteps: 0, alpha: 0, dt: 0 };
+  // ARCH-3：droppedMs/dropEvents 记录低帧率时被丢弃的模拟时间（<~12fps），
+  // 以前是静默慢动作，没有计数。
+  var stats = {
+    steps: 0, frames: 0, simMs: 0, maxSteps: 0, lastSteps: 0, alpha: 0, dt: 0,
+    droppedMs: 0, dropEvents: 0, lastDropMs: 0, slowFrames: 0
+  };
   var _look = { dx: 0, dy: 0 };
 
   function fail(e, where) {
+    // ARCH-2：同一位置的持续错误只记一条诊断，避免每秒刷 60 次。
+    try {
+      if (window.SXErrors && typeof window.SXErrors.soft === "function") {
+        window.SXErrors.soft("loop:" + where, e);
+        return;
+      }
+    } catch (_) {}
     try {
       if (window.__errors) window.__errors.push("[loop:" + where + "] " + ((e && e.stack) || e));
     } catch (_) {}
@@ -78815,6 +78966,7 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
     raf = requestAnimationFrame(frame);
     var realDt = Math.min(Math.max(0, (now - last) / 1000), 0.25);
     last = now;
+    if (realDt > 1 / 12) stats.slowFrames++;
     var dtParam = G.params && G.params.dt != null && G.params.dt !== "" ? +G.params.dt : null;
     if (!(dtParam > 0)) dtParam = null;
     var dt = dtParam != null ? dtParam : realDt;
@@ -78847,7 +78999,14 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
         try { G.input.endFrame(); } catch (_) {}
       }
     }
-    if (n >= cap && acc > STEP) acc = 0;
+    if (n >= cap && acc > STEP) {
+      // 追帧上限用完仍有剩余时间：丢弃并记账（cap=5 时相当于低于 12fps）。
+      var dropped = acc;
+      acc = 0;
+      stats.droppedMs += dropped * 1000;
+      stats.dropEvents++;
+      stats.lastDropMs = dropped * 1000;
+    }
     if (n === 0) applyLookToCamera(look);
     stepsThisFrame = n;
     stats.lastSteps = n;
@@ -78888,6 +79047,70 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
     return (h >>> 0).toString(16);
   }
 
+  /* --- ARCH-3：额外哈希片段。全部来自可复现的固定步状态，且逐项 try/catch，
+     任一来源缺失/抛错都不会让 hash() 失败（同状态仍然可复现）。 --- */
+  function hashBoss(parts, q) {
+    try {
+      var B = window.__SX_BOSS;
+      if (!B || typeof B.logicState !== "function") return;
+      var b = B.logicState();
+      if (!b) return;
+      parts.push("b", b.active ? 1 : 0, b.phase | 0, b.final ? 1 : 0,
+        b.hp | 0, b.maxHp | 0, b.move || "-", b.stage || "-",
+        q(b.clock || 0), q(b.globalCd || 0), b.queue || "-",
+        b.timers | 0, b.summons | 0, b.echoes | 0);
+      var cds = b.cooldowns || {};
+      var keys = Object.keys(cds).sort();
+      for (var i = 0; i < keys.length; i++) {
+        parts.push("bc", keys[i], q(cds[keys[i]] || 0));
+      }
+    } catch (e) { fail(e, "hash.boss"); }
+  }
+
+  function hashMove(parts, q) {
+    try {
+      var M = window.__SX_MOVE;
+      if (!M || typeof M.state !== "function") return;
+      var m = M.state() || {};
+      parts.push("mv", m.sliding ? 1 : 0, m.vaulting ? 1 : 0, q(m.lean || 0),
+        q(m.cooldown || 0), q(m.slideT || 0), q(m.vaultT || 0));
+    } catch (e) { fail(e, "hash.move"); }
+  }
+
+  function hashClock(parts, q) {
+    try {
+      var C = window.SX_CLOCK;
+      if (C && typeof C.now === "number" && isFinite(C.now)) parts.push("ck", q(C.now));
+    } catch (e) { fail(e, "hash.clock"); }
+  }
+
+  function hashItems(parts) {
+    try {
+      var sx = window.__SX;
+      if (!sx || typeof sx.state !== "function") return;
+      var st = sx.state();
+      if (!st) return;
+      parts.push("it", st.grenades | 0, st.pickups | 0);
+    } catch (e) { fail(e, "hash.items"); }
+  }
+
+  // RNG 状态：packages/sim 的流当前没有挂到 window；一旦有模块发布
+  // __SX_RNG/SX_RNG（或 __MP.rng）就自动并入哈希。
+  function hashRng(parts) {
+    try {
+      var r = window.__SX_RNG || window.SX_RNG || null;
+      if (!r) {
+        var mp = window.__MP;
+        r = mp && mp.rng ? mp.rng : null;
+      }
+      if (!r) return;
+      var seed = typeof r.seed === "number" ? r.seed
+        : (typeof r.state === "number" ? r.state : null);
+      if (seed == null || !isFinite(seed)) return;
+      parts.push("rng", seed >>> 0);
+    } catch (e) { fail(e, "hash.rng"); }
+  }
+
   function stateHash() {
     var parts = [];
     var q = function (v) { return Math.round(v * 1000) / 1000; };
@@ -78919,6 +79142,11 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
         parts.push("rl", ri, rl.cut ? 1 : 0, q(rl.t || 0));
       }
     } catch (_) {}
+    hashBoss(parts, q);
+    hashMove(parts, q);
+    hashClock(parts, q);
+    hashItems(parts);
+    hashRng(parts);
     return hashStr(parts.join(","));
   }
 
@@ -78957,7 +79185,17 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
       step: stepN,
       tick: function () { return tick; },
       hash: stateHash,
-      stats: function () { return { tick: tick, steps: stats.steps, frames: stats.frames, simMs: +stats.simMs.toFixed(1), maxSteps: stats.maxSteps, alpha: +stats.alpha.toFixed(3), dt: stats.dt }; },
+      stats: function () {
+        return {
+          tick: tick, steps: stats.steps, frames: stats.frames,
+          simMs: +stats.simMs.toFixed(1), maxSteps: stats.maxSteps,
+          alpha: +stats.alpha.toFixed(3), dt: stats.dt,
+          droppedMs: +stats.droppedMs.toFixed(1),
+          dropEvents: stats.dropEvents,
+          lastDropMs: +stats.lastDropMs.toFixed(1),
+          slowFrames: stats.slowFrames
+        };
+      },
       resetAcc: function () { acc = 0; },
       get stepSize() { return STEP; }
     };
@@ -78990,11 +79228,29 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
   var booted = false;
   var clamp = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
   var CLOCK = null, UICLOCK = null, TEST_MODE = false;
+
+  // V53 ARCH-2：不再用空 catch 静默吞错。软错误统一走 SXErrors.soft("ext:<tag>")：
+  // 按标签计数、每个标签只记一条诊断，热路径不会刷屏；缺少诊断接口时退回 __errors。
+  function soft(tag, e) {
+    try {
+      if (typeof window !== "undefined" && window.SXErrors && typeof window.SXErrors.soft === "function") {
+        window.SXErrors.soft("ext:" + tag, e);
+        return;
+      }
+    } catch (_) { /* 诊断失败不能影响调用方 */ }
+    try {
+      if (typeof window !== "undefined" && window.__errors) {
+        window.__errors.push("[ext:" + tag + "] " + ((e && e.stack) || e));
+        while (window.__errors.length > 200) window.__errors.shift();
+      }
+    } catch (_) { /* 只读 / 被冻结的 __errors：仍然吞掉并继续 */ }
+  }
+
   function gameAfter(sec, fn, group) {
     var done = false;
-    function once() { if (done) return; done = true; try { fn(); } catch (e) {} }
+    function once() { if (done) return; done = true; try { fn(); } catch (e) { soft("timer", e); } }
     var cancel = null;
-    if (CLOCK) { try { cancel = CLOCK.after(sec, once, group || "mission"); } catch (e) {} }
+    if (CLOCK) { try { cancel = CLOCK.after(sec, once, group || "mission"); } catch (e) { soft("clock", e); } }
     // ?dt= 快进模式同时挂真实定时器：固定步测试与真实等待都能触发同一事件
     if (TEST_MODE) setTimeout(once, sec * 1000);
     return cancel || function () {};
@@ -79257,6 +79513,41 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
 
   /* ------------------------------------------------------------ HUD */
   var HUD = null;
+
+  // V53 PERF-4：没有武器系统（无 w.list / w.slots）时的缓存槽位数组。
+  // 复用同一个对象、只原地改 ammo，固定步不再新建数组。
+  var SLOT_FALLBACK = [{ short: "九式", ammo: 0 }];
+
+  // 槽位 HTML：纯函数，便于单测；输出与旧实现一致（槽位 + 手雷数字/空态）。
+  function buildSlotsHtml(list, active, grenades) {
+    var html = "";
+    for (var i = 0; i < list.length; i++) {
+      var w = list[i];
+      html += '<div class="x-slot' + (i === active ? " on" : "") + '"><b>' + (i + 1) + "</b><span>" + w.short + "</span><em>" + (w.ammo | 0) + "</em></div>";
+    }
+    html += '<div class="x-gren' + (grenades > 0 ? "" : " empty") + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 8.5a5.5 5.5 0 1 0 6 0V6H9v2.5Z"/><path d="M11 6V4h2v2M13 3.2l2.6-1.1"/></svg><b>' + grenades + '</b><span class="k">G</span></div>';
+    return html;
+  }
+
+  // 槽位脏检查：只比较值，不建数组/字符串（PERF-4）。cache 由 HUD 持有。
+  function slotsChanged(cache, list, active, grenades) {
+    if (cache.n !== list.length || cache.active !== active || cache.gren !== grenades) return true;
+    for (var i = 0; i < list.length; i++) {
+      var w = list[i];
+      if (cache.shorts[i] !== w.short || cache.ammos[i] !== w.ammo) return true;
+    }
+    return false;
+  }
+  function rememberSlots(cache, list, active, grenades) {
+    var n = list.length;
+    cache.n = n; cache.active = active; cache.gren = grenades;
+    for (var i = 0; i < n; i++) {
+      cache.shorts[i] = list[i].short;
+      cache.ammos[i] = list[i].ammo;
+    }
+    if (cache.shorts.length > n) { cache.shorts.length = n; cache.ammos.length = n; }
+  }
+
   function buildHUD() {
     var root = G.hud.root;
     var armor = el("div", "x-armor", '<div class="h-k">护甲</div><div class="x-armor-row"><b class="x-armor-n">0</b><div class="x-armor-bar">' +
@@ -79322,14 +79613,15 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
         this.scopeEl.classList.toggle("on", on);
         G.hud.root.classList.toggle("scoped", on);
       },
+      _slotHtml: "",
+      _slotCache: { n: -1, active: -1, gren: -1, shorts: [], ammos: [] },
       setSlots: function (list, active, grenades) {
-        var html = "";
-        for (var i = 0; i < list.length; i++) {
-          var w = list[i];
-          html += '<div class="x-slot' + (i === active ? " on" : "") + '"><b>' + (i + 1) + "</b><span>" + w.short + "</span><em>" + (w.ammo|0) + "</em></div>";
-        }
-        html += '<div class="x-gren' + (grenades > 0 ? "" : " empty") + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 8.5a5.5 5.5 0 1 0 6 0V6H9v2.5Z"/><path d="M11 6V4h2v2M13 3.2l2.6-1.1"/></svg><b>' + grenades + '</b><span class="k">G</span></div>';
+        if (!list) list = SLOT_FALLBACK;
+        // V53 PERF-4：值没变就整步跳过——不建 HTML 字符串、不写 DOM。
+        if (!slotsChanged(this._slotCache, list, active, grenades)) return;
+        var html = buildSlotsHtml(list, active, grenades);
         if (html !== this._slotHtml) { this._slotHtml = html; this.loadoutEl.innerHTML = html; }
+        rememberSlots(this._slotCache, list, active, grenades);
       }
     };
     return HUD;
@@ -79470,7 +79762,8 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
   // 只有数据缺失时才回退到港区的旧硬编码点位。
   function pickupSpotsForMap() {
     var id = "harbor";
-    try { id = MapKit && MapKit.current ? MapKit.current() : "harbor"; } catch (e) {}
+    // MapKit 是可选的全局（展示模式/部分构建里尚未定义）：探测失败保持静默，回退 harbor。
+    try { id = MapKit && MapKit.current ? MapKit.current() : "harbor"; } catch (e) { /* 可选全局未就绪 */ }
     var data = window.__SX_MAPS_DATA;
     var m = data && data.maps && data.maps[id];
     if (m && m.pickups && m.pickups.length) {
@@ -79529,7 +79822,7 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
     p.mesh.visible = false;
     if (HUD) HUD.toast(msg);
     G.hud.message(msg, 1.5);
-    try { G.audio.play("reload_magin", { gain: 0.5, pitch: 1.35 }); } catch (e) {}
+    try { G.audio.play("reload_magin", { gain: 0.5, pitch: 1.35 }); } catch (e) { soft("pickup-sfx", e); }
     G.events.emit("sx:pickup", { type: p.type });
     return true;
   }
@@ -79571,7 +79864,7 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
     if (S.grenades <= 0 || S.throwCd > 0) return;
     S.grenades--;
     S.throwCd = 0.55;
-    try { G.events.emit("sx:grenade", {}); } catch (e) {}
+    try { G.events.emit("sx:grenade", {}); } catch (e) { soft("grenade-emit", e); }
     var T = G.THREE, P = G.player;
     var dir = P.forward.clone ? P.forward.clone() : new T.Vector3(P.forward.x, P.forward.y, P.forward.z);
     var fwd = new T.Vector3(dir.x, dir.y, dir.z).normalize();
@@ -79585,19 +79878,19 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
     S.grenadeList.push({ mesh: mesh, pos: origin.clone(), vel: vel, fuse: 2.25, spin: new T.Vector3(Math.random() * 8, Math.random() * 8, Math.random() * 8), bounced: false });
     G.player.addRecoil(-0.004, 0);
     G.player.addShake(0.08);
-    try { G.audio.play("weapon:melee", { gain: 0.4 }); } catch (e) {}
+    try { G.audio.play("weapon:melee", { gain: 0.4 }); } catch (e) { soft("grenade-sfx", e); }
     G.events.emit("weapon:fire", { origin: origin, dir: fwd, muzzle: origin, ads: 0 });
   }
 
   function explodeGrenade(n) {
     var pos = n.pos;
     try { G.combat.explode(pos, 6.5, 110, "player"); } catch (e) { console.error("[ext] explode", e); }
-    try { G.fx.explosion(pos, 1.7); } catch (e) {}
-    try { G.events.emit("explosion", { pos: pos, size: 1.8 }); } catch (e) {}
+    try { G.fx.explosion(pos, 1.7); } catch (e) { soft("explode-fx", e); }
+    try { G.events.emit("explosion", { pos: pos, size: 1.8 }); } catch (e) { soft("explode-emit", e); }
     try {
       if (G.render && G.render.lightPool && G.render.lightPool.flash)
         G.render.lightPool.flash(pos, 0xffb066, 90, 16, 0.22);
-    } catch (e) {}
+    } catch (e) { soft("explode-light", e); }
     var d = dist2d(G.player.pos, pos);
     if (d < 12) G.player.addShake(clamp(1 - d / 12, 0, 1) * 0.75);
     if (n.mesh.parent) n.mesh.parent.remove(n.mesh);
@@ -79625,7 +79918,7 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
         n.vel.multiplyScalar(0.62);
         n.pos.addScaledVector(hit.normal, 0.02);
         if (hit.surface === "water") n.fuse = Math.min(n.fuse, 0.15);
-        if (!n.bounced) { n.bounced = true; try { G.audio.play("shell_bounce", { pos: n.pos, gain: 0.5, pitch: 0.7 }); } catch (e) {} }
+        if (!n.bounced) { n.bounced = true; try { G.audio.play("shell_bounce", { pos: n.pos, gain: 0.5, pitch: 0.7 }); } catch (e) { soft("grenade-bounce-sfx", e); } }
       } else {
         n.pos.add(step);
       }
@@ -79650,8 +79943,8 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
     var eye = new T.Vector3(P.eye.x, P.eye.y, P.eye.z);
     var fwd = new T.Vector3(P.forward.x, P.forward.y, P.forward.z).normalize();
     var hit = null;
-    try { hit = G.combat.playerShot(eye, fwd, { damage: 55, range: 2.4 }); } catch (e) {}
-    try { G.events.emit("weapon:melee", {}); } catch (e) {}
+    try { hit = G.combat.playerShot(eye, fwd, { damage: 55, range: 2.4 }); } catch (e) { soft("melee-shot", e); }
+    try { G.events.emit("weapon:melee", {}); } catch (e) { soft("melee-emit", e); }
     P.addRecoil(-0.008, (Math.random() - 0.5) * 0.004);
     P.addShake(0.1);
     if (hit && hit.surface === "enemy") HUD && HUD.toast("近战击杀", false);
@@ -79702,8 +79995,8 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
       if (G.weapon.ammo !== undefined) G.weapon.ammo = Math.max(G.weapon.ammo, cp.ammo);
       if (G.weapon.reserve !== undefined) G.weapon.reserve = Math.max(G.weapon.reserve, cp.reserve);
     }
-    try { G.enemies.clear(); } catch (e) {}
-    try { G.game.run.queue.length = 0; G.game.run.waveHot = 0; } catch (e) {}
+    try { G.enemies.clear(); } catch (e) { soft("revive-clear", e); }
+    try { G.game.run.queue.length = 0; G.game.run.waveHot = 0; } catch (e) { soft("revive-run", e); }
     // 检查点复活若发生在 BOSS 战：重置并重新投放 BOSS，避免目标卡死
     if (G.game.run && G.game.run.bossAlive) {
       try {
@@ -79711,12 +80004,12 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
         if (typeof bossRef !== "undefined") bossRef = null;
         if (typeof bossBar !== "undefined" && bossBar) bossBar.el.classList.remove("on");
         gameAfter(2.5, function () { if (G.game.state === "playing") startBossEncounter(); }, "mission");
-      } catch (e) {}
+      } catch (e) { soft("revive-boss", e); }
     }
     G.game.state = "playing";
     G.hud.show(true);
     G.render.post.fade = 0;
-    try { G.input.setGameplay(true); G.input.requestLock && G.input.requestLock(); } catch (e) {}
+    try { G.input.setGameplay(true); G.input.requestLock && G.input.requestLock(); } catch (e) { soft("revive-input", e); }
     hideDeadCheckpointButton();
     G.hud.message("检查点已恢复", 2.2);
     G.events.emit("game:state", { state: "playing", prev: "dead" });
@@ -80765,12 +81058,19 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
 
 
   /* ------------------------------------------------------- per-frame */
+  // V53 CLI-2：模拟时钟只在这些状态推进；暂停/标题/死亡/结算必须冻结。
+  function simTimeActive(state) {
+    return state === "playing" || state === "intro";
+  }
   function update(dt) {
     if (!G || !booted) return;
-    try { if (CLOCK) CLOCK.tick(dt); } catch (e) {}
-    try { if (window.SX_SYSTEMS) SX_SYSTEMS.fixedUpdate(null, dt); } catch (e) {}
-    try { updatePerf(dt); } catch (e) {}
-    try { AudioExt.update(dt); } catch (e) {}
+    var simActive = simTimeActive(G.game.state);
+    if (simActive) {
+      try { if (CLOCK) CLOCK.tick(dt); } catch (e) { soft("clock-tick", e); }
+      try { if (window.SX_SYSTEMS) SX_SYSTEMS.fixedUpdate(null, dt); } catch (e) { soft("systems-tick", e); }
+    }
+    try { updatePerf(dt); } catch (e) { soft("perf", e); }
+    try { AudioExt.update(dt); } catch (e) { soft("audio-update", e); }
     if (G.game.state !== "playing") {
       if (HUD) HUD.tick(dt);
       return;
@@ -80788,7 +81088,7 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
     if (S._lastMapCheck === undefined || S._lastMapCheck <= 0) {
       S._lastMapCheck = 0.5;
       var mid = "harbor";
-      try { mid = MapKit.current(); } catch (e) {}
+      try { mid = MapKit.current(); } catch (e) { soft("map-probe", e); }
       if (mid !== S._lastMap) { S._lastMap = mid; spawnPickups(); }
     } else S._lastMapCheck -= dt;
     HUD.tick(dt);
@@ -80808,10 +81108,13 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
     try { updateBoss(dt); } catch (e) { console.error("[ext] boss update", e); }
 
     // HUD loadout
+    // V53 PERF-4：直接复用武器系统持有的数组（w.list 元素自带 short/ammo），
+    // 不再每步 map 出新数组；没有 list 时用模块级缓存数组原地改 ammo。
     var w = G.weapon;
-    var slots = [{ short: "九式", ammo: w && w.ammo }];
-    if (w && w.slots && w.slots.length) slots = w.slots;
-    else if (w && w.list) slots = w.list.map(function (x) { return { short: x.short, ammo: x.ammo }; });
+    var slots = SLOT_FALLBACK;
+    if (w && w.list) slots = w.list;
+    else if (w && w.slots && w.slots.length) slots = w.slots;
+    else SLOT_FALLBACK[0].ammo = (w && w.ammo) | 0;
     HUD.setSlots(slots, w && w.activeIndex || 0, S.grenades);
     var act = w && w.list && w.list[w.activeIndex];
     HUD.setScope(!!(act && act.scope && act.ads > 0.82));
@@ -80980,6 +81283,30 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
       maps[id] = def;
     }
 
+    /* V53 ARCH-5：两个 builder 的 label() 逐字重复，抽成共享实现。
+       返回的 mesh 由调用方决定挂到 labels 组还是 root。 */
+    function makeLabelMesh(text, x, y, z, yaw, w, h) {
+      var c = document.createElement("canvas");
+      c.width = 512; c.height = 128;
+      var g = c.getContext("2d");
+      g.fillStyle = "rgba(8,10,12,.72)"; g.fillRect(0, 0, 512, 128);
+      g.strokeStyle = "rgba(255,179,71,.8)"; g.lineWidth = 4; g.strokeRect(2, 2, 508, 124);
+      g.fillStyle = "#ffd27a"; g.font = "bold 58px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(text, 256, 68);
+      var tex = new T.CanvasTexture(c);
+      tex.colorSpace = T.SRGBColorSpace;
+      var m = new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.95, depthWrite: false });
+      var lgeo = new T.PlaneGeometry(w || 4.2, h || 1.05);
+      lgeo.userData = lgeo.userData || {};
+      lgeo.userData.sxMapOwned = true;
+      m.userData = m.userData || {};
+      m.userData.sxMapOwned = true;
+      var mesh = new T.Mesh(lgeo, m);
+      mesh.position.set(x, y, z);
+      mesh.rotation.y = yaw || 0;
+      return mesh;
+    }
+
     function makeBuilder() {
       var root = new T.Group();
       var dyn = new T.Group();
@@ -81064,24 +81391,7 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
           return rec;
         },
         label: function (text, x, y, z, yaw, w, h) {
-          var c = document.createElement("canvas");
-          c.width = 512; c.height = 128;
-          var g = c.getContext("2d");
-          g.fillStyle = "rgba(8,10,12,.72)"; g.fillRect(0, 0, 512, 128);
-          g.strokeStyle = "rgba(255,179,71,.8)"; g.lineWidth = 4; g.strokeRect(2, 2, 508, 124);
-          g.fillStyle = "#ffd27a"; g.font = "bold 58px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-          g.fillText(text, 256, 68);
-          var tex = new T.CanvasTexture(c);
-          tex.colorSpace = T.SRGBColorSpace;
-          var m = new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.95, depthWrite: false });
-          var lgeo = new T.PlaneGeometry(w || 4.2, h || 1.05);
-          lgeo.userData = lgeo.userData || {};
-          lgeo.userData.sxMapOwned = true;
-          m.userData = m.userData || {};
-          m.userData.sxMapOwned = true;
-          var mesh = new T.Mesh(lgeo, m);
-          mesh.position.set(x, y, z);
-          mesh.rotation.y = yaw || 0;
+          var mesh = makeLabelMesh(text, x, y, z, yaw, w, h);
           def.labels.add(mesh);
           return mesh;
         }
@@ -81157,24 +81467,7 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
           return rec;
         },
         label: function (text, x, y, z, yaw, w, h) {
-          var c = document.createElement("canvas");
-          c.width = 512; c.height = 128;
-          var g = c.getContext("2d");
-          g.fillStyle = "rgba(8,10,12,.72)"; g.fillRect(0, 0, 512, 128);
-          g.strokeStyle = "rgba(255,179,71,.8)"; g.lineWidth = 4; g.strokeRect(2, 2, 508, 124);
-          g.fillStyle = "#ffd27a"; g.font = "bold 58px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-          g.fillText(text, 256, 68);
-          var tex = new T.CanvasTexture(c);
-          tex.colorSpace = T.SRGBColorSpace;
-          var m = new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.95, depthWrite: false });
-          var lgeo = new T.PlaneGeometry(w || 4.2, h || 1.05);
-          lgeo.userData = lgeo.userData || {};
-          lgeo.userData.sxMapOwned = true;
-          m.userData = m.userData || {};
-          m.userData.sxMapOwned = true;
-          var mesh = new T.Mesh(lgeo, m);
-          mesh.position.set(x, y, z);
-          mesh.rotation.y = yaw || 0;
+          var mesh = makeLabelMesh(text, x, y, z, yaw, w, h);
           root.add(mesh);
           return mesh;
         }
@@ -81183,6 +81476,12 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
     }
 
     function extend(id, fn) {
+      // V53 ARCH-5：追加层会直接 P.addBox 到当前碰撞集；非港区激活时调用会污染
+      // 当前地图的碰撞（箱子留在 P.boxes 里，玩家撞到不存在的墙）。直接拒绝并告警。
+      if (current !== "harbor") {
+        try { console.warn("[mapkit] extend('" + id + "') ignored while map='" + current + "' is active"); } catch (e) {}
+        return false;
+      }
       if (id === "harbor") {
         if (!harbor) return false;
         if (!harbor.extraGroup) {
@@ -81225,6 +81524,8 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
       def.env = meta.env || null;
       def.seaOnly = !!meta.seaOnly;
       def.fog = meta.fog || null;
+      // V53 ARCH-5：每张地图只创建一个 FogExp2，load 时复用
+      def.fogObject = new T.FogExp2(def.fog ? def.fog.color : 0x090c10, def.fog ? def.fog.density : 0.026);
       def.merged = mergeRoot(b.root);
       def.merged.add(b.dyn);
       def.merged.add(b.labels);
@@ -81254,22 +81555,24 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
       return def;
     }
 
+    /* V53 CLI-3：海面/天空/太阳强度只由“目标地图是否 seaOnly”决定。
+       每次加载非港区地图都调用，避免 depot/core(false) ↔ ship(true) 互相切图时
+       残留上一张图的可见性与太阳强度。 */
+    function applySeaMode(seaOnly) {
+      seaOnly = !!seaOnly;
+      if (G.ground && G.ground.root) G.ground.root.visible = seaOnly;
+      if (harbor && harbor.apron) harbor.apron.visible = !seaOnly;
+      if (harbor && harbor.quaySkirt) harbor.quaySkirt.visible = !seaOnly;
+      if (G.render && G.render.sky) G.render.sky.visible = seaOnly;
+      if (G.render && G.render.sun) G.render.sun.intensity = seaOnly ? 1.2 : 0.25;
+      if (G.backdrop) G.backdrop.root.visible = false;
+    }
+
     function hideHarbor(seaOnly) {
       harbor.root.visible = false;
       if (harbor.extraGroup) harbor.extraGroup.visible = false;
       if (harbor.extraLights) harbor.extraLights.visible = false;
-      if (G.backdrop) G.backdrop.root.visible = false;
-      if (seaOnly) {
-        G.ground.root.visible = true;
-        if (harbor.apron) harbor.apron.visible = false;
-        if (harbor.quaySkirt) harbor.quaySkirt.visible = false;
-        G.render.sky.visible = true;
-        G.render.sun.intensity = 1.2;
-      } else {
-        G.ground.root.visible = false;
-        G.render.sky.visible = false;
-        G.render.sun.intensity = 0.25;
-      }
+      applySeaMode(seaOnly);
       for (var i = 0; i < harbor.pointLights.length; i++) harbor.pointLights[i].l.intensity = 0;
     }
 
@@ -81304,13 +81607,15 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
     var MAP_CACHE_LIMIT = 2;
     var cacheStats = { releases: 0, geos: 0, mats: 0, total: 0, skipped: 0 };
     function disposeMap(def) {
-      var geos = 0, mats = 0, total = 0, skipped = 0, seen = [];
+      var geos = 0, mats = 0, total = 0, skipped = 0;
+      // V53 ARCH-5：用 Set 去重（原来是 seen.indexOf => O(n²)）
+      var seen = new Set();
       if (!def || !def.merged) return { geos: 0, mats: 0, total: 0, skipped: 0 };
       def.merged.traverse(function (o) {
         if (!o.isMesh) return;
         var g = o.geometry;
-        if (g && seen.indexOf(g) < 0) { seen.push(g); total++; }
-        if (g && (!g.userData || !g.userData.sxMapOwned) && seen.indexOf(g) >= 0) {
+        if (g && !seen.has(g)) { seen.add(g); total++; }
+        if (g && (!g.userData || !g.userData.sxMapOwned)) {
           if (!g.__sxCountedSkipped) { g.__sxCountedSkipped = true; skipped++; }
         }
         if (g && g.userData && g.userData.sxMapOwned && !g.__sxMapDisposed) {
@@ -81364,6 +81669,8 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
       if (!def) return false;
       if (current === "harbor") hideHarbor(!!def.seaOnly);
       else if (maps[current] && maps[current].merged) { maps[current].merged.visible = false; maps[current].lights.visible = false; }
+      // V53 CLI-3：非港区 → 非港区也要重设海面/天空/太阳（hideHarbor 只在离开港区时跑）
+      if (id !== "harbor") applySeaMode(!!def.seaOnly);
       if (id === "harbor") {
         showHarbor();
         G.__navQuayX = 30;
@@ -81386,7 +81693,8 @@ window.__SX_MAPS_DATA={"version":1,"maps":{"harbor":{"bounds":{"min":[-40,0,-30]
       }
       def.merged.visible = true;
       def.lights.visible = true;
-      G.scene.fog = new T.FogExp2(def.fog ? def.fog.color : 0x090c10, def.fog ? def.fog.density : 0.026);
+      // V53 ARCH-5：FogExp2 按地图复用（build 时创建一次），不再每次 load 新建对象
+      G.scene.fog = def.fogObject;
       G.__navQuayX = 1e9;
       P.boxes.length = 0;
       for (var k = 0; k < def.boxes.length; k++) {
@@ -85186,7 +85494,25 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   }
   function saveCamp() {
     try { localStorage.setItem(CAMP_KEY, JSON.stringify(camp)); } catch (e) {}
-    try { if (window.SXBridge) SXBridge.campaign(camp); } catch (e) {}
+    try { if (window.SXBridge) window.SXBridge.campaign(camp); } catch (e) {}
+  }
+  function reloadCamp() {
+    loadCamp();
+    return camp;
+  }
+  /* V53 SAVE-1：导入/重置会把统一档镜像回旧键（含 saltline.campaign.v1）。
+     这里同步内存态；否则下一次 saveCamp() 会把导入前的旧进度再推回统一档。 */
+  var saveUnsub = null;
+  function bindSaveSync() {
+    if (saveUnsub) return saveUnsub;
+    try {
+      if (!window.SXSave || typeof window.SXSave.subscribe !== "function") return null;
+      saveUnsub = window.SXSave.subscribe(function (s, info) {
+        var reason = info && info.reason;
+        if (reason === "import" || reason === "reset") reloadCamp();
+      });
+    } catch (e) { console.error("[ext] save sync", e); }
+    return saveUnsub || null;
   }
 
   var RELAY_STATIONS = {
@@ -86159,6 +86485,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
 
   function initCampaign() {
     loadCamp();
+    bindSaveSync();
     initRelayPool();
     var profile = (typeof window !== "undefined" && window.__SX_PROFILE) || "v4";
     if (profile === "v3") {
@@ -86223,7 +86550,15 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         try { G.render.post.saturation = m.saturation; } catch (err) {}
         try { G.render.exposure = m.exposure; } catch (err) {}
       }
-      if (e.state === "complete") gameAfter(0.4, onMissionComplete, "mission");
+      // V53 CLI-2：complete 状态下模拟时钟冻结，结算面板的延迟更新改用 UI 实时钟，
+      // 否则 onMissionComplete（最佳成绩/挑战/解锁/存档）永远不会执行。
+      if (e.state === "complete") {
+        if (typeof UICLOCK !== "undefined" && UICLOCK && typeof UICLOCK.after === "function") {
+          UICLOCK.after(0.4, onMissionComplete);
+        } else {
+          setTimeout(onMissionComplete, 400);
+        }
+      }
     });
   }
 
@@ -86239,6 +86574,8 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       state: function () { return camp; },
       index: function () { return camp.current; },
       save: saveCamp,
+      reload: reloadCamp,
+      bindSaveSync: bindSaveSync,
       launch: launchMission,
       apply: applyMission,
       challengeTotal: function () { return MISSIONS.length * 3; },
@@ -88961,11 +89298,19 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       var B = (window.SALT_NET && SALT_NET.BTN) || { FIRE: 1, ADS: 2, JUMP: 4, SPRINT: 8, CROUCH: 16, RELOAD: 32 };
       var b = 0;
       var inp = G.input || {};
-      if (inp.fire) b |= B.FIRE;
+      // V53 NET-1：输入命令不再携带 FIRE 位。按住开火时服务端会把“命令 FIRE”与
+      // 显式 t:'fire' 各处理一次（同一枪扣两次弹药、大量 rate 拒绝）；权威开火只走
+      // fireHandlerFn 的显式 fire 消息。服务端也只对 p.isBot 的命令 FIRE 开火。
+      // if (inp.fire) b |= B.FIRE;
       if (inp.ads) b |= B.ADS;
       if (inp.down && inp.down("jump")) b |= B.JUMP;
       if (p.sprinting) b |= B.SPRINT;
       if (p.crouching) b |= B.CROUCH;
+      // NET-5：侧身位此前只在 sim/server 中，协议 BTN 表缺位；现在按移动系统的 lean 值发送。
+      var lean = 0;
+      try { lean = window.__SX_MOVE && window.__SX_MOVE.state ? (window.__SX_MOVE.state().lean || 0) : 0; } catch (e) {}
+      if (lean > 0.35) b |= B.LEAN_R;
+      else if (lean < -0.35) b |= B.LEAN_L;
       if (G.weapon && G.weapon.state === "reloading") b |= B.RELOAD;
       return b;
     }
@@ -89659,14 +90004,14 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       var now = performance.now();
       if (now - shieldFxT < 90) return;
       shieldFxT = now;
-      try { G.fx.sparks(ev.point, new G.THREE.Vector3(0, 0, 1), 4); } catch (e) {}
-      try { G.audio.play("impact_metal", { pos: ev.point, gain: 0.5, pitch: 1.5 }); } catch (e) {}
+      try { G.fx.sparks(ev.point, new G.THREE.Vector3(0, 0, 1), 4); } catch (e) { soft("shield-sparks", e); }
+      try { G.audio.play("impact_metal", { pos: ev.point, gain: 0.5, pitch: 1.5 }); } catch (e) { soft("shield-sfx", e); }
     });
     G.events.on("sx:shield-break", function (ev) {
       var e = ev && ev.enemy;
       if (e && e.pos) {
-        try { G.fx.sparks(e.pos, new G.THREE.Vector3(0, 1, 0), 14); } catch (err) {}
-        try { G.audio.play("impact_metal", { pos: e.pos, gain: 1, pitch: 0.7 }); } catch (err) {}
+        try { G.fx.sparks(e.pos, new G.THREE.Vector3(0, 1, 0), 14); } catch (err) { soft("shield-break-sparks", err); }
+        try { G.audio.play("impact_metal", { pos: e.pos, gain: 1, pitch: 0.7 }); } catch (err) { soft("shield-break-sfx", err); }
       }
       G.hud.feed("<b>重装盾卫</b> 护盾破碎");
     });
@@ -89676,15 +90021,15 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   function initAudioPolish() {
     S.hbT = 0;
     G.events.on("weapon:switch", function () {
-      try { G.audio.play("reload_magout", { gain: 0.32, pitch: 1.45 }); } catch (e) {}
+      try { G.audio.play("reload_magout", { gain: 0.32, pitch: 1.45 }); } catch (e) { soft("switch-sfx", e); }
     });
     G.events.on("sx:boss-phase", function (ev) {
-      try { G.audio.play("alert", { gain: 0.85, pitch: ev && ev.phase === 2 ? 0.55 : 0.72 }); } catch (e) {}
-      try { G.audio.play("explosion", { gain: 0.25, pitch: 1.6 }); } catch (e) {}
+      try { G.audio.play("alert", { gain: 0.85, pitch: ev && ev.phase === 2 ? 0.55 : 0.72 }); } catch (e) { soft("boss-phase-sfx", e); }
+      try { G.audio.play("explosion", { gain: 0.25, pitch: 1.6 }); } catch (e) { soft("boss-phase-sfx", e); }
     });
     G.events.on("game:state", function (e) {
       if (e && (e.state === "playing" || e.state === "intro"))
-        try { G.audio.play("ui:click", { gain: 0.35 }); } catch (err) {}
+        try { G.audio.play("ui:click", { gain: 0.35 }); } catch (err) { soft("state-sfx", err); }
     });
   }
 
@@ -89695,7 +90040,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       S.hbT -= dt;
       if (S.hbT <= 0) {
         S.hbT = P.health < P.maxHealth * 0.2 ? 0.78 : 1.15;
-        try { G.audio.play("hurt", { gain: 0.15, pitch: 0.82 }); } catch (e) {}
+        try { G.audio.play("hurt", { gain: 0.15, pitch: 0.82 }); } catch (e) { soft("heartbeat-sfx", e); }
       }
     } else {
       S.hbT = 0;
@@ -89727,7 +90072,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         window.SX_SYSTEMS = SXSystems.create({ G: G, clock: CLOCK, uiClock: UICLOCK, events: G.events, THREE: G.THREE });
         window.SX_SYSTEMS.initAll();
         G.events.on("game:state", function (e) {
-          try { window.SX_SYSTEMS.onState(e.state, e.prev); } catch (err) {}
+          try { window.SX_SYSTEMS.onState(e.state, e.prev); } catch (err) { soft("systems-state", err); }
         });
       }
     } catch (e) { console.error("[ext] systems", e); }
@@ -89746,7 +90091,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         var changed = baseMapLoad.call(MapKit, id);
         if (changed) {
           try { spawnPickups(); } catch (e) { console.error("[ext] pickups", e); }
-          try { G.events.emit("map:loaded", { id: id }); } catch (e) {}
+          try { G.events.emit("map:loaded", { id: id }); } catch (e) { soft("map-loaded-emit", e); }
         }
         return changed;
       };
@@ -89782,7 +90127,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
           if (G.weapon && G.weapon.cycle) G.weapon.cycle();
         });
         ui.appendChild(sb);
-      } catch (e) {}
+      } catch (e) { soft("touch-ui", e); }
     }
 
     // 敌人 HP 缩放（战役难度）
@@ -89794,12 +90139,17 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     };
 
     // 挂接游戏更新：在导演更新后、武器更新前
-    var baseUpdate = G.game.update;
-    G.game.update = function (dt) {
-      var r = baseUpdate.call(G.game, dt);
-      try { update(dt); } catch (e) { console.error("[ext] update", e); }
-      return r;
-    };
+    // V53 ARCH-1：防重入标记挂在宿主对象上（别人再包一层也不会让标记失效）；
+    // 重复 init 直接跳过，避免二次包覆。调用顺序保持不变：先原 update，再 ext update。
+    if (!G.game.__sxExtUpdate) {
+      var baseUpdate = G.game.update;
+      G.game.__sxExtUpdate = true;
+      G.game.update = function (dt) {
+        var r = baseUpdate.call(G.game, dt);
+        try { update(dt); } catch (e) { console.error("[ext] update", e); }
+        return r;
+      };
+    }
     G.events.on("game:state", function (e) {
       if (e && (e.state === "intro" || e.state === "title" || e.state === "dead" || e.state === "complete") && CLOCK) CLOCK.cancelGroup("mission");
     });
@@ -89816,17 +90166,21 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     });
 
     // 任务专属无线电：覆盖引擎默认的开场/全断文案
-    var baseRadio = G.hud.radio;
-    G.hud.radio = function (text, secs) {
-      var m = G.game.currentMission;
-      if (m && typeof text === "string") {
-        if (m.intro && text.indexOf("几猫队员，这里是指挥中心") === 0)
-          return baseRadio.call(G.hud, m.intro, secs || 4.2);
-        if (m.all && text.indexOf("三处中继全部断开") === 0)
-          return baseRadio.call(G.hud, m.all, secs || 4.5);
-      }
-      return baseRadio.call(G.hud, text, secs);
-    };
+    // V53 ARCH-1：宿主对象标记，重复 init 不再二次包覆；命中任务文案时依旧只调用一次 baseRadio。
+    if (!G.hud.__sxExtRadio) {
+      var baseRadio = G.hud.radio;
+      G.hud.__sxExtRadio = true;
+      G.hud.radio = function (text, secs) {
+        var m = G.game.currentMission;
+        if (m && typeof text === "string") {
+          if (m.intro && text.indexOf("几猫队员，这里是指挥中心") === 0)
+            return baseRadio.call(G.hud, m.intro, secs || 4.2);
+          if (m.all && text.indexOf("三处中继全部断开") === 0)
+            return baseRadio.call(G.hud, m.all, secs || 4.5);
+        }
+        return baseRadio.call(G.hud, text, secs);
+      };
+    }
 
     // 首次进入战斗的操作提示
     var tipsShown = false;
@@ -89848,7 +90202,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     });
 
     addEventListener("beforeunload", function () {
-      try { if (window.SXBridge) SXBridge.flush(); } catch (e) {}
+      try { if (window.SXBridge) SXBridge.flush(); } catch (e) { soft("save-flush", e); }
     });
 
     // 调试/测试 API
@@ -89877,7 +90231,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       unlockAll: function () { camp.unlocked = MISSIONS.length; saveCamp(); renderMissionCards(); },
       launch: function (i) { camp.unlocked = Math.max(camp.unlocked, i + 1); launchMission(i); },
       launchFast: function (i) { camp.unlocked = Math.max(camp.unlocked, i + 1); applyMission(i); G.game.start({ skipIntro: true }); },
-      cutAll: function () { for (var i = 0; i < 8; i++) { try { G.game.debugCut(); } catch (e) {} } },
+      cutAll: function () { for (var i = 0; i < 8; i++) { try { G.game.debugCut(); } catch (e) { soft("debug-cut", e); } } },
       scan: function () { return triggerScan(); },
       aim: function () { return beginGrenadeAim(); },
       release: function () { releaseGrenade(); },
@@ -89887,7 +90241,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       armory: function () { return armorySel; },
       armorySet: function (wid, slot, opt) {
         // 调试/验收接口：直接装备视为已拥有，避免所有权回退把测试装备成默认件
-        try { if (window.__SX_PROGRESS && window.__SX_PROGRESS.unlock) window.__SX_PROGRESS.unlock(wid + ":" + slot + ":" + opt); } catch (e) {}
+        try { if (window.__SX_PROGRESS && window.__SX_PROGRESS.unlock) window.__SX_PROGRESS.unlock(wid + ":" + slot + ":" + opt); } catch (e) { soft("progress-unlock", e); }
         armorySel[wid][slot] = opt; saveArmory(); armoryApply(); return armoryStat(armoryWeapon(wid));
       },
       // V45：只改选择、不做所有权解锁。用于验证“锁定价配件不生效”的真实 UI/结算路径。
@@ -91199,6 +91553,189 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   for (var ae in ARM_EN) if (Object.prototype.hasOwnProperty.call(ARM_EN, ae)) EN[ae] = ARM_EN[ae];
   for (var mz in MPX_ZH) if (Object.prototype.hasOwnProperty.call(MPX_ZH, mz)) ZH[mz] = MPX_ZH[mz];
   for (var me in MPX_EN) if (Object.prototype.hasOwnProperty.call(MPX_EN, me)) EN[me] = MPX_EN[me];
+
+  /* ---------- V53 · I18N-1：成长 / 输入 / 界面动态拼接 ----------
+     ext_progress（progress.*）、ext_input（input.*）与 ext_ui2 的少量拼接文案。
+     数据表（难度 / 准星 / 评级 / 动作 / 键位）只存 key，渲染时取词，
+     切语言后重绘即生效；en 与 zh 必须同键。 */
+  var PROG_ZH = {
+    "progress.badge": "信用点 <b>{credits}</b> · 成就 <b>{got}/{total}</b> · 挑战 <b>{chal}/{chalTotal}</b>",
+    "progress.debrief.detail": "用时 {time} / 标准 {par} · 击杀 {kills}/{parKills} · 受伤 {damage} · 中继 {relays}/{total}",
+    "progress.debrief.time": "用时",
+    "progress.debrief.kills": "击杀",
+    "progress.debrief.surv": "生存",
+    "progress.debrief.obj": "目标",
+    "progress.debrief.sum": "评级 <b>{grade} · {label}</b> · 总分 {total} · 难度 {diff} ×{mul}",
+    "progress.credit.run": "<b>+{n}</b> 信用点 · 本局收益",
+    "progress.credit.parts": "击杀 {kill} · 爆头 {head} · 精英 {elite} · BOSS {boss} · 任务 +{mission} · 总余额 {balance}",
+    "progress.credit.train": "训练得分 {score} × 0.05 · 总余额 {balance}",
+    "progress.hint.max": "已达最高评级 S",
+    "progress.hint.next": "距 {next} 还差 {n} 分 · {tip}收益最高",
+    "progress.hint.time": "压缩用时",
+    "progress.hint.kills": "提高击杀",
+    "progress.hint.surv": "减少受伤",
+    "progress.hint.obj": "完成中继",
+    "progress.chal.notify": "挑战 {count}/{total} · {names} · +{sum} 信用点",
+    "progress.chal.tier": "{n} 项",
+    "progress.chal.tierCross": "{n} 项 · {reward}",
+    "progress.listSep": "、",
+    "progress.unlock.notify": "已解锁 {name} · -{price} 信用点",
+    "progress.unlock.attachment": "配件",
+    "progress.ach.notify": "成就解锁 · {name}",
+    "progress.ach.notifyMaster": "成就解锁 · 大师 · {name}",
+    "progress.diff.recruit": "新兵",
+    "progress.diff.normal": "标准",
+    "progress.diff.veteran": "老兵",
+    "progress.diff.nightmare": "噩梦",
+    "progress.cross.3": "绿色准星",
+    "progress.cross.6": "红色准星",
+    "progress.cross.9": "金色准星"
+  };
+  var PROG_EN = {
+    "progress.badge": "Credits <b>{credits}</b> · Achievements <b>{got}/{total}</b> · Challenges <b>{chal}/{chalTotal}</b>",
+    "progress.debrief.detail": "Time {time} / Par {par} · Kills {kills}/{parKills} · Damage {damage} · Relays {relays}/{total}",
+    "progress.debrief.time": "Time",
+    "progress.debrief.kills": "Kills",
+    "progress.debrief.surv": "Survival",
+    "progress.debrief.obj": "Objective",
+    "progress.debrief.sum": "Rating <b>{grade} · {label}</b> · Score {total} · Difficulty {diff} ×{mul}",
+    "progress.credit.run": "<b>+{n}</b> credits · this run",
+    "progress.credit.parts": "Kills {kill} · Headshots {head} · Elites {elite} · BOSS {boss} · Mission +{mission} · Balance {balance}",
+    "progress.credit.train": "Training score {score} × 0.05 · Balance {balance}",
+    "progress.hint.max": "Already at the top rating: S",
+    "progress.hint.next": "{n} points to {next} · {tip} is your best gain",
+    "progress.hint.time": "Cut your time",
+    "progress.hint.kills": "Raise your kills",
+    "progress.hint.surv": "Take less damage",
+    "progress.hint.obj": "Finish the relays",
+    "progress.chal.notify": "Challenges {count}/{total} · {names} · +{sum} credits",
+    "progress.chal.tier": "{n} tiers",
+    "progress.chal.tierCross": "{n} tiers · {reward}",
+    "progress.listSep": ", ",
+    "progress.unlock.notify": "Unlocked {name} · -{price} credits",
+    "progress.unlock.attachment": "attachment",
+    "progress.ach.notify": "Achievement unlocked · {name}",
+    "progress.ach.notifyMaster": "Achievement unlocked · Master · {name}",
+    "progress.diff.recruit": "Recruit",
+    "progress.diff.normal": "Normal",
+    "progress.diff.veteran": "Veteran",
+    "progress.diff.nightmare": "Nightmare",
+    "progress.cross.3": "Green crosshair",
+    "progress.cross.6": "Red crosshair",
+    "progress.cross.9": "Gold crosshair"
+  };
+  var INP_ZH = {
+    "input.group.move": "移动",
+    "input.group.combat": "战斗",
+    "input.group.mobility": "机动",
+    "input.action.forward": "前进",
+    "input.action.back": "后退",
+    "input.action.left": "左移",
+    "input.action.right": "右移",
+    "input.action.fire": "射击",
+    "input.action.ads": "瞄准",
+    "input.action.reload": "换弹",
+    "input.action.grenade": "手雷",
+    "input.action.melee": "近战",
+    "input.action.scan": "扫描",
+    "input.action.slide": "滑铲 / 蹲伏",
+    "input.action.leanL": "左探身",
+    "input.action.leanR": "右探身",
+    "input.action.swap": "切枪",
+    "input.key.unbound": "未绑定",
+    "input.key.numpad": "小键盘 {key}",
+    "input.key.space": "空格",
+    "input.key.shiftL": "左Shift",
+    "input.key.shiftR": "右Shift",
+    "input.key.ctrlL": "左Ctrl",
+    "input.key.ctrlR": "右Ctrl",
+    "input.key.escape": "Esc",
+    "input.key.enter": "回车",
+    "input.key.tab": "Tab",
+    "input.key.backspace": "退格",
+    "input.key.capslock": "Caps",
+    "input.key.up": "↑",
+    "input.key.down": "↓",
+    "input.key.left": "←",
+    "input.key.right": "→",
+    "input.key.mouse0": "鼠标左键",
+    "input.key.mouse1": "鼠标中键",
+    "input.key.mouse2": "鼠标右键",
+    "input.bind.title": "按键重绑",
+    "input.bind.help": "点击一行，然后按下任意键完成绑定。Esc 取消；与已有按键冲突时自动交换。默认键位与引擎一致。",
+    "input.bind.reset": "恢复默认",
+    "input.bind.close": "关闭",
+    "input.bind.press": "按下新的按键…（Esc 取消）",
+    "input.bind.bound": "已绑定 {key}",
+    "input.bind.swapped": "已绑定 {key}，与「{action}」交换",
+    "input.bind.cancelled": "已取消",
+    "input.bind.resetDone": "已恢复默认键位",
+    "input.settings.section": "操控",
+    "input.touch.slide": "滑铲"
+  };
+  var INP_EN = {
+    "input.group.move": "Movement",
+    "input.group.combat": "Combat",
+    "input.group.mobility": "Mobility",
+    "input.action.forward": "Forward",
+    "input.action.back": "Back",
+    "input.action.left": "Strafe Left",
+    "input.action.right": "Strafe Right",
+    "input.action.fire": "Fire",
+    "input.action.ads": "Aim",
+    "input.action.reload": "Reload",
+    "input.action.grenade": "Grenade",
+    "input.action.melee": "Melee",
+    "input.action.scan": "Scan",
+    "input.action.slide": "Slide / Crouch",
+    "input.action.leanL": "Lean Left",
+    "input.action.leanR": "Lean Right",
+    "input.action.swap": "Switch Weapon",
+    "input.key.unbound": "Unbound",
+    "input.key.numpad": "Numpad {key}",
+    "input.key.space": "Space",
+    "input.key.shiftL": "Left Shift",
+    "input.key.shiftR": "Right Shift",
+    "input.key.ctrlL": "Left Ctrl",
+    "input.key.ctrlR": "Right Ctrl",
+    "input.key.escape": "Esc",
+    "input.key.enter": "Enter",
+    "input.key.tab": "Tab",
+    "input.key.backspace": "Backspace",
+    "input.key.capslock": "CapsLock",
+    "input.key.up": "↑",
+    "input.key.down": "↓",
+    "input.key.left": "←",
+    "input.key.right": "→",
+    "input.key.mouse0": "Left Mouse",
+    "input.key.mouse1": "Middle Mouse",
+    "input.key.mouse2": "Right Mouse",
+    "input.bind.title": "Rebind Keys",
+    "input.bind.help": "Click a row, then press any key to bind it. Esc cancels; conflicts swap automatically. Defaults match the engine.",
+    "input.bind.reset": "Reset to Defaults",
+    "input.bind.close": "Close",
+    "input.bind.press": "Press a new key… (Esc to cancel)",
+    "input.bind.bound": "Bound to {key}",
+    "input.bind.swapped": "Bound to {key}; swapped with \"{action}\"",
+    "input.bind.cancelled": "Cancelled",
+    "input.bind.resetDone": "Default key binds restored",
+    "input.settings.section": "Controls",
+    "input.touch.slide": "Slide"
+  };
+  var UI2X_ZH = {
+    "ui2.brief.opCode": "行动 {code}",
+    "ui2.hud.touchKey": "交互"
+  };
+  var UI2X_EN = {
+    "ui2.brief.opCode": "Op {code}",
+    "ui2.hud.touchKey": "Interact"
+  };
+  (function () {
+    var maps = [[PROG_ZH, ZH], [PROG_EN, EN], [INP_ZH, ZH], [INP_EN, EN], [UI2X_ZH, ZH], [UI2X_EN, EN]];
+    for (var i = 0; i < maps.length; i++) {
+      for (var k in maps[i][0]) if (Object.prototype.hasOwnProperty.call(maps[i][0], k)) maps[i][1][k] = maps[i][0][k];
+    }
+  })();
 
   /* ---------- 展平 mission.* 键 ---------- */
   function flatten(lang) {
@@ -92717,13 +93254,16 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   function saveFeedback() {
     try { localStorage.setItem(HIT_KEY, JSON.stringify({ numbers: !!state.numbers, arcs: !!state.arcs })); } catch (e) {}
   }
-  function reduceMotion() {
+  // PERF-4：reduce-motion 只按 100ms 轮询刷新，避免低血量路径每帧 JSON.parse(localStorage)。
+  var reduceMotionCached = false;
+  function readReduceMotion() {
     try {
       if (document.body && document.body.classList.contains("reduce-motion")) return true;
       var raw = JSON.parse(localStorage.getItem(ACCESS_KEY) || "null");
       return !!(raw && raw.reduceMotion);
     } catch (e) { return false; }
   }
+  function reduceMotion() { return reduceMotionCached; }
   function mpActive() {
     try { return !!(window.__MP && window.__MP.state && window.__MP.state().active); } catch (e) { return false; }
   }
@@ -93278,22 +93818,18 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     try { G.events.on("sx:armor-absorb", onArmor); } catch (e) {}
     try { G.events.on("sx:streak", onStreak); } catch (e) {}
     addEventListener("keydown", onKey, true);
-    // 周期刷新低血量与敌人探针
+    // 周期刷新低血量与敌人探针（PERF-4：去掉与 100ms 定时器重复的常驻 rAF）
+    reduceMotionCached = readReduceMotion();
     var tick = 0;
     var iv = setInterval(function () {
       tick++;
+      reduceMotionCached = readReduceMotion();
       try { updateLowHealth(); } catch (e) {}
       if (tick % 20 === 0) installProbe();
       if (!G || !G.hud || !G.hud.root) {
         clearInterval(iv);
       }
     }, 100);
-    // 独立 RAF：只做极轻量的状态同步
-    var raf = function () {
-      try { updateLowHealth(); } catch (e) {}
-      requestAnimationFrame(raf);
-    };
-    try { requestAnimationFrame(raf); } catch (e) {}
     booted = true;
     window.__SX_FEEDBACK = {
       state: publicState,
@@ -93859,11 +94395,27 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     var CFG_KEY = "saltline.input2";
     var BIND_KEY = "saltline.binds";
 
+    /* i18n：静态标签走 data-i18n，动态拼接（动作名 / 键名 / 提示）在渲染时取词 */
+    function I18n() {
+      try { return window.SXI18n || null; } catch (e) { return null; }
+    }
+    function T(key, vars) {
+      var I = I18n();
+      if (I && typeof I.t === "function") return I.t(key, vars);
+      var ex = window.__SX_I18N_EXTRA;
+      var s = ex && ex.zh ? ex.zh[key] : null;
+      if (s == null) return key;
+      if (!vars) return s;
+      return String(s).replace(/\{(\w+)\}/g, function (_, name) {
+        return vars[name] == null ? "" : String(vars[name]);
+      });
+    }
+
     var AIM_LEVELS = {
-      off: { maxFrac: 0, cone: 0, label: "关" },
-      low: { maxFrac: 0.18, cone: 2, label: "低" },
-      std: { maxFrac: 0.35, cone: 3, label: "标准" },
-      high: { maxFrac: 0.35, cone: 4, label: "高" }
+      off: { maxFrac: 0, cone: 0 },
+      low: { maxFrac: 0.18, cone: 2 },
+      std: { maxFrac: 0.35, cone: 3 },
+      high: { maxFrac: 0.35, cone: 4 }
     };
 
     var cfg = {
@@ -93886,17 +94438,21 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       melee: "KeyV", scan: "KeyQ", slide: "KeyC",
       leanL: "KeyZ", leanR: "KeyN", swap: ""
     };
+    /* 动作名 / 分组只存 key，重绑浮层渲染时取词 */
     var ACTION_LABEL = {
-      forward: "前进", back: "后退", left: "左移", right: "右移",
-      fire: "射击", ads: "瞄准", reload: "换弹", grenade: "手雷",
-      melee: "近战", scan: "扫描", slide: "滑铲 / 蹲伏",
-      leanL: "左探身", leanR: "右探身", swap: "切枪"
+      forward: "input.action.forward", back: "input.action.back",
+      left: "input.action.left", right: "input.action.right",
+      fire: "input.action.fire", ads: "input.action.ads", reload: "input.action.reload",
+      grenade: "input.action.grenade", melee: "input.action.melee", scan: "input.action.scan",
+      slide: "input.action.slide", leanL: "input.action.leanL", leanR: "input.action.leanR",
+      swap: "input.action.swap"
     };
     var ACTION_GROUP = {
-      forward: "移动", back: "移动", left: "移动", right: "移动",
-      fire: "战斗", ads: "战斗", reload: "战斗", grenade: "战斗",
-      melee: "战斗", scan: "战斗", slide: "战斗",
-      leanL: "机动", leanR: "机动", swap: "机动"
+      forward: "input.group.move", back: "input.group.move", left: "input.group.move", right: "input.group.move",
+      fire: "input.group.combat", ads: "input.group.combat", reload: "input.group.combat",
+      grenade: "input.group.combat", melee: "input.group.combat", scan: "input.group.combat",
+      slide: "input.group.combat", leanL: "input.group.mobility", leanR: "input.group.mobility",
+      swap: "input.group.mobility"
     };
 
     /* 动作 → 引擎动作（引擎只认自己的动作集） */
@@ -94291,17 +94847,19 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
 
     /* ------------------------------------------------------------ 按键重绑 */
     var KEY_LABEL = {
-      Space: "空格", ShiftLeft: "左Shift", ShiftRight: "右Shift", ControlLeft: "左Ctrl", ControlRight: "右Ctrl",
-      Escape: "Esc", Enter: "回车", Tab: "Tab", Backspace: "退格", CapsLock: "Caps",
-      ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←", ArrowRight: "→",
-      Mouse0: "鼠标左键", Mouse1: "鼠标中键", Mouse2: "鼠标右键"
+      Space: "input.key.space", ShiftLeft: "input.key.shiftL", ShiftRight: "input.key.shiftR",
+      ControlLeft: "input.key.ctrlL", ControlRight: "input.key.ctrlR",
+      Escape: "input.key.escape", Enter: "input.key.enter", Tab: "input.key.tab",
+      Backspace: "input.key.backspace", CapsLock: "input.key.capslock",
+      ArrowUp: "input.key.up", ArrowDown: "input.key.down", ArrowLeft: "input.key.left", ArrowRight: "input.key.right",
+      Mouse0: "input.key.mouse0", Mouse1: "input.key.mouse1", Mouse2: "input.key.mouse2"
     };
     function keyLabel(code) {
-      if (!code) return "未绑定";
-      if (KEY_LABEL[code]) return KEY_LABEL[code];
+      if (!code) return T("input.key.unbound");
+      if (KEY_LABEL[code]) return T(KEY_LABEL[code]);
       if (/^Key[A-Z]$/.test(code)) return code.slice(3);
       if (/^Digit[0-9]$/.test(code)) return code.slice(5);
-      if (/^Numpad[0-9]$/.test(code)) return "小键盘" + code.slice(6);
+      if (/^Numpad[0-9]$/.test(code)) return T("input.key.numpad", { key: code.slice(6) });
       if (/^F[0-9]{1,2}$/.test(code)) return code;
       return code;
     }
@@ -94354,9 +94912,11 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         capturing = null;
         if (code !== "Escape") {
           var r = setBind(act, code);
-          setBindNote(r && r.swapped ? "已绑定 " + keyLabel(code) + "，与「" + ACTION_LABEL[r.swapped] + "」交换" : "已绑定 " + keyLabel(code));
+          setBindNote(r && r.swapped
+            ? T("input.bind.swapped", { key: keyLabel(code), action: T(ACTION_LABEL[r.swapped]) })
+            : T("input.bind.bound", { key: keyLabel(code) }));
         } else {
-          setBindNote("已取消");
+          setBindNote(T("input.bind.cancelled"));
         }
         renderBindList();
         return;
@@ -94451,7 +95011,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       return true;
     }
     function navConfirm() {
-      if (overlayOpen()) { var cur = document.querySelector("#sx2-bind .x2-row.sel[data-sx2-bind]"); if (cur) { capturing = cur.dataset.sx2Bind; setBindNote("按下新的按键…（Esc 取消）"); return true; } }
+      if (overlayOpen()) { var cur = document.querySelector("#sx2-bind .x2-row.sel[data-sx2-bind]"); if (cur) { capturing = cur.dataset.sx2Bind; setBindNote(T("input.bind.press")); return true; } }
       var list = navList();
       if (!list.length) return false;
       var el = document.activeElement;
@@ -94504,16 +95064,17 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       d.className = "x2-bind";
       d.setAttribute("role", "dialog");
       d.setAttribute("aria-modal", "true");
-      d.setAttribute("aria-label", "按键重绑");
+      d.setAttribute("aria-label", T("input.bind.title"));
+      d.setAttribute("data-i18n-attr", "aria-label:input.bind.title");
       d.innerHTML =
         '<div class="x2-card" tabindex="-1">' +
-          '<h2>按键重绑</h2>' +
-          '<p class="x2-sub">点击一行，然后按下任意键完成绑定。Esc 取消；与已有按键冲突时自动交换。默认键位与引擎一致。</p>' +
+          '<h2 data-i18n="input.bind.title">' + T("input.bind.title") + '</h2>' +
+          '<p class="x2-sub" data-i18n="input.bind.help">' + T("input.bind.help") + '</p>' +
           '<div class="x2-grid" data-sx2-list></div>' +
           '<div class="x2-foot">' +
             '<p class="x2-note" data-sx2-note></p>' +
-            '<button class="x2-btn" data-sx2-reset>恢复默认</button>' +
-            '<button class="x2-btn" data-sx2-close>关闭</button>' +
+            '<button class="x2-btn" data-sx2-reset data-i18n="input.bind.reset">' + T("input.bind.reset") + '</button>' +
+            '<button class="x2-btn" data-sx2-close data-i18n="input.bind.close">' + T("input.bind.close") + '</button>' +
           '</div>' +
         '</div>';
       document.body.appendChild(d);
@@ -94525,11 +95086,11 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
           capturing = row.dataset.sx2Bind;
           var rows = d.querySelectorAll(".x2-row");
           for (var i = 0; i < rows.length; i++) rows[i].classList.toggle("sel", rows[i] === row);
-          setBindNote("按下新的按键…（Esc 取消）");
+          setBindNote(T("input.bind.press"));
           try { row.focus(); } catch (er) {}
           return;
         }
-        if (e.target.closest("[data-sx2-reset]")) { resetBinds(); renderBindList(); setBindNote("已恢复默认键位"); }
+        if (e.target.closest("[data-sx2-reset]")) { resetBinds(); renderBindList(); setBindNote(T("input.bind.resetDone")); }
         if (e.target.closest("[data-sx2-close]")) closeBindOverlay();
       });
       d.addEventListener("keydown", function (e) {
@@ -94554,9 +95115,10 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       var lastGroup = "";
       for (var i = 0; i < ACTION_ORDER.length; i++) {
         var a = ACTION_ORDER[i];
-        if (ACTION_GROUP[a] !== lastGroup) { lastGroup = ACTION_GROUP[a]; html += '<div class="x2-sect">' + lastGroup + "</div>"; }
+        var group = ACTION_GROUP[a];
+        if (group !== lastGroup) { lastGroup = group; html += '<div class="x2-sect">' + T(group) + "</div>"; }
         html += '<div class="x2-row" data-sx2-bind="' + a + '" tabindex="0">' +
-          '<span>' + ACTION_LABEL[a] + "</span><b>" + keyLabel(binds[a]) + "</b></div>";
+          '<span>' + T(ACTION_LABEL[a]) + "</span><b>" + keyLabel(binds[a]) + "</b></div>";
       }
       list.innerHTML = html;
     }
@@ -94586,11 +95148,16 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       var wrap = document.createElement("div");
       wrap.setAttribute("data-sx2-ui", "1");
       wrap.innerHTML =
-        "<h3>操控</h3>" +
-        '<div class="row"><label for="sx2-dz">手柄死区</label><div class="slider"><input id="sx2-dz" type="range" min="0.02" max="0.35" step="0.01"><output data-sx2-o="dz"></output></div></div>' +
-        '<div class="row"><label for="sx2-sens">手柄灵敏度</label><div class="slider"><input id="sx2-sens" type="range" min="0.3" max="2.5" step="0.05"><output data-sx2-o="sens"></output></div></div>' +
-        '<div class="row"><label>辅助瞄准</label><div class="seg" data-sx2-aim><button data-v="off">关</button><button data-v="low">低</button><button data-v="std">标准</button><button data-v="high">高</button></div></div>' +
-        '<div class="row"><label>按键重绑</label><button class="btn small" data-sx2-bindopen>打开按键重绑</button></div>';
+        '<h3 data-i18n="input.settings.section">' + T("input.settings.section") + "</h3>" +
+        '<div class="row"><label for="sx2-dz" data-i18n="ui2.settings.pad.deadzone">' + T("ui2.settings.pad.deadzone") + '</label><div class="slider"><input id="sx2-dz" type="range" min="0.02" max="0.35" step="0.01"><output data-sx2-o="dz"></output></div></div>' +
+        '<div class="row"><label for="sx2-sens" data-i18n="ui2.settings.pad.sens">' + T("ui2.settings.pad.sens") + '</label><div class="slider"><input id="sx2-sens" type="range" min="0.3" max="2.5" step="0.05"><output data-sx2-o="sens"></output></div></div>' +
+        '<div class="row"><label data-i18n="ui2.settings.pad.aimAssist">' + T("ui2.settings.pad.aimAssist") + '</label><div class="seg" data-sx2-aim>' +
+          '<button data-v="off" data-i18n="ui2.opt.shortOff">' + T("ui2.opt.shortOff") + "</button>" +
+          '<button data-v="low" data-i18n="ui2.opt.low">' + T("ui2.opt.low") + "</button>" +
+          '<button data-v="std" data-i18n="ui2.opt.std">' + T("ui2.opt.std") + "</button>" +
+          '<button data-v="high" data-i18n="ui2.opt.high">' + T("ui2.opt.high") + "</button>" +
+        "</div></div>" +
+        '<div class="row"><label data-i18n="ui2.settings.rebind">' + T("ui2.settings.rebind") + '</label><button class="btn small" data-sx2-bindopen data-i18n="ui2.settings.rebind.open">' + T("ui2.settings.rebind.open") + "</button></div>";
       var note = pane.querySelector(".panel-note");
       var audioBlock = pane.querySelector("[data-sx2-audio-ui]");
       if (note) pane.insertBefore(wrap, note);
@@ -94625,7 +95192,8 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         var b = document.createElement("button");
         b.className = "btn";
         b.setAttribute("data-sx2-pausebind", "1");
-        b.textContent = "按键重绑";
+        b.setAttribute("data-i18n", "ui2.menu.rebind");
+        b.textContent = T("ui2.menu.rebind");
         b.addEventListener("click", function (e) { e.preventDefault(); openBindOverlay(); });
         sets[i].appendChild(b);
       }
@@ -94635,7 +95203,9 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         if (panes[j].querySelector("[data-sx2-pane-bind]")) continue;
         var row = document.createElement("div");
         row.className = "row";
-        row.innerHTML = '<label>按键重绑</label><button class="btn small" data-sx2-pane-bind="1">打开按键重绑</button>';
+        row.innerHTML = '<label data-i18n="ui2.settings.rebind">' + T("ui2.settings.rebind") +
+          '</label><button class="btn small" data-sx2-pane-bind="1" data-i18n="ui2.settings.rebind.open">' +
+          T("ui2.settings.rebind.open") + "</button>";
         row.querySelector("button").addEventListener("click", function (e) { e.preventDefault(); openBindOverlay(); });
         panes[j].appendChild(row);
       }
@@ -94648,10 +95218,12 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       function ensure() {
         if (!G.input.touch) return;
         if (ui.querySelector("[data-sx2-touch]")) return;
-        var mk = function (label, code, style) {
+        var mk = function (labelKey, code, style) {
+          var label = T(labelKey);
           var b = document.createElement("button");
           b.className = "t-btn x2-touch";
           b.setAttribute("data-sx2-touch", code);
+          b.setAttribute("data-sx2-label", labelKey);
           b.setAttribute("aria-label", label);
           b.innerHTML = "<span>" + label + "</span>";
           b.style.cssText = style;
@@ -94673,11 +95245,33 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
           return b;
         };
         // 近战（V）+ 滑铲（C 语义），不覆盖已有按钮
-        mk("近战", "KeyV", "right:calc(20px + var(--sar));bottom:calc(322px + var(--sab));");
-        mk("滑铲", "KeyC", "right:calc(88px + var(--sar));bottom:calc(322px + var(--sab));");
+        mk("ui2.controls.melee", "KeyV", "right:calc(20px + var(--sar));bottom:calc(322px + var(--sab));");
+        mk("input.touch.slide", "KeyC", "right:calc(88px + var(--sar));bottom:calc(322px + var(--sab));");
       }
       ensure();
       addEventListener("touchstart", function () { setTimeout(ensure, 60); }, { passive: true, capture: true });
+    }
+
+    /* ------------------------------------------------------------ 语言切换 */
+    /* 静态标签由 data-i18n 更新；动作名 / 键名 / 触屏按钮按 key 重绘 */
+    function applyLang() {
+      try {
+        var I = I18n();
+        if (I && typeof I.applyDom === "function") I.applyDom(document);
+      } catch (e) {}
+      try { renderBindList(); } catch (e) {}
+      try {
+        var touch = document.querySelectorAll("[data-sx2-touch]");
+        for (var i = 0; i < touch.length; i++) {
+          var labelKey = touch[i].getAttribute("data-sx2-label");
+          if (!labelKey) continue;
+          var v = T(labelKey);
+          var sp = touch[i].querySelector("span");
+          if (sp && sp.textContent !== v) sp.textContent = v;
+          touch[i].setAttribute("aria-label", v);
+        }
+      } catch (e) {}
+      try { setBindNote(""); } catch (e) {}
     }
 
     /* ------------------------------------------------------------ 引擎挂接 */
@@ -94712,6 +95306,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       injectSettingsUI();
       addPauseBindButton();
       addTouchButtons();
+      try { if (G.events) G.events.on("sx:lang", applyLang); } catch (e) {}
       addEventListener("keydown", onKeyDown, true);
       addEventListener("keyup", onKeyUp, true);
       addEventListener("blur", releaseAll, true);
@@ -96333,6 +96928,9 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
      过载冲刺 / EMP / 残响分身
    - 只从 G.enemies.list 找 boss，复用 boss.js 的血条，不重复创建
    - 所有伤害只在 exec 阶段发生；预警 ≥0.6s，红环 + 激光 + 音效
+   - V53 CLI-1：逻辑全部走 fixedUpdate（tickLogic），update 只做表现
+   - V53 ARCH-2：高频空 catch 统一走 SXErrors.soft('boss2:<tag>')
+   - V53 ARCH-3：__SX_BOSS.logicState() 提供无 DOM 的确定性状态快照
    ===================================================================== */
 (function () {
   "use strict";
@@ -96395,6 +96993,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     summons: [], echoes: [],
     announced: {}, barBase: "", lastBarSig: "",
     hudGlitch: 0, empEl: null, queue: [],
+    barForce: false, barStale: false, glitchReset: false,
     debug: false, debugEl: null,
     lock: null, dashFrom: null, dashTo: null, dashT: 0, dashDur: 0.26, dashHit: false,
     shotsFired: 0, hits: 0, execCount: 0, telegraphCount: 0,
@@ -96406,18 +97005,33 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   var registered = false;
 
   /* ------------------------------------------------------- 小工具 */
+  // V53 ARCH-2：高频路径不再用空 catch 静默吞错。SXErrors.soft 按标签计数、
+  // 每个标签只记一条诊断；缺少诊断接口时退回 window.__errors 环形缓冲。
+  function soft(tag, e) {
+    try {
+      if (typeof window !== "undefined" && window.SXErrors && typeof window.SXErrors.soft === "function") {
+        window.SXErrors.soft("boss2:" + tag, e);
+        return;
+      }
+    } catch (_) { /* 诊断失败不能影响调用方 */ }
+    try {
+      if (typeof window !== "undefined" && window.__errors) {
+        window.__errors.push("[boss2:" + tag + "] " + ((e && e.stack) || e));
+      }
+    } catch (_) { /* 只读数组：仍然吞掉并继续 */ }
+  }
   function emit(name, payload) {
-    try { if (G && G.events && G.events.emit) G.events.emit(name, payload || {}); } catch (e) {}
+    try { if (G && G.events && G.events.emit) G.events.emit(name, payload || {}); } catch (e) { soft("emit", e); }
   }
   function sfx(name, opts) {
-    try { if (G && G.audio && G.audio.play) G.audio.play(name, opts || {}); } catch (e) {}
+    try { if (G && G.audio && G.audio.play) G.audio.play(name, opts || {}); } catch (e) { soft("sfx", e); }
   }
   function shake(v) {
-    try { if (G && G.player && G.player.addShake) G.player.addShake(v); } catch (e) {}
+    try { if (G && G.player && G.player.addShake) G.player.addShake(v); } catch (e) { soft("shake", e); }
   }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function mission() {
-    try { return (G && G.game && G.game.currentMission) || null; } catch (e) { return null; }
+    try { return (G && G.game && G.game.currentMission) || null; } catch (e) { soft("mission", e); return null; }
   }
   function isFinalMission(m) {
     return !!m && (m.id === "m6" || (m.bossHp | 0) >= 2600 || /终形/.test(String(m.bossName || "")));
@@ -96426,10 +97040,10 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     try {
       var y = G.physics.groundHeight(x, z, 8);
       return typeof y === "number" && isFinite(y) ? y : 0;
-    } catch (e) { return 0; }
+    } catch (e) { soft("groundY", e); return 0; }
   }
   function walkable(x, z) {
-    try { return !!G.physics.nav.isWalkable(x, z); } catch (e) { return true; }
+    try { return !!G.physics.nav.isWalkable(x, z); } catch (e) { soft("walkable", e); return true; }
   }
   function vec3(v) {
     return v ? { x: +v.x.toFixed(2), y: +v.y.toFixed(2), z: +v.z.toFixed(2) } : null;
@@ -96496,7 +97110,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       group.position.set(x, y + 0.05, z);
       G.scene.add(group);
       return addFx(group, mats, geos, life, opts.kind || "ring", opts);
-    } catch (e) { return null; }
+    } catch (e) { soft("ringFx", e); return null; }
   }
 
   function laserFx(from, to, color, life) {
@@ -96509,7 +97123,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       var line = new THREE.Line(geo, mat);
       G.scene.add(line);
       return addFx(line, [mat], [geo], life, "laser");
-    } catch (e) { return null; }
+    } catch (e) { soft("laserFx", e); return null; }
   }
 
   function removeFx(rec) {
@@ -96519,9 +97133,9 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     if (rec.kind === "telegraph" && S.telegraphs > 0) S.telegraphs--;
     try {
       if (rec.obj && rec.obj.parent) rec.obj.parent.remove(rec.obj);
-      for (var k = 0; k < rec.geos.length; k++) { try { rec.geos[k].dispose(); } catch (e) {} }
-      for (var m = 0; m < rec.mats.length; m++) { try { rec.mats[m].dispose(); } catch (e) {} }
-    } catch (e) {}
+      for (var k = 0; k < rec.geos.length; k++) { try { rec.geos[k].dispose(); } catch (e) { soft("fx-dispose", e); } }
+      for (var m = 0; m < rec.mats.length; m++) { try { rec.mats[m].dispose(); } catch (e) { soft("fx-dispose", e); } }
+    } catch (e) { soft("fx-remove", e); }
     var j = S.moveFx.indexOf(rec);
     if (j >= 0) S.moveFx.splice(j, 1);
   }
@@ -96543,18 +97157,18 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       var op;
       if (f.kind === "wave") {
         var sc = 0.12 + (1 - k) * (f.growTo || 1);
-        try { f.obj.scale.setScalar(sc); } catch (e) {}
+        try { f.obj.scale.setScalar(sc); } catch (e) { soft("fx-tick", e); }
         op = k * 0.9;
       } else if (f.kind === "telegraph") {
         op = 0.28 + 0.62 * k;
-        try { f.obj.scale.setScalar(0.97 + 0.03 * (1 - k)); } catch (e) {}
+        try { f.obj.scale.setScalar(0.97 + 0.03 * (1 - k)); } catch (e) { soft("fx-tick", e); }
       } else {
         op = k * 0.9;
       }
       for (var m = 0; m < f.mats.length; m++) {
         try {
           f.mats[m].opacity = (m === 0 ? op : op * 0.14);
-        } catch (e) {}
+        } catch (e) { soft("fx-tick", e); }
       }
     }
   }
@@ -96577,17 +97191,18 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     }
     for (var j = 0; j < due.length; j++) {
       if (!G.game || G.game.state !== "playing") continue;      // V37：回调时再守一次
-      try { due[j].fn(); } catch (e) { console.error("[boss2] timer", e); }
+      try { due[j].fn(); } catch (e) { soft("timer", e); }
     }
   }
 
   /* ------------------------------------------------------- HUD / 血条 */
+  // V53 CLI-1：血条是表现层，只在 tickPresentation 里同步；逻辑层只置脏标记。
   function captureBarBase() {
     var base = "";
     try {
       var t = document.querySelector(".x-boss-k");
       if (t) base = String(t.textContent || "").replace(/\s*｜.*$/, "").trim();
-    } catch (e) {}
+    } catch (e) { soft("bar-base", e); }
     if (!base) {
       var m = mission();
       base = (m && m.bossName) || "港区主控 · 蜃";
@@ -96607,7 +97222,12 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         barPips = barEl ? barEl.querySelectorAll(".x-boss-pips em") : null;
         barTitle = barEl ? barEl.querySelector(".x-boss-k") : null;
       }
+      if (!S.active) {
+        if (S.barStale && barEl) { S.barStale = false; barEl.classList.remove("on"); }
+        return;
+      }
       if (!barEl) return;
+      if (!S.barBase) captureBarBase();
       var pips = barPips;
       for (var i = 0; pips && i < pips.length; i++) pips[i].classList.toggle("on", i >= S.phase);
       if (barTitle && barTitle.isConnected) {
@@ -96619,7 +97239,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         barTitle = barEl.querySelector(".x-boss-k");
       }
       S.lastBarSig = S.phase + "|" + (S.final ? 1 : 0) + "|" + S.phase;
-    } catch (e) {}
+    } catch (e) { soft("bar-sync", e); }
   }
 
   /* ------------------------------------------------------- 阶段 */
@@ -96635,8 +97255,8 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       warn = finalNow ? "蜃·终形 · 坍缩开始" : "主控过载 · 核心脱离吊臂";
       radio = finalNow ? "反应堆失稳！安全区在缩小，借柱子躲开贯穿光束。" : "核心落地了！躲开冲刺，EMP 能让它短路。";
     }
-    try { if (G.hud && G.hud.warn) G.hud.warn(warn, 3.4); } catch (e) {}
-    try { if (G.hud && G.hud.radio) G.hud.radio(radio, 4.2); } catch (e) {}
+    try { if (G.hud && G.hud.warn) G.hud.warn(warn, 3.4); } catch (e) { soft("announce", e); }
+    try { if (G.hud && G.hud.radio) G.hud.radio(radio, 4.2); } catch (e) { soft("announce", e); }
     sfx("alert", { gain: 0.8, pitch: n === 2 ? 0.55 : 0.72 });
     emit("sx:boss2-announce", { phase: n, text: warn, at: S.clock, final: finalNow });
   }
@@ -96658,7 +97278,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     if (n === 2) S.queue = ["dash", "emp"];
     else if (n === 1 && !S.once.summon) S.queue = ["summon"];
     if (n !== prev) announcePhase(n);
-    syncBar(true);
+    S.barForce = true;
     emit("sx:boss2-phase", { phase: n, prev: prev, at: S.clock, final: S.final });
   }
 
@@ -96693,6 +97313,9 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     S.queue = n === 2 ? ["dash", "emp"] : (n === 1 && !S.once.summon ? ["summon"] : []);
     S.globalCd = 0.15;
     applyPhase(n, true);
+    // API/调试入口（不在固定步内）：立即刷新血条，保持 V34 起的外部行为。
+    try { syncBar(true); } catch (e) { soft("bar-sync", e); }
+    S.barForce = false;
     emit("sx:boss2-forced", { phase: n, at: S.clock });
     return stateSnapshot();
   }
@@ -96876,11 +97499,11 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     var P = G && G.player;
     if (!P || !P.alive) return false;
     var ok = true;
-    try { P.damage(amount, from); } catch (e) { ok = false; }
+    try { P.damage(amount, from); } catch (e) { soft("hurt", e); ok = false; }
     if (!ok) return false;
-    try { P.addShake(tag === "dash" ? 0.8 : 0.5); } catch (e) {}
+    try { P.addShake(tag === "dash" ? 0.8 : 0.5); } catch (e) { soft("hurt", e); }
     S.hits++;
-    try { if (G.hud && G.hud.hit) G.hud.hit(); } catch (e) {}
+    try { if (G.hud && G.hud.hit) G.hud.hit(); } catch (e) { soft("hurt", e); }
     emit("sx:boss-attack-hit", {
       move: tag, damage: amount, at: S.clock,
       dist: +(dist || 0).toFixed(2), telegraph: MOVES[tag] ? MOVES[tag].telegraph : 0
@@ -96939,12 +97562,12 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         Math.cos(ang) * Math.cos(pitch)
       ).normalize();
       var hit = false;
-      try { hit = G.combat.enemyShot(muzzle, d, { damage: 8, range: 120 }); } catch (e) {}
+      try { hit = G.combat.enemyShot(muzzle, d, { damage: 8, range: 120 }); } catch (e) { soft("fan", e); }
       try {
         G.fx.tracer(muzzle, muzzle.clone().addScaledVector(d, 40), {
           color: HOT_COLOR, speed: 280, width: 0.055
         });
-      } catch (e) {}
+      } catch (e) { soft("fan", e); }
       S.shotsFired++;
       if (hit) { anyHit = true; S.hits++; }
     }
@@ -96958,7 +97581,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   function spawnKind(kinds, pos) {
     for (var i = 0; i < kinds.length; i++) {
       var e = null;
-      try { e = G.enemies.spawn(kinds[i], pos, { state: "alert" }); } catch (err) { e = null; }
+      try { e = G.enemies.spawn(kinds[i], pos, { state: "alert" }); } catch (err) { soft("spawn", err); e = null; }
       if (e) return e;
     }
     return null;
@@ -96986,7 +97609,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     }
     emit("sx:boss2-summon", { count: made.length, kinds: made, at: S.clock });
     if (made.length) {
-      try { G.hud.warn("蜃 · 护盾无人机 ×" + made.length, 2.8); } catch (err) {}
+      try { G.hud.warn("蜃 · 护盾无人机 ×" + made.length, 2.8); } catch (err) { soft("summon", err); }
       sfx("impact_metal", { gain: 0.6, pitch: 0.7 });
     }
   }
@@ -97023,7 +97646,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     var k = clamp(S.dashT / S.dashDur, 0, 1);
     var x = S.dashFrom.x + (S.dashTo.x - S.dashFrom.x) * k;
     var z = S.dashFrom.z + (S.dashTo.z - S.dashFrom.z) * k;
-    try { e.pos.set(x, groundY(x, z), z); } catch (err) {}
+    try { e.pos.set(x, groundY(x, z), z); } catch (err) { soft("dash", err); }
     var P = G.player;
     if (!S.dashHit && P && P.alive) {
       var d = Math.hypot(P.pos.x - x, P.pos.z - z);
@@ -97034,7 +97657,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       }
     }
     if (k >= 1) {
-      try { G.fx.explosion(new THREE.Vector3(x, groundY(x, z) + 0.6, z), 1.1); } catch (err) {}
+      try { G.fx.explosion(new THREE.Vector3(x, groundY(x, z) + 0.6, z), 1.1); } catch (err) { soft("dash", err); }
       finishMove();
     }
   }
@@ -97047,19 +97670,19 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       document.body.appendChild(d);
       S.empEl = d;
       return d;
-    } catch (e) { return null; }
+    } catch (e) { soft("emp-overlay", e); return null; }
   }
 
   function execEmp() {
     S.hudGlitch = 1.5;
-    try { document.body.classList.add("sx-emp"); } catch (e) {}
+    try { document.body.classList.add("sx-emp"); } catch (e) { soft("emp", e); }
     var over = ensureEmpOverlay();
     if (over) over.style.opacity = "1";
     emit("sx:emp", {
       source: "boss", enemy: S.ref, at: S.clock, duration: 1.5,
       radius: 999, pos: S.ref ? vec3(S.ref.pos) : null
     });
-    try { if (G.hud && G.hud.warn) G.hud.warn("EMP 脉冲 · HUD 故障 1.5s", 2.6); } catch (e) {}
+    try { if (G.hud && G.hud.warn) G.hud.warn("EMP 脉冲 · HUD 故障 1.5s", 2.6); } catch (e) { soft("emp", e); }
     sfx("alert", { gain: 0.7, pitch: 0.5 });
     S.shotsFired++;
   }
@@ -97084,12 +97707,12 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       u.__sxEcho = true;
       u.shotDamage = 12;
       u.coolMul = 0.85;
-      try { if (u.rig && u.rig.group) u.rig.group.scale.setScalar(1.35); } catch (e) {}
+      try { if (u.rig && u.rig.group) u.rig.group.scale.setScalar(1.35); } catch (e) { soft("echo", e); }
       S.echoes.push(u);
     }
     emit("sx:boss2-echo", { count: S.echoes.length, hp: hp, at: S.clock });
     if (S.echoes.length) {
-      try { G.hud.warn("残响 · 幻影投射 ×" + S.echoes.length, 3); } catch (e) {}
+      try { G.hud.warn("残响 · 幻影投射 ×" + S.echoes.length, 3); } catch (e) { soft("echo", e); }
     }
     return S.echoes.length;
   }
@@ -97101,11 +97724,11 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     if (!e) return;
     // V37：引擎没有 G.enemies.retire；回收必须走 debug.ctx.retire。
     // 先标记 sx2.dead，避免回收后残留的 post/召唤逻辑再跑一帧。
-    try { if (e.sx2) e.sx2.dead = true; } catch (err) {}
+    try { if (e.sx2) e.sx2.dead = true; } catch (err) { soft("retire", err); }
     try {
       var ctx = G && G.enemies && G.enemies.debug && G.enemies.debug.ctx;
       if (e.active !== false && ctx && typeof ctx.retire === "function") ctx.retire(e);
-    } catch (err) {}
+    } catch (err) { soft("retire", err); }
   }
   function stepSummons() {
     for (var i = S.summons.length - 1; i >= 0; i--) {
@@ -97128,6 +97751,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
 
   /* ------------------------------------------------------- EMP 故障 */
   function tickGlitch(dt) {
+    if (S.glitchReset) { S.glitchReset = false; resetGlitch(); }
     if (!G || !G.game || G.game.state !== "playing") return;   // V37：暂停/非 playing 不推进
     if (S.hudGlitch > 0) {
       S.hudGlitch -= dt;
@@ -97138,8 +97762,8 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   }
   function resetGlitch() {
     S.hudGlitch = 0;
-    try { document.body.classList.remove("sx-emp"); } catch (e) {}
-    if (S.empEl) { try { S.empEl.style.opacity = "0"; } catch (e) {} }
+    try { document.body.classList.remove("sx-emp"); } catch (e) { soft("glitch-reset", e); }
+    if (S.empEl) { try { S.empEl.style.opacity = "0"; } catch (e) { soft("glitch-reset", e); } }
   }
 
   /* ------------------------------------------------------- 遭遇管理 */
@@ -97172,18 +97796,16 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     S.phase = phaseFrom(e);
     S.announced[0] = 1;
     S.globalCd = 0.6;
-    captureBarBase();
-    syncBar(true);
+    S.barBase = "";
+    S.barForce = true;
     emit("sx:boss2-start", { enemy: e, final: S.final, phase: S.phase, at: S.clock });
     return true;
   }
 
   function cleanup(reason) {
-    // V37：无论是否有活动 BOSS，都摘掉血条 on 类，避免死亡后残留
-    try {
-      var staleBar = document.querySelector(".x-boss");
-      if (staleBar) staleBar.classList.remove("on");
-    } catch (e) {}
+    // V37：无论是否有活动 BOSS，都摘掉血条 on 类，避免死亡后残留。
+    // V53 CLI-1：DOM 操作交给下一帧 tickPresentation（逻辑层不查 DOM）。
+    S.barStale = true;
     if (!S.active && !S.ref) return;
     var info = {
       reason: reason || "unknown",
@@ -97208,12 +97830,11 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     S.echoes.length = 0;
     cancelMove();
     clearFx();
-    resetGlitch();
+    S.glitchReset = true;
     S.active = false;
     S.ref = null;
     S.barBase = "";
-    syncBar(true);
-    updateDebug();
+    S.barForce = true;
     emit("sx:boss2-dead", info);
   }
 
@@ -97244,6 +97865,9 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     S.telegraphCount = 0;
     S.barBase = "";
     S.lastBarSig = "";
+    S.barForce = false;
+    S.barStale = false;
+    S.glitchReset = false;
     S.cleanupInfo = null;
     S.active = false;
     S.ref = null;
@@ -97253,28 +97877,42 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     S.lock = null;
   }
 
-  function tick(dt) {
+  /* ------------------------------------------------------- 逻辑（固定步 60Hz） */
+  // V53 CLI-1：scanBoss/冷却/阶段/移动/召唤/计时器都在固定步里推进，
+  // 与渲染帧率解耦；__SX_LOOP.step(n) 因此能精确驱动 BOSS。
+  function tickLogic(h) {
+    if (!G || !G.game) return;
+    // 暂停/标题/死亡/结算：逻辑与时钟都冻结（不改状态，不推进冷却）
+    if (G.game.state !== "playing") return;
+    if (!(typeof h === "number" && isFinite(h) && h > 0)) return;
+    // V53 修正：BOSS 未激活时不累积 S.clock，避免重开行动后 hash 携带上一局时间。
+    if (!S.active) {
+      scanBoss();
+      if (!S.active) return;
+    }
+    S.clock += h;
+    if (!S.ref || !S.ref.alive || S.ref.active === false) { cleanup("dead"); return; }
+    S.globalCd = Math.max(0, S.globalCd - h);
+    S.engineGap = Math.max(0, S.engineGap - h);
+    for (var id in S.cool) S.cool[id] = Math.max(0, S.cool[id] - h);
+    updatePhase();
+    updateMove(h);
+    chooseMove();
+    stepSummons();
+    stepEchoes();
+    tickTimers(h);
+  }
+
+  /* ------------------------------------------------------- 表现（渲染帧） */
+  // 只做视觉/DOM：特效淡出、EMP 故障叠加、血条、调试面板。
+  function tickPresentation(dt) {
     if (!G) return;
-    S.clock += dt;
-    if (!S.active) scanBoss();
-    if (S.active && (!S.ref || !S.ref.alive || S.ref.active === false)) cleanup("dead");
-    if (S.active && G.game && G.game.state === "playing") {
-      S.globalCd = Math.max(0, S.globalCd - dt);
-      S.engineGap = Math.max(0, S.engineGap - dt);
-      for (var id in S.cool) S.cool[id] = Math.max(0, S.cool[id] - dt);
-      updatePhase();
-      updateMove(dt);
-      chooseMove();
-      stepSummons();
-      stepEchoes();
-      syncBar();
-    }
-    // V37：暂停/非 playing 时不推进定时器与 EMP 故障
-    if (G.game && G.game.state === "playing") {
-      tickTimers(dt);
-      tickGlitch(dt);
-    }
-    tickFx(dt);
+    if (!(typeof dt === "number" && isFinite(dt) && dt > 0)) dt = 0.016;
+    var playing = !!(G.game && G.game.state === "playing");
+    if (playing) tickFx(dt);          // 暂停时特效定格，恢复后继续
+    tickGlitch(dt);                  // 内部自带 playing 门控与待重置标记
+    syncBar(!!S.barForce);
+    S.barForce = false;
     updateDebug();
   }
 
@@ -97287,7 +97925,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       document.body.appendChild(d);
       S.debugEl = d;
       return d;
-    } catch (e) { return null; }
+    } catch (e) { soft("debug-panel", e); return null; }
   }
   function toggleDebug() {
     S.debug = !S.debug;
@@ -97301,7 +97939,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     if (!d) return;
     var html = "<b>BOSS 攻击冷却 · F6</b>";
     if (!S.active) {
-      d.innerHTML = html + '<div class="row">无 BOSS</div>';
+      try { d.innerHTML = html + '<div class="row">无 BOSS</div>'; } catch (e) { soft("debug-draw", e); }
       return;
     }
     var e = S.ref || {};
@@ -97319,7 +97957,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       parts.push(id + " " + (S.once[id] ? "✓" : cd > 0 ? cd.toFixed(1) + "s" : "READY"));
     }
     html += '<div class="row">' + parts.join(" · ") + "</div>";
-    d.innerHTML = html;
+    try { d.innerHTML = html; } catch (e) { soft("debug-draw", e); }
   }
 
   /* ------------------------------------------------------- 对外 API */
@@ -97338,7 +97976,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
           pipsTotal: pips.length, visible: b.classList.contains("on")
         };
       }
-    } catch (err) {}
+    } catch (err) { soft("bar-state", err); }
     var cds = {};
     for (var id in S.cool) cds[id] = +S.cool[id].toFixed(2);
     return {
@@ -97393,8 +98031,8 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       e = G.enemies.spawn("boss", new THREE.Vector3(x, groundY(x, z), z), {
         state: "alert", target: P ? P.pos : null
       });
-    } catch (err) { e = null; }
-    if (e) { try { G.game.run.bossAlive = true; } catch (err2) {} }
+    } catch (err) { soft("spawn-boss", err); e = null; }
+    if (e) { try { G.game.run.bossAlive = true; } catch (err2) { soft("spawn-boss", err2); } }
     return e;
   }
 
@@ -97416,14 +98054,39 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     spawnEchoes();
     syncBar(true);
     emit("sx:boss2-final", { enemy: e, at: S.clock });
-    try { if (G.hud && G.hud.warn) G.hud.warn("蜃 · 终形 · 残响展开", 3.5); } catch (err) {}
+    try { if (G.hud && G.hud.warn) G.hud.warn("蜃 · 终形 · 残响展开", 3.5); } catch (err) { soft("final", err); }
     sfx("alert", { gain: 0.8, pitch: 0.55 });
     return stateSnapshot();
+  }
+
+  // V53 ARCH-3：确定性状态快照（无 DOM 查询），供 __SX_LOOP 的 stateHash
+  // 与无头单测使用；字段全部来自固定步逻辑，不含任何渲染/时间随机量。
+  function logicState() {
+    var e = S.ref;
+    var cds = {};
+    for (var id in S.cool) cds[id] = +(+S.cool[id] || 0).toFixed(3);
+    return {
+      active: !!S.active,
+      phase: S.phase | 0,
+      final: !!S.final,
+      hp: e ? Math.round(e.hp || 0) : 0,
+      maxHp: e ? Math.round(e.maxHp || 0) : 0,
+      move: S.move || "",
+      stage: S.stage || "",
+      cooldowns: cds,
+      clock: +(+S.clock || 0).toFixed(3),
+      globalCd: +(+S.globalCd || 0).toFixed(3),
+      timers: S.timers.length,
+      summons: S.summons.length,
+      echoes: S.echoes.length,
+      queue: S.queue.length ? S.queue.join(">") : ""
+    };
   }
 
   window.__SX_BOSS = {
     version: VERSION,
     state: function () { return stateSnapshot(); },
+    logicState: logicState,
     attacks: function () { return attacksFor(S.phase); },
     forcePhase: function (n) { return forcePhase(n); },
     spawnFinal: function () { return spawnFinal(); }
@@ -97445,7 +98108,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         "#sx-boss-debug .row{white-space:nowrap;}"
       ].join("\n");
       document.head.appendChild(css);
-    } catch (e) {}
+    } catch (e) { soft("css", e); }
   }
 
   /* ------------------------------------------------------- 事件 */
@@ -97478,12 +98141,12 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     if (!ev) return;
     var k = ev.key || "";
     if (k === "F6" || ev.keyCode === 117) {
-      try { ev.preventDefault(); } catch (e) {}
+      try { ev.preventDefault(); } catch (e) { soft("key", e); }
       toggleDebug();
     }
   }
 
-  try { document.addEventListener("keydown", onKey, true); } catch (e) {}
+  try { document.addEventListener("keydown", onKey, true); } catch (e) { soft("key-bind", e); }
 
   /* ------------------------------------------------------- 系统注册 */
   var sys = {
@@ -97501,7 +98164,13 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         G.events.on("enemy:melee", onEnemyMelee);
       }
     },
-    update: function (dt) { tick(dt || 0.016); },
+    // V53 CLI-1：玩法逻辑走固定步；update 只做表现（DOM/特效）。
+    fixedUpdate: function (cmd, h) {
+      try { tickLogic(h); } catch (e) { soft("fixedUpdate", e); }
+    },
+    update: function (dt) {
+      try { tickPresentation(dt); } catch (e) { soft("presentation", e); }
+    },
     onState: function (next) {
       if (next === "intro" || next === "title" || next === "dead" || next === "result") cleanup("state:" + next);
       else if (next === "playing") scanBoss();
@@ -97509,6 +98178,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     dispose: function () { cleanup("dispose"); }
   };
 
+  var registerFails = 0;
   function tryRegister() {
     if (registered) return true;
     try {
@@ -97517,7 +98187,11 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         registered = true;
         return true;
       }
-    } catch (e) { console.error("[boss2] register", e); }
+    } catch (e) {
+      // 低频启动失败保留一条 console.error，之后按标签限频
+      if (++registerFails === 1) console.error("[boss2] register", e);
+      else soft("register", e);
+    }
     return false;
   }
   if (!tryRegister()) {
@@ -98351,7 +99025,8 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     exposeAPI();
     // 档案页是低频界面：独立轮询一次 continue 入口，避免错过 openMissions 的下一帧
     try {
-      setInterval(function () { if (booted) { try { syncScreen(); } catch (e) {} } }, 500);
+      // PERF-4：页面不可见时不轮询档案页 DOM。
+      setInterval(function () { if (booted && !document.hidden) { try { syncScreen(); } catch (e) {} } }, 500);
     } catch (e) {}
     try {
       cpCache = loadCP();
@@ -98408,10 +99083,13 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   };
   // V37：8 关 × 3 挑战 = 24；档位与徽章上限同步到 24（不再硬编码 18）。
   var CHALLENGE_TIERS = [3, 6, 9, 12, 15, 18, 21, 24];
-  var CROSS_AT = { 3: "绿色准星", 6: "红色准星", 9: "金色准星" };
+  var CROSS_AT = { 3: "progress.cross.3", 6: "progress.cross.6", 9: "progress.cross.9" };
 
   var DIFF_MUL = { recruit: 0.9, normal: 1, veteran: 1.08, nightmare: 1.16 };
-  var DIFF_LABEL = { recruit: "新兵", normal: "标准", veteran: "老兵", nightmare: "噩梦" };
+  var DIFF_LABEL = {
+    recruit: "progress.diff.recruit", normal: "progress.diff.normal",
+    veteran: "progress.diff.veteran", nightmare: "progress.diff.nightmare"
+  };
 
   /* 每关评级参数：标准时间 / 标准受伤 / 标准击杀（可由 mission.timeTarget 覆盖） */
   var PAR = {
@@ -98423,24 +99101,28 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     m6: { time: 480, damage: 90, kills: 28 },
     train: { time: 90, damage: 0, kills: 20 }
   };
-  var GRADE_LABEL = { S: "完美突击", A: "干净利落", B: "稳扎稳打", C: "险象环生" };
+  var GRADE_LABEL = {
+    S: "ui2.rating.perfect", A: "ui2.rating.clean", B: "ui2.rating.solid", C: "ui2.rating.risky"
+  };
   var ELITE_VARIANTS = { elite: 1, heavy: 1, marksman: 1 };
 
-  /* 成就：12 个（挑战 9/18 是同一成就的两个阶段） */
+  /* 成就：12 个（挑战 9/18 是同一成就的两个阶段）；名称/说明只存 key。 */
   var ACHIEVEMENTS = [
-    { id: "first_blood", name: "首杀", desc: "完成第一次击杀", metric: "kills", need: 1 },
-    { id: "headshot50", name: "弹无虚发", desc: "累计爆头击杀 50 次", metric: "headshots", need: 50 },
-    { id: "flawless", name: "毫发无伤", desc: "无伤完成一次行动", metric: "flawlessRuns", need: 1 },
-    { id: "speedrun", name: "争分夺秒", desc: "在标准时间内完成一次行动", metric: "speedRuns", need: 1 },
-    { id: "relays_all", name: "全中继", desc: "单局切断全部中继", metric: "fullRelayRuns", need: 1 },
-    { id: "boss_kill", name: "屠龙者", desc: "击杀一次 BOSS", metric: "bossKills", need: 1 },
-    { id: "missions_all", name: "八面来风", desc: "通关 8 个行动", metric: "missionsCleared", need: 8 },
-    { id: "challenger", name: "挑战者", desc: "完成 9 个挑战（24 个达成大师）", metric: "challenges", need: 9, tier2: 24 },
-    { id: "train8000", name: "神枪手", desc: "训练场单局 8000 分", metric: "trainBest", need: 8000 },
-    { id: "mp10", name: "线上猎手", desc: "联机累计 10 次击杀", metric: "mpKills", need: 10 },
-    { id: "grenade3", name: "破片风暴", desc: "手雷累计 3 次击杀", metric: "grenadeKills", need: 3 },
-    { id: "melee5", name: "贴身格斗", desc: "近战累计 5 次击杀", metric: "meleeKills", need: 5 }
+    { id: "first_blood", metric: "kills", need: 1 },
+    { id: "headshot50", metric: "headshots", need: 50 },
+    { id: "flawless", metric: "flawlessRuns", need: 1 },
+    { id: "speedrun", metric: "speedRuns", need: 1 },
+    { id: "relays_all", metric: "fullRelayRuns", need: 1 },
+    { id: "boss_kill", metric: "bossKills", need: 1 },
+    { id: "missions_all", metric: "missionsCleared", need: 8 },
+    { id: "challenger", metric: "challenges", need: 9, tier2: 24 },
+    { id: "train8000", metric: "trainBest", need: 8000 },
+    { id: "mp10", metric: "mpKills", need: 10 },
+    { id: "grenade3", metric: "grenadeKills", need: 3 },
+    { id: "melee5", metric: "meleeKills", need: 5 }
   ];
+  function achName(def) { return t("ui2.ach." + def.id + ".name"); }
+  function achDesc(def) { return t("ui2.ach." + def.id + ".desc"); }
   var METRICS = [
     "kills", "headshots", "eliteKills", "bossKills", "grenadeKills", "meleeKills",
     "mpKills", "missionsCleared", "challenges", "trainBest", "flawlessRuns",
@@ -98461,6 +99143,10 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   var badgeAt = 0;
   var achWrap = null;
   var toastEl = null;
+  /* 最近一次渲染的结算数据：切换语言时按同数据重绘 */
+  var lastRating = null;
+  var lastRunCredits = null;
+  var lastTraining = null;
 
   /* ------------------------------------------------------------- utils */
   function n(v, d) {
@@ -98489,6 +99175,35 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   }
   function state() {
     try { return window.__SX ? window.__SX.S : null; } catch (e) { return null; }
+  }
+
+  /* ------------------------------------------------------------- i18n */
+  /* 所有玩家可见文案在渲染时取词，data 表只存 key：切语言后重绘即可生效。 */
+  function i18n() {
+    try { return window.SXI18n || null; } catch (e) { return null; }
+  }
+  function t(key, vars) {
+    var I = i18n();
+    if (I && typeof I.t === "function") return I.t(key, vars);
+    var ex = window.__SX_I18N_EXTRA;
+    var s = ex && ex.zh ? ex.zh[key] : null;
+    if (s == null) return key;
+    if (!vars) return s;
+    return String(s).replace(/\{(\w+)\}/g, function (_, name) {
+      return vars[name] == null ? "" : String(vars[name]);
+    });
+  }
+  /* 配件 id 形如 wid:slot:opt，直接映射到军械库词典键；拿不到时用调用方给的名称 */
+  function attachName(id, fallback) {
+    if (id) {
+      var parts = String(id).split(":");
+      if (parts.length === 3) {
+        var I = i18n();
+        var key = "ui2.ar.attach." + parts[0] + "." + parts[1] + "." + parts[2] + ".name";
+        if (I && typeof I.has === "function" && I.has(key)) return I.t(key);
+      }
+    }
+    return fallback || t("progress.unlock.attachment");
   }
 
   /* ------------------------------------------------------------ storage */
@@ -98586,7 +99301,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     e.credits -= price;
     e.unlocked.push(id);
     writeEconomy(e);
-    notify("已解锁 " + (name || "配件") + " · -" + price + " 信用点");
+    notify(t("progress.unlock.notify", { name: attachName(id, name), price: price }));
     sfx("ui:click", { gain: 0.7, pitch: 1.25 });
     return { ok: true, credits: e.credits, price: price };
   }
@@ -98675,8 +99390,8 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       var rec = achCache[def.id];
       out.push({
         id: def.id,
-        name: def.name,
-        desc: def.desc,
+        name: achName(def),
+        desc: achDesc(def),
         metric: def.metric,
         need: def.need,
         tier2: def.tier2 || 0,
@@ -98771,7 +99486,8 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       total: total,
       raw: Math.round(raw),
       grade: grade,
-      label: GRADE_LABEL[grade],
+      labelKey: GRADE_LABEL[grade],
+      label: t(GRADE_LABEL[grade]),
       diff: d,
       mul: mul,
       par: par,
@@ -98784,15 +99500,18 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     };
   }
   function hintFor(r) {
-    if (r.total >= 85) return "已达最高评级 S";
+    if (r.total >= 85) return t("progress.hint.max");
     var next = r.total >= 70 ? "S" : r.total >= 50 ? "A" : "B";
     var target = r.total >= 70 ? 85 : r.total >= 50 ? 70 : 50;
     var worst = "time", wv = r.parts.time;
     if (r.parts.kills < wv) { worst = "kills"; wv = r.parts.kills; }
     if (r.parts.surv < wv) { worst = "surv"; wv = r.parts.surv; }
     if (r.parts.obj < wv) { worst = "obj"; wv = r.parts.obj; }
-    var names = { time: "压缩用时", kills: "提高击杀", surv: "减少受伤", obj: "完成中继" };
-    return "距 " + next + " 还差 " + (target - r.total) + " 分 · " + names[worst] + "收益最高";
+    var names = {
+      time: "progress.hint.time", kills: "progress.hint.kills",
+      surv: "progress.hint.surv", obj: "progress.hint.obj"
+    };
+    return t("progress.hint.next", { next: next, n: target - r.total, tip: t(names[worst]) });
   }
 
   /* ------------------------------------------------------------------ UI */
@@ -98868,10 +99587,13 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       var wrap = ensureAchWrap();
       var item = document.createElement("div");
       item.className = "i";
+      /* 标记 id/tier：ext_ui2 的成就浮层按属性重绘，不依赖中文原文反查 */
+      item.setAttribute("data-sx-ach-id", def.id);
+      item.setAttribute("data-sx-ach-tier", String(tier > 1 ? 2 : 1));
       item.innerHTML =
-        '<div class="k">成就解锁' + (tier > 1 ? " · 大师" : "") + "</div>" +
-        '<b class="n">' + def.name + "</b>" +
-        '<span class="d">' + def.desc + "</span>";
+        '<div class="k">' + t(tier > 1 ? "ui2.ach.unlocked.master" : "ui2.ach.unlocked") + "</div>" +
+        '<b class="n">' + achName(def) + "</b>" +
+        '<span class="d">' + achDesc(def) + "</span>";
       wrap.appendChild(item);
       while (wrap.children.length > 3) wrap.removeChild(wrap.firstChild);
       setTimeout(function () { item.classList.add("on"); }, 30);
@@ -98879,7 +99601,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         item.classList.remove("on");
         setTimeout(function () { if (item.parentNode) item.parentNode.removeChild(item); }, 320);
       }, 2800);
-      notify("成就解锁 · " + def.name);
+      notify(t(tier > 1 ? "progress.ach.notifyMaster" : "progress.ach.notify", { name: achName(def) }));
       sfx("objective_done", { gain: 0.55, pitch: tier > 1 ? 1.15 : 1.45 });
       sfx("ui:click", { gain: 0.5, pitch: 1.2 });
     } catch (e) {}
@@ -98890,8 +99612,10 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     var e = readEconomy();
     var got = achievementCount();
     var chal = n(stats && stats.challenges);
-    var text = "信用点 <b>" + fmt(e.credits) + "</b> · 成就 <b>" + got + "/" + ACHIEVEMENTS.length +
-      "</b> · 挑战 <b>" + chal + "/" + challengeTotal() + "</b>";
+    var text = t("progress.badge", {
+      credits: fmt(e.credits), got: got, total: ACHIEVEMENTS.length,
+      chal: chal, chalTotal: challengeTotal()
+    });
     var badge = document.querySelector(".x-prog-badge");
     if (!badge) {
       var title = document.querySelector(".m-title");
@@ -98918,9 +99642,9 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     }
   }
   function maybeBadge() {
-    var t = nowMs();
-    if (t - badgeAt < 400) return;
-    badgeAt = t;
+    var at = nowMs();
+    if (at - badgeAt < 400) return;
+    badgeAt = at;
     updateBadges();
   }
 
@@ -98938,18 +99662,22 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     if (old && old.parentNode) old.parentNode.removeChild(old);
     var box = document.createElement("div");
     box.className = "x-rate";
-    var detail = "用时 " + clock(r0.time) + " / 标准 " + clock(r.par.time) +
-      " · 击杀 " + r0.kills + "/" + r.par.kills +
-      " · 受伤 " + Math.round(r0.damage) +
-      " · 中继 " + r0.relays + "/" + r0.relaysTotal;
+    lastRating = { r: r, r0: r0 };
+    var detail = t("progress.debrief.detail", {
+      time: clock(r0.time), par: clock(r.par.time),
+      kills: r0.kills, parKills: r.par.kills,
+      damage: Math.round(r0.damage), relays: r0.relays, total: r0.relaysTotal
+    });
+    var diffKey = DIFF_LABEL[r.diff];
     box.innerHTML =
-      partRow("用时", r.parts.time) +
-      partRow("击杀", r.parts.kills) +
-      partRow("生存", r.parts.surv) +
-      partRow("目标", r.parts.obj) +
-      '<div class="sum">评级 <b>' + r.grade + " · " + r.label + "</b> · 总分 " + r.total +
-      " · 难度 " + (DIFF_LABEL[r.diff] || r.diff) + " ×" + r.mul.toFixed(2) +
-      "<em>" + detail + "</em><em>" + hintFor(r) + "</em></div>";
+      partRow(t("progress.debrief.time"), r.parts.time) +
+      partRow(t("progress.debrief.kills"), r.parts.kills) +
+      partRow(t("progress.debrief.surv"), r.parts.surv) +
+      partRow(t("progress.debrief.obj"), r.parts.obj) +
+      '<div class="sum">' + t("progress.debrief.sum", {
+        grade: r.grade, label: t(r.labelKey), total: r.total,
+        diff: diffKey ? t(diffKey) : r.diff, mul: r.mul.toFixed(2)
+      }) + "<em>" + detail + "</em><em>" + hintFor(r) + "</em></div>";
     var rating = panel.querySelector(".m-rating");
     if (rating && rating.parentNode) rating.parentNode.insertBefore(box, rating.nextSibling);
     else panel.appendChild(box);
@@ -98963,10 +99691,12 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     var parts = r0.creditParts || {};
     var box = document.createElement("div");
     box.className = "x-credit";
-    box.innerHTML = "<b>+" + Math.round(n(r0.earned)) + "</b> 信用点 · 本局收益" +
-      "<em>击杀 " + (parts.kill | 0) + " · 爆头 " + (parts.headshot | 0) +
-      " · 精英 " + (parts.elite | 0) + " · BOSS " + (parts.boss | 0) +
-      " · 任务 +" + (parts.mission | 0) + " · 总余额 " + fmt(credits()) + "</em>";
+    lastRunCredits = r0;
+    box.innerHTML = t("progress.credit.run", { n: Math.round(n(r0.earned)) }) +
+      "<em>" + t("progress.credit.parts", {
+        kill: parts.kill | 0, head: parts.headshot | 0, elite: parts.elite | 0,
+        boss: parts.boss | 0, mission: parts.mission | 0, balance: fmt(credits())
+      }) + "</em>";
     var actions = panel.querySelector(".m-actions");
     panel.insertBefore(box, actions || null);
   }
@@ -98978,8 +99708,9 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     if (old && old.parentNode) old.parentNode.removeChild(old);
     var box = document.createElement("div");
     box.className = "x-credit";
-    box.innerHTML = "<b>+" + Math.round(gain) + "</b> 信用点 · 本局收益" +
-      "<em>训练得分 " + Math.round(score) + " × 0.05 · 总余额 " + fmt(credits()) + "</em>";
+    lastTraining = { gain: gain, score: score };
+    box.innerHTML = t("progress.credit.run", { n: Math.round(gain) }) +
+      "<em>" + t("progress.credit.train", { score: Math.round(score), balance: fmt(credits()) }) + "</em>";
     var actions = panel.querySelector(".x-tr-actions");
     panel.insertBefore(box, actions || null);
   }
@@ -99164,8 +99895,8 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   function challengeTotal() {
     try {
       if (window.__SX_CAMP && typeof window.__SX_CAMP.challengeTotal === "function") {
-        var t = Math.round(window.__SX_CAMP.challengeTotal());
-        if (t > 0) return t;
+        var total = Math.round(window.__SX_CAMP.challengeTotal());
+        if (total > 0) return total;
       }
       var ms = window.__SX_CAMP && window.__SX_CAMP.missions;
       if (ms && ms.length) return ms.length * 3;
@@ -99178,19 +99909,24 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     var awarded = stats.challengeRewards && typeof stats.challengeRewards === "object" ? stats.challengeRewards : {};
     var sum = 0, names = [];
     for (var i = 0; i < CHALLENGE_TIERS.length; i++) {
-      var t = CHALLENGE_TIERS[i];
-      var key = String(t);
-      if (count >= t && !awarded[key]) {
+      var tier = CHALLENGE_TIERS[i];
+      var key = String(tier);
+      if (count >= tier && !awarded[key]) {
         awarded[key] = true;
-        sum += CREDIT.challenge[t] || 0;
-        names.push(t + " 项" + (CROSS_AT[t] ? " · " + CROSS_AT[t] : ""));
+        sum += CREDIT.challenge[tier] || 0;
+        names.push(t(CROSS_AT[key] ? "progress.chal.tierCross" : "progress.chal.tier", {
+          n: tier, reward: CROSS_AT[key] ? t(CROSS_AT[key]) : ""
+        }));
       }
     }
     if (sum > 0) {
       stats.challengeRewards = awarded;
       saveStats();
       addCredits(sum, "挑战奖励");
-      notify("挑战 " + count + "/" + challengeTotal() + " · " + names.join("、") + " · +" + sum + " 信用点");
+      notify(t("progress.chal.notify", {
+        count: count, total: challengeTotal(),
+        names: names.join(t("progress.listSep")), sum: sum
+      }));
       sfx("objective_done", { gain: 0.6, pitch: 1.15 });
     }
   }
@@ -99227,6 +99963,15 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       saveStats();
       checkAchievements();
     }
+  }
+
+  /* -------------------------------------------------------------- 语言切换 */
+  /* 数据表存 key，切换语言后按最近一次结算数据重绘，避免停留在旧语言 */
+  function applyLang() {
+    try { updateBadges(); } catch (e) {}
+    try { if (lastRating) renderDebriefRating(lastRating.r, lastRating.r0); } catch (e) {}
+    try { if (lastRunCredits) renderDebriefCredits(lastRunCredits); } catch (e) {}
+    try { if (lastTraining) renderTrainingCredits(lastTraining.gain, lastTraining.score); } catch (e) {}
   }
 
   /* -------------------------------------------------------------- 观察器 */
@@ -99294,7 +100039,9 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     installDebug();
     updateBadges();
     setTimeout(function () { try { sync(); } catch (e) {} }, 300);
+    // PERF-4：页面不可见时不刷新成长/成就 DOM。
     var iv = setInterval(function () {
+      if (document.hidden) return;
       try { sync(); } catch (e) {}
     }, 2000);
     if (iv && typeof iv.unref === "function") iv.unref();
@@ -99328,6 +100075,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     G.events.on("sx:boss-dead", function () { try { checkAchievements(); } catch (e) {} });
     G.events.on("sx:training-start", onTrainingStart);
     G.events.on("sx:training-end", onTrainingEnd);
+    G.events.on("sx:lang", applyLang);
   }
 
   /* --------------------------------------------------------- 公共接口 */
@@ -99349,7 +100097,13 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     stats: function () { return copy(stats || {}); },
     definitions: function () {
       var out = [];
-      for (var i = 0; i < ACHIEVEMENTS.length; i++) out.push(copy(ACHIEVEMENTS[i]));
+      for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+        var src = ACHIEVEMENTS[i];
+        var def = copy(src);
+        def.name = achName(src);
+        def.desc = achDesc(src);
+        out.push(def);
+      }
       return out;
     }
   };
@@ -101060,6 +101814,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   }
 
   var lastFrameT = 0;
+  var ringSum = 0; // PERF-4：300 帧滚动和，避免每帧对环形缓冲做 O(n) 求和
   function wrapRender() {
     var base = G.render.frame;
     if (!base || base.__sxVisual) return;
@@ -101093,10 +101848,9 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
           var ms = now - lastFrameT;
           if (S.frames > 3) {
             S.ring.push(ms);
-            if (S.ring.length > 300) S.ring.shift();
-            var sum = 0;
-            for (var i = 0; i < S.ring.length; i++) sum += S.ring[i];
-            S.frameMs300 = sum / S.ring.length;
+            ringSum += ms;
+            if (S.ring.length > 300) ringSum -= S.ring.shift();
+            S.frameMs300 = ringSum / S.ring.length;
             S.frameMsAvg += (ms - S.frameMsAvg) * 0.08;
           }
         }
@@ -101440,43 +102194,47 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     if (!pane) return;
     var box = document.createElement("div");
     box.className = "sx-u2-block";
+    /* 文案只用 key：初始内容按当前语言取词，data-i18n 负责切语言后重绘 */
+    function lab(key, tag, attrs) {
+      return "<" + (tag || "label") + " " + (attrs || "") + ' data-i18n="' + key + '">' + t(key) + "</" + (tag || "label") + ">";
+    }
     box.innerHTML =
-      '<h3 data-i18n="ui2.settings.access.title">辅助</h3>' +
-      '<div class="row sx-lang-row"><label data-i18n="ui2.settings.language">语言</label>' +
-        '<div class="seg" role="group" aria-label="Language">' +
-          '<button type="button" data-sx-lang="zh-CN">中文</button>' +
-          '<button type="button" data-sx-lang="en">English</button>' +
+      lab("ui2.settings.access.title", "h3") +
+      '<div class="row sx-lang-row">' + lab("ui2.settings.language") +
+        '<div class="seg" role="group" data-i18n-attr="aria-label:ui2.settings.language">' +
+          '<button type="button" data-sx-lang="zh-CN" data-i18n="ui2.settings.lang.zh">' + t("ui2.settings.lang.zh") + '</button>' +
+          '<button type="button" data-sx-lang="en" data-i18n="ui2.settings.lang.en">' + t("ui2.settings.lang.en") + '</button>' +
         '</div>' +
-        '<p class="sx-hint" data-i18n="ui2.settings.language.hint"></p></div>' +
-      '<div class="row"><label data-i18n="ui2.settings.colorblind">色盲主题</label>' +
+        '<p class="sx-hint" data-i18n="ui2.settings.language.hint">' + t("ui2.settings.language.hint") + '</p></div>' +
+      '<div class="row">' + lab("ui2.settings.colorblind") +
         '<div class="seg" role="group" data-sx-cb>' +
-          '<button type="button" data-v="none" data-i18n="ui2.settings.colorblind.none"></button>' +
-          '<button type="button" data-v="rg" data-i18n="ui2.settings.colorblind.rg"></button>' +
-          '<button type="button" data-v="by" data-i18n="ui2.settings.colorblind.by"></button>' +
-        '</div><p class="sx-hint" data-i18n="ui2.settings.colorblind.hint"></p></div>' +
-      '<div class="row"><label for="sx-sub-bg" data-i18n="ui2.settings.subBg">字幕背景</label>' +
+          '<button type="button" data-v="none" data-i18n="ui2.settings.colorblind.none">' + t("ui2.settings.colorblind.none") + '</button>' +
+          '<button type="button" data-v="rg" data-i18n="ui2.settings.colorblind.rg">' + t("ui2.settings.colorblind.rg") + '</button>' +
+          '<button type="button" data-v="by" data-i18n="ui2.settings.colorblind.by">' + t("ui2.settings.colorblind.by") + '</button>' +
+        '</div><p class="sx-hint" data-i18n="ui2.settings.colorblind.hint">' + t("ui2.settings.colorblind.hint") + '</p></div>' +
+      '<div class="row">' + lab("ui2.settings.subBg", "label", 'for="sx-sub-bg"') +
         '<div class="slider"><input id="sx-sub-bg" type="range" min="0" max="100" step="5"><output data-sx-o="subBg"></output></div>' +
-        '<p class="sx-hint" data-i18n="ui2.settings.subBg.hint"></p></div>' +
-      '<div class="row"><label for="sx-safe" data-i18n="ui2.settings.safeArea">安全区边距</label>' +
+        '<p class="sx-hint" data-i18n="ui2.settings.subBg.hint">' + t("ui2.settings.subBg.hint") + '</p></div>' +
+      '<div class="row">' + lab("ui2.settings.safeArea", "label", 'for="sx-safe"') +
         '<div class="slider"><input id="sx-safe" type="range" min="0" max="48" step="4"><output data-sx-o="safe"></output></div></div>' +
-      '<div class="row"><label data-i18n="ui2.settings.textSize">文字大小</label>' +
+      '<div class="row">' + lab("ui2.settings.textSize") +
         '<div class="seg" role="group" data-sx-text>' +
-          '<button type="button" data-v="s" data-i18n="ui2.settings.textSize.s"></button>' +
-          '<button type="button" data-v="m" data-i18n="ui2.settings.textSize.m"></button>' +
-          '<button type="button" data-v="l" data-i18n="ui2.settings.textSize.l"></button>' +
+          '<button type="button" data-v="s" data-i18n="ui2.settings.textSize.s">' + t("ui2.settings.textSize.s") + '</button>' +
+          '<button type="button" data-v="m" data-i18n="ui2.settings.textSize.m">' + t("ui2.settings.textSize.m") + '</button>' +
+          '<button type="button" data-v="l" data-i18n="ui2.settings.textSize.l">' + t("ui2.settings.textSize.l") + '</button>' +
         '</div></div>' +
-      '<div class="row"><label for="sx-hud-op" data-i18n="ui2.settings.hudOpacity">HUD 不透明度</label>' +
+      '<div class="row">' + lab("ui2.settings.hudOpacity", "label", 'for="sx-hud-op"') +
         '<div class="slider"><input id="sx-hud-op" type="range" min="55" max="100" step="5"><output data-sx-o="hudOpacity"></output></div></div>' +
-      '<div class="row"><label data-i18n="ui2.settings.hud">HUD 元素</label>' +
+      '<div class="row">' + lab("ui2.settings.hud") +
         '<div class="sx-u2-toggle">' +
-          '<button type="button" class="btn small" data-sx-hud="compass" data-i18n="ui2.settings.hud.compass"></button>' +
-          '<button type="button" class="btn small" data-sx-hud="objective" data-i18n="ui2.settings.hud.objective"></button>' +
-          '<button type="button" class="btn small" data-sx-hud="ammo" data-i18n="ui2.settings.hud.ammo"></button>' +
-          '<button type="button" class="btn small" data-sx-hud="health" data-i18n="ui2.settings.hud.health"></button>' +
-          '<button type="button" class="btn small" data-sx-hud="feed" data-i18n="ui2.settings.hud.feed"></button>' +
-          '<button type="button" class="btn small" data-sx-hud="cross" data-i18n="ui2.settings.hud.cross"></button>' +
+          '<button type="button" class="btn small" data-sx-hud="compass" data-i18n="ui2.settings.hud.compass">' + t("ui2.settings.hud.compass") + '</button>' +
+          '<button type="button" class="btn small" data-sx-hud="objective" data-i18n="ui2.settings.hud.objective">' + t("ui2.settings.hud.objective") + '</button>' +
+          '<button type="button" class="btn small" data-sx-hud="ammo" data-i18n="ui2.settings.hud.ammo">' + t("ui2.settings.hud.ammo") + '</button>' +
+          '<button type="button" class="btn small" data-sx-hud="health" data-i18n="ui2.settings.hud.health">' + t("ui2.settings.hud.health") + '</button>' +
+          '<button type="button" class="btn small" data-sx-hud="feed" data-i18n="ui2.settings.hud.feed">' + t("ui2.settings.hud.feed") + '</button>' +
+          '<button type="button" class="btn small" data-sx-hud="cross" data-i18n="ui2.settings.hud.cross">' + t("ui2.settings.hud.cross") + '</button>' +
         '</div></div>' +
-      '<p class="sx-keyhint" data-i18n="ui2.controls.kbHint"></p>';
+      '<p class="sx-keyhint" data-i18n="ui2.controls.kbHint">' + t("ui2.controls.kbHint") + '</p>';
     var firstRow = pane.querySelector(".row");
     if (firstRow && firstRow.parentNode === pane) pane.insertBefore(box, firstRow);
     else pane.insertBefore(box, pane.firstChild);
@@ -101924,7 +102682,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       var cur2 = data2 ? (window.__SX_I18N_MISSIONS || [])[data2.current] : null;
       if (cur2) {
         var dd = missionLang(cur2);
-        text(".x-br-k", dd.chapter + " · " + (I && I.getLang() === "en" ? "Op " : "行动 ") + cur2.id.slice(1) + " · " + dd.name, brief);
+        text(".x-br-k", dd.chapter + " · " + t("ui2.brief.opCode", { code: cur2.id.slice(1) }) + " · " + dd.name, brief);
         text(".x-br-h", dd.name, brief);
         text(".x-br-sub", dd.sub, brief);
         var metas = brief.querySelectorAll(".x-br-meta > div");
@@ -102123,7 +102881,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       var r = oPrompt.call(hud, label, prog);
       var pl = document.querySelector(".h-plabel");
       if (pl && label) {
-        var key = (G.input && G.input.touch) ? "交互" : (G.input && G.input.gamepad && !G.input.locked) ? "Y" : "E";
+        var key = (G.input && G.input.touch) ? t("ui2.hud.touchKey") : (G.input && G.input.gamepad && !G.input.locked) ? "Y" : "E";
         pl.textContent = t("ui2.hud.hold", { key: key, label: trText(label) });
       }
       return r;
@@ -102398,15 +103156,23 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       var nEl = it.querySelector(".n"), dEl = it.querySelector(".d"), kEl = it.querySelector(".k");
+      /* V53：ext_progress 已按 key 渲染并写入 data-sx-ach-id/-tier；
+         旧构建没有属性时才回落到“中文名反查 / 原文正则”。 */
+      var attrId = it.getAttribute("data-sx-ach-id");
+      var attrTier = it.getAttribute("data-sx-ach-tier");
+      if (attrId) it.__sxAchId = attrId;
       var cur = nEl ? nEl.textContent : "";
       if (it.__sxZhName == null || (cur && cur !== it.__sxRenderedName)) {
         it.__sxZhName = cur;
-        if (ACH_BY_ZH && ACH_BY_ZH[cur]) it.__sxAchId = ACH_BY_ZH[cur];
+        if (!attrId && ACH_BY_ZH && ACH_BY_ZH[cur]) it.__sxAchId = ACH_BY_ZH[cur];
       }
       if (kEl) {
-        var ksrc = zhSource(kEl);
-        if (/大师/.test(ksrc)) it.__sxMaster = true;
-        else if (/成就解锁/.test(ksrc)) it.__sxMaster = false;
+        if (attrTier) it.__sxMaster = attrTier === "2";
+        else {
+          var ksrc = zhSource(kEl);
+          if (/大师/.test(ksrc)) it.__sxMaster = true;
+          else if (/成就解锁/.test(ksrc)) it.__sxMaster = false;
+        }
         renderZh(kEl, t(it.__sxMaster ? "ui2.ach.unlocked.master" : "ui2.ach.unlocked"));
       }
       var id = it.__sxAchId;
@@ -103785,7 +104551,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   var VERSION = 2;
   var BTN = Object.freeze({
     FIRE: 1, ADS: 2, JUMP: 4, SPRINT: 8, CROUCH: 16, RELOAD: 32,
-    MELEE: 64, GRENADE: 128, INTERACT: 256, SCAN: 512
+    MELEE: 64, GRENADE: 128, INTERACT: 256, SCAN: 512, LEAN_L: 1024, LEAN_R: 2048
   });
   var CAPS = Object.freeze(['bin']);
   var MAX_PENDING = 120;
@@ -103868,7 +104634,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
   };
   function friendlyError(code, message) {
     var key = code == null ? '' : String(code);
-    if (ERRORS[key]) return ERRORS[key];
+    if (Object.prototype.hasOwnProperty.call(ERRORS, key) && typeof ERRORS[key] === 'string') return ERRORS[key];
     if (typeof message === 'string' && message.trim()) return String(message).slice(0, 160);
     return '服务器错误' + (key ? '（' + key.slice(0, 32) + '）' : '');
   }
@@ -104291,8 +105057,24 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     return { far: FAR, near: FAR - NEAR_GAP };
   }
 
+  /* ---------- 恢复：清空注册表前把被本模块改过的可见性还原 ---------- */
+  function restoreGroup(g) {
+    if (!g) return;
+    try { if (g.obj) g.obj.visible = g.baseVisible !== false; } catch (e) {}
+    try { if (g.farMesh) g.farMesh.visible = !!g.baseFarVisible; } catch (e) {}
+    g.hidden = false;
+  }
+  function restoreAll() {
+    for (var i = 0; i < groups.length; i++) restoreGroup(groups[i]);
+    stats.hidden = 0;
+    stats.visible = groups.length;
+  }
+
   /* ---------- 收集：切图后重建注册表 ---------- */
   function rebuild() {
+    // V53 CLI-4：先恢复上一张图（或同一张图）被隐藏的组与远距替身。
+    // 否则 rebuild 只清数组不恢复可见性，被隐藏的组会在切图后永久不可见。
+    restoreAll();
     groups.length = 0;
     if (!G || !G.scene) return 0;
     var self = this;
@@ -104314,9 +105096,13 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
           radius = box.getSize(new T.Vector3()).length() * 0.5;
         }
       } catch (e) {}
+      var farMesh = o.userData.sxLodFarMesh || null;
       groups.push({
         obj: o, pos: pos, radius: radius, far: cfg.far, near: cfg.near,
-        farMesh: o.userData.sxLodFarMesh || null, hidden: false
+        farMesh: farMesh, hidden: false,
+        // 原始可见性：rebuild/setEnabled(false) 时按它还原
+        baseVisible: o.visible !== false,
+        baseFarVisible: farMesh ? farMesh.visible !== false : false
       });
     });
     stats.groups = groups.length;
@@ -104353,7 +105139,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
         if (hide !== g.hidden) stats.toggles++;
         g.hidden = hide;
         try {
-          g.obj.visible = !hide;
+          g.obj.visible = !hide && g.baseVisible !== false;
           if (g.farMesh) g.farMesh.visible = hide && enabled;
         } catch (e) {}
       }
@@ -104412,14 +105198,7 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
     enabled = !!on;
     stats.enabled = enabled;
     if (!enabled) {
-      for (var i = 0; i < groups.length; i++) {
-        try {
-          groups[i].obj.visible = true;
-          groups[i].hidden = false;
-          if (groups[i].farMesh) groups[i].farMesh.visible = false;
-        } catch (e) {}
-      }
-      stats.hidden = 0; stats.visible = groups.length;
+      restoreAll();
     } else {
       apply(true);
     }
@@ -104452,7 +105231,8 @@ MapKit.register("core", { id: "core", title: "核心舱", sub: "室内 · 反应
       get enabled() { return enabled; },
       setDistance: setDistance,
       rebuild: rebuild,
-      groups: function () { return groups.map(function (g) { return { far: g.far, near: g.near, hidden: g.hidden, radius: g.radius, pos: [g.pos.x, g.pos.y, g.pos.z] }; }); }
+      groups: function () { return groups.map(function (g) { return { far: g.far, near: g.near, hidden: g.hidden, radius: g.radius, pos: [g.pos.x, g.pos.y, g.pos.z] }; }); },
+      get ready() { return true; }
     };
   }
 

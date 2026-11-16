@@ -6,7 +6,8 @@
  * 关键能力:
  *   - HTTP + WebSocket 同端口；JSON 旧协议完全兼容，caps:['bin'] 客户端走二进制快照
  *   - 模拟 60Hz（TICK_HZ）、快照 30Hz（SNAP_HZ）；二进制快照按玩家变更增量
- *   - 输入回放：每玩家 <=120 条命令，seq 去重 / 乱序丢弃 / 限速，每模拟步消费一条
+ *   - 输入回放：每玩家 <=120 条命令，seq 去重 / 乱序丢弃 / 限速；V53 SRV-9 有界追赶
+ *     （backlog>4 时每 tick 消费 2-3 条），持续负载下队列不会无界增长
  *   - 延迟补偿：保存 1 秒命中体历史，按 RTT/2（0-200ms）回滚做射线
  *   - 逐武器权威结算：伤害 / 射速 / 弹匣 / 换弹 / 弹丸 / 衰减 / 穿透 / 护甲 / 爆头
  *   - 比赛状态机 warmup -> live -> roundEnd -> next，平分加时
@@ -17,6 +18,9 @@
  *   - POST/GET /api/profile + server/profiles.json（异步串行原子写），联机击杀给 XP
  *   - V37 质量修复：逐客户端 ACK 小帧、ws ping/pong 真实 RTT、respawn/roundStart 武器字段、
  *     据点分 roundEnd、未知模式明确报错、命令队列满拒绝、500ms 无输入停走、全 bin 不序列化 JSON
+ *   - V53：开火只走显式 fire（人控命令 FIRE 忽略；机器人保留）、shotRejected 回带 shotSeq/弹药、
+ *     掉海走正常死亡、输入队列有界追赶、XFF 取最右合法项、metrics 模拟步/回调耗时拆分、
+ *     静态读流 error 处理、慢漂移快照强制包含
  *
  * 只依赖 Node 内置模块 + server/node_modules/ws + packages/sim + packages/net/protocol.js。
  */
@@ -26,6 +30,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { URL } = require('node:url');
+const netmod = require('node:net');
 
 const sim = require('../packages/sim');
 const SALT_NET = require('../packages/net/protocol.js');
@@ -115,35 +120,208 @@ const MAPS_FILE = path.resolve(__dirname, process.env.MAPS_FILE || 'maps.json');
 const MAP_DATA_DIR = path.resolve(__dirname, process.env.MAP_DATA_DIR || '../packages/data/maps');
 const WEAPON_DATA_DIR = path.resolve(__dirname, process.env.WEAPON_DATA_DIR || '../packages/data/weapons');
 const PROFILES_FILE = path.resolve(__dirname, process.env.PROFILES_FILE || 'profiles.json');
-// V39：profiles.json 单进程保护。锁文件与数据文件同目录；wx 原子创建，stale 30s 可回收。
+const PROFILES_BAK_FILE = PROFILES_FILE + '.bak';
+// V39：profiles.json 单进程保护。锁文件与数据文件同目录；wx 原子创建。
+// V53 SRV-2：锁持有期间每 5 秒刷新心跳；只有「心跳过期」+「持有者进程已退出」才允许回收。
 const PROFILE_LOCK_FILE = PROFILES_FILE + '.lock';
-const PROFILE_LOCK_STALE_MS = 30000;
+const PROFILE_LOCK_STALE_MS = Math.max(100, envInt('PROFILE_LOCK_STALE_MS', 30000));
+const PROFILE_LOCK_HEARTBEAT_MS = process.env.PROFILE_LOCK_HEARTBEAT_MS
+  ? Math.max(50, envInt('PROFILE_LOCK_HEARTBEAT_MS', 5000))
+  : Math.max(50, Math.min(5000, Math.floor(PROFILE_LOCK_STALE_MS / 3)));
+// V53 SRV-11：档案数量上限 + 过期清理。0 表示不限制（默认 5000 / 180 天）。
+const PROFILE_MAX = envInt('PROFILE_MAX', 5000);
+const PROFILE_TTL_DAYS = envNum('PROFILE_TTL_DAYS', 180);
+const PROFILE_TTL_MS = PROFILE_TTL_DAYS > 0 ? PROFILE_TTL_DAYS * 86400000 : 0;
+// V53 SRV-3：单条 JSON input 最多接受 8 条命令；审计日志按 player+reason 限频。
+const MAX_CMDS_PER_INPUT = Math.max(1, envInt('MAX_CMDS_PER_INPUT', 8));
+const AUDIT_LOG_INTERVAL_MS = Math.max(0, envInt('AUDIT_LOG_INTERVAL_MS', 2000));
+// V53 SRV-7：房间连续模拟异常达到阈值后关闭该房间，避免坏房间拖垮进程。
+const ROOM_FAIL_LIMIT = Math.max(1, envInt('ROOM_FAIL_LIMIT', 5));
 const STATIC_DIR = process.env.STATIC_DIR ? path.resolve(process.env.STATIC_DIR) : null;
 const STARTED_AT = Date.now();
 
-const MOVE = Object.freeze({
-  walk: 3.8,
-  sprint: 6.4,
-  crouch: 1.9,
-  accelGround: 34,
-  decelGround: 26,
-  accelAir: 9,
-  gravity: 21,
-  jumpSpeed: Math.sqrt(2 * 21 * 1),
-  standHeight: 1.8,
-  crouchHeight: 1.15,
-  radius: 0.32,
-  pitchLimit: 1.5,
-});
+// V53 SRV-9：输入队列有界追赶。backlog>4 时每 tick 消费 2 条，>12 时 3 条；
+// 持续 60Hz 负载下队列不会再从 120 上限一路堆成约 2 秒的输入延迟。
+const CMD_CATCHUP_BACKLOG = 4;
+const CMD_CATCHUP_MAX = 3;
+// V53 NET-3：增量快照按“每个接收者上次真正发出去的位姿”判定慢漂移。
+// 协议自身的 sameSnapshot 阈值是 0.01m/0.002rad，慢速移动每帧都低于它而被永久跳过；
+// 这里用更大的强制阈值 + 0.5 秒兜底，保证慢速玩家不会 2 秒不更新。
+const SNAP_FORCE_POS = 0.03;
+const SNAP_FORCE_YAW = 0.02;
+const SNAP_FORCE_AGE_TICKS = Math.max(SNAP_EVERY, Math.round(TICK_HZ * 0.5));
+
+// 指标 / 日志（放在单元导出块之前：SALT_UNIT_EXPORT 会提前 return）。
+const metrics = {
+  tickRing: [],
+  tickLast: 0,
+  // V53 SRV-13：模拟步耗时与一次定时器回调的总耗时分开两个 ring，不再混在一起。
+  callbackRing: [],
+  callbackLast: 0,
+  snapWindow: [],
+  snapBytesTotal: 0,
+  snapFrames: 0,
+  snapForced: 0,
+  lagcompHits: 0,
+  lagcompShots: 0,
+  shotsRejected: 0,
+  rejectReasons: Object.create(null),
+  audit: 0,
+  auditReasons: Object.create(null),
+  auditSuppressed: 0,
+  cmdsTruncated: 0,
+  roomErrors: 0,
+  roomsClosed: 0,
+  msgsIn: 0,
+  msgsOut: 0,
+  rateLimited: 0,
+  cmdDropped: 0,
+  cmdOutOfOrder: 0,
+  cmdQueueFull: 0,
+  cmdCatchup: 0,
+  cmdQueueLen: 0,
+  cmdQueuePeak: 0,
+  acksSent: 0,
+  jsonSnapEncodes: 0,
+  originRejected: 0,
+  profileRequests: 0,
+  ioErrors: 0,
+  profilesPruned: 0,
+  profilesEvicted: 0,
+};
+
+// V53 SRV-8：模拟时钟统一为 tick 基准。真实世界时间（ws RTT/ping、HTTP、审计日志、
+// 速率窗口）仍用 Date.now；射速/换弹/复活/回合计时/延迟补偿历史全部用 simNowMs()。
+// 主循环每次 simulate() 都调用 advanceSimClock()，追帧多步时时间逐步递进，不会同一步内冻结。
+let tick = 0;
+function simTimeForTick(t) {
+  return (Number(t) || 0) * STEP_MS;
+}
+function simNowMs() {
+  return simTimeForTick(tick);
+}
+function advanceSimClock() {
+  tick++;
+  return simNowMs();
+}
+
+// V53 NET-2：移动常量不再在服务器维护副本，直接复用 packages/sim 的 DEFAULT_TUNING。
+// 服务器只覆盖三个“服务器语义”字段：
+//   rescueDepth  —— 共享代码的掉海自救在服务器上会绕过 SRV-4 的死亡流程，这里关掉，
+//                   由 server 自己的 seaY 判定走 beginDeath。
+//   maxHealth/regenRate —— 服务器血量由 p.hp（护甲/伤害管线）权威管理，禁掉 sim 的内部回血。
+const SERVER_TUNING = Object.freeze(Object.assign({}, sim.movement.DEFAULT_TUNING, {
+  rescueDepth: 1e9,
+  maxHealth: Infinity,
+  regenRate: 0,
+}));
+
+const SIM_STATE_FIELDS = [
+  'pos', 'vel', 'onGround', 'crouching', 'sprinting', 'ads', 'adsLin', 'crouch01',
+  'coyote', 'jumpBuf', 'slideT', 'slideDirX', 'slideDirZ', 'vaultT',
+  'vaultFromX', 'vaultFromY', 'vaultFromZ', 'vaultToX', 'vaultToY', 'vaultToZ',
+  'lean', 'height', 'radius', 'speed', 'surface', 'lastSafe', 'airTime',
+  'peakFallSpeed', 'prevButtons', 'tick', 'jumped', 'landed', 'landSpeed',
+  'hitWall', 'hitCeil', 'rescued', 'vaulted', 'fell',
+];
+
+// V53 SRV-10：X-Forwarded-For 解析。只接受合法 IP；从右往左取（最右项由可信代理追加），
+// 左侧客户端自填的条目一律忽略。远端连接声称来自回环地址时视为伪造，忽略整条 XFF。
+function normalizeIp(raw) {
+  let s = String(raw == null ? '' : raw).trim();
+  if (!s) return '';
+  if (s.charAt(0) === '[') {
+    const end = s.indexOf(']');
+    if (end > 0) s = s.slice(1, end);
+  } else {
+    const first = s.indexOf(':');
+    if (first > 0 && first === s.lastIndexOf(':') && s.indexOf('.') > 0) s = s.slice(0, first);
+  }
+  s = s.split('%')[0];
+  if (s.indexOf('::ffff:') === 0) s = s.slice(7);
+  return netmod.isIP(s) ? s : '';
+}
+function parseForwardedFor(xff, fallback) {
+  if (typeof xff !== 'string' || !xff) return fallback;
+  const parts = xff.split(',');
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const ip = normalizeIp(parts[i]);
+    if (ip) return ip;
+  }
+  return fallback;
+}
+function forwardedClientIp(xff, socketIp, trust) {
+  if (!trust) return socketIp;
+  const ip = parseForwardedFor(xff, '');
+  if (!ip) return socketIp;
+  if (isLoopbackIp(ip) && !isLoopbackIp(socketIp)) return socketIp;
+  return ip;
+}
+function angleDelta(a, b) {
+  let d = (numOr(a, 0) - numOr(b, 0)) % (Math.PI * 2);
+  if (d > Math.PI) d -= Math.PI * 2;
+  if (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+function snapshotForceDue(last, cur, ageTicks) {
+  if (!last || !cur) return true;
+  if (Math.hypot(cur.x - last.x, cur.z - last.z) > SNAP_FORCE_POS) return true;
+  if (Math.abs(cur.y - last.y) > SNAP_FORCE_POS) return true;
+  if (Math.abs(angleDelta(cur.yaw, last.yaw)) > SNAP_FORCE_YAW) return true;
+  return (Number(ageTicks) || 0) >= SNAP_FORCE_AGE_TICKS;
+}
+
+// V53：纯函数便于单元测试。SALT_UNIT_EXPORT=1 时只导出这些函数，不启动服务器/定时器。
+function lockReclaimable(heartbeatAgeMs, staleMs, ownerAlive) {
+  return heartbeatAgeMs > staleMs && !ownerAlive;
+}
+function snapshotDue(currentTick, lastSnapTick, every) {
+  return currentTick - lastSnapTick >= every;
+}
+if (process.env.SALT_UNIT_EXPORT === '1') {
+  module.exports = {
+    lockReclaimable,
+    snapshotDue,
+    parseForwardedFor,
+    forwardedClientIp,
+    normalizeIp,
+    snapshotForceDue,
+    metrics,
+    recordTick,
+    recordCallback,
+    tickP99,
+    callbackP99,
+    SNAP_FORCE_POS,
+    SNAP_FORCE_YAW,
+    SNAP_FORCE_AGE_TICKS,
+    MAX_CMDS_PER_INPUT,
+    PROFILE_LOCK_STALE_MS,
+    PROFILE_LOCK_HEARTBEAT_MS,
+    PROFILE_MAX,
+    PROFILE_TTL_MS,
+    PROFILE_TTL_DAYS,
+    SERVER_TUNING,
+    simTimeForTick,
+    simNowMs,
+    advanceSimClock,
+    // 函数声明会提升，即使 SALT_UNIT_EXPORT 在文件中部 return 也能导出；
+    // 单测用它们验证服务器 stepPlayer 与客户端 packages/sim 逐步一致。
+    initPlayerMovement,
+    stepPlayer,
+  };
+  return;
+}
+
+
 
 const DEFAULT_SPAWN = { x: -32, z: 6 };
 const TEAM_BASES = [{ x: -32, z: 6 }, { x: 29, z: 20 }];
 
-const MODES = {
+const MODES = Object.assign(Object.create(null), {
   tdm: { id: 'tdm', name: '团队死斗', maxPlayers: 8, scoreLimit: 50, roundSeconds: 300, domination: false },
   chaos: { id: 'chaos', name: '大乱战', maxPlayers: 12, scoreLimit: 75, roundSeconds: 360, domination: false },
   domination: { id: 'domination', name: '据点争夺', maxPlayers: 10, scoreLimit: DOM_SCORE_LIMIT, roundSeconds: 300, domination: true },
-};
+});
 const MODE_IDS = Object.keys(MODES);
 
 const BTN = (sim.command && sim.command.BTN) || {
@@ -154,33 +332,8 @@ const ALL_BUTTONS = (sim.command && sim.command.ALL_BUTTONS) || 4095;
 const ZERO_CMD = Object.freeze({ seq: 0, tick: 0, mx: 0, my: 0, yaw: 0, pitch: 0, buttons: 0, slot: 0, slotExplicit: false });
 
 // ---------------------------------------------------------------------------
-// 指标 / 日志
+// 日志
 // ---------------------------------------------------------------------------
-const metrics = {
-  tickRing: [],
-  tickLast: 0,
-  snapWindow: [],
-  snapBytesTotal: 0,
-  snapFrames: 0,
-  lagcompHits: 0,
-  lagcompShots: 0,
-  shotsRejected: 0,
-  rejectReasons: Object.create(null),
-  audit: 0,
-  auditReasons: Object.create(null),
-  msgsIn: 0,
-  msgsOut: 0,
-  rateLimited: 0,
-  cmdDropped: 0,
-  cmdOutOfOrder: 0,
-  cmdQueueFull: 0,
-  acksSent: 0,
-  jsonSnapEncodes: 0,
-  originRejected: 0,
-  profileRequests: 0,
-  ioErrors: 0,
-};
-
 function log(level, msg, data) {
   const line = { ts: new Date().toISOString(), level: level || 'info', msg: msg };
   if (data && typeof data === 'object') {
@@ -194,26 +347,61 @@ function log(level, msg, data) {
   }
 }
 
+// V53 SRV-3：审计日志按 player+reason 限频。指标每一条都计数，日志最多每 2 秒一条，
+// 被压掉的条数在下一条日志的 suppressed 字段里汇总，避免一条 5000 命令的消息刷出数千行。
+const auditLogState = new Map();
 function audit(code, player, detail) {
   metrics.audit++;
   metrics.auditReasons[code] = (metrics.auditReasons[code] || 0) + 1;
-  log('warn', 'audit ' + code, Object.assign({
+  const now = Date.now();
+  const key = (player && player.id ? player.id : 'anon') + '|' + code;
+  let state = auditLogState.get(key);
+  if (!state) {
+    if (auditLogState.size >= 4096) auditLogState.clear();
+    state = { at: 0, suppressed: 0 };
+    auditLogState.set(key, state);
+  }
+  if (AUDIT_LOG_INTERVAL_MS > 0 && now - state.at < AUDIT_LOG_INTERVAL_MS) {
+    state.suppressed++;
+    metrics.auditSuppressed++;
+    return;
+  }
+  const suppressed = state.suppressed;
+  state.at = now;
+  state.suppressed = 0;
+  const payload = Object.assign({
     id: player ? player.id : null,
     name: player ? player.name : null,
-  }, detail || {}));
+  }, detail || {});
+  if (suppressed) payload.suppressed = suppressed;
+  log('warn', 'audit ' + code, payload);
 }
 
-function recordTick(ms) {
-  metrics.tickLast = ms;
-  const ring = metrics.tickRing;
+// V53 SRV-13：tickRing 只记“单个模拟步”耗时；callbackRing 记一次 tick 定时器回调里
+// 所有步骤 + 快照 + 其他工作的总耗时。两者不再混在一个 ring 里。
+function pushRing(ring, ms) {
+  if (!Number.isFinite(ms) || ms < 0) return;
   ring.push(ms);
   if (ring.length > 600) ring.shift();
 }
-function tickP99() {
-  const ring = metrics.tickRing;
+function ringP99(ring) {
   if (!ring.length) return 0;
   const sorted = ring.slice().sort(function (a, b) { return a - b; });
   return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.99))];
+}
+function recordTick(ms) {
+  metrics.tickLast = ms;
+  pushRing(metrics.tickRing, ms);
+}
+function recordCallback(ms) {
+  metrics.callbackLast = ms;
+  pushRing(metrics.callbackRing, ms);
+}
+function tickP99() {
+  return ringP99(metrics.tickRing);
+}
+function callbackP99() {
+  return ringP99(metrics.callbackRing);
 }
 function pruneSnapWindow(now, keepMs) {
   const win = metrics.snapWindow;
@@ -239,7 +427,8 @@ function readRateLimit() {
 // ---------------------------------------------------------------------------
 let world;
 let spawnPoints = [];
-let MAPS = {};
+// V53 SRV-5：客户端传入的 map 名只做自有属性查找，__proto__/constructor 不能命中原型。
+let MAPS = Object.create(null);
 
 function makeWorld(spec) {
   const g = spec.ground || {};
@@ -303,7 +492,7 @@ function buildDominationPoints(spec, worldObj) {
 }
 
 function loadDataMaps() {
-  const out = {};
+  const out = Object.create(null);
   try {
     const indexFile = path.join(MAP_DATA_DIR, 'index.json');
     if (!fs.existsSync(indexFile)) return out;
@@ -342,31 +531,56 @@ function loadDataMaps() {
   return out;
 }
 
+function fatalMapsError(message) {
+  log('fatal', 'maps.json invalid; refusing to start (no fallback to map_boxes.json)', {
+    file: MAPS_FILE,
+    error: message,
+  });
+  console.error('[fatal] maps.json 解析失败，拒绝启动：' + message);
+  console.error('[fatal] 数据文件：' + MAPS_FILE);
+  console.error('[fatal] 不回退到旧 map_boxes.json；请修复 maps.json 后再启动。');
+  process.exit(1);
+}
+
+function loadMapsFile() {
+  if (!fs.existsSync(MAPS_FILE)) return null;
+  let raw;
+  try {
+    raw = JSON.parse(fs.readFileSync(MAPS_FILE, 'utf8'));
+  } catch (e) {
+    fatalMapsError(e.message);
+  }
+  const list = raw && raw.maps ? raw.maps : raw;
+  if (!list || typeof list !== 'object' || Array.isArray(list)) {
+    fatalMapsError('根节点不是对象');
+  }
+  return list;
+}
+
 function loadWorldSafe() {
+  // V53 SRV-12：maps.json 存在时先解析校验；失败必须 fatal，不能静默回退旧 map_boxes.json。
+  const fileMaps = loadMapsFile();
   MAPS = loadDataMaps();
   if (Object.keys(MAPS).length) {
     world = MAPS.harbor.world;
     spawnPoints = buildSpawnPoints(world, DEFAULT_SPAWN);
     return;
   }
-  if (fs.existsSync(MAPS_FILE)) {
-    try {
-      const raw = JSON.parse(fs.readFileSync(MAPS_FILE, 'utf8'));
-      const list = raw.maps || raw;
-      for (const id of Object.keys(list)) {
-        const spec = list[id];
-        spec.id = id;
-        spec.world = makeWorld(spec);
-        spec.modePoints = spec.modePoints || {};
-        spec.modePoints.domination = buildDominationPoints(spec, spec.world);
-        MAPS[id] = spec;
-        log('info', 'map ' + id, { boxes: spec.world.boxes.count });
-      }
-    } catch (e) {
-      log('error', 'failed to load maps', { file: MAPS_FILE, error: e.message });
+  if (fileMaps) {
+    for (const id of Object.keys(fileMaps)) {
+      const spec = fileMaps[id];
+      if (!spec || typeof spec !== 'object') continue;
+      spec.id = id;
+      spec.world = makeWorld(spec);
+      spec.modePoints = spec.modePoints || {};
+      spec.modePoints.domination = buildDominationPoints(spec, spec.world);
+      MAPS[id] = spec;
+      log('info', 'map ' + id, { boxes: spec.world.boxes.count });
     }
+    if (!Object.keys(MAPS).length) fatalMapsError('maps.json 中没有任何可用地图');
   }
   if (!Object.keys(MAPS).length) {
+    // 只有确实没有 maps.json 时才允许旧 map_boxes.json（或显式 MAP_FILE）回退。
     let spec = { id: 'harbor', boxes: [], teamBases: TEAM_BASES };
     try { spec = Object.assign(spec, JSON.parse(fs.readFileSync(MAP_FILE, 'utf8'))); } catch (e) {}
     if (!spec.boxes || !spec.boxes.length) spec.boxes = [];
@@ -379,14 +593,17 @@ function loadWorldSafe() {
 }
 
 function mapIds() { return Object.keys(MAPS); }
-function getMap(mapId) { return MAPS[mapId] || MAPS.harbor; }
+function getMap(mapId) {
+  if (typeof mapId === 'string' && Object.prototype.hasOwnProperty.call(MAPS, mapId)) return MAPS[mapId];
+  return MAPS.harbor;
+}
 
 function spawnIsFree(w, x, z) {
   const g = w.groundHeight(x, z, 3);
   if (g > 0.75) return false;
   const pos = { x: x, y: g + 0.01, z: z };
   const vel = { x: 0, y: 0, z: 0 };
-  const r = w.moveCapsule(pos, vel, 1 / TICK_HZ, MOVE.radius, MOVE.standHeight, true);
+  const r = w.moveCapsule(pos, vel, STEP, SERVER_TUNING.radius, SERVER_TUNING.standHeight, true);
   if (r.hitWall) return false;
   if (Math.hypot(pos.x - x, pos.z - z) > 0.02) return false;
   if (pos.y > g + 0.3) return false;
@@ -440,7 +657,7 @@ function spawnForRoom(room, team) {
   const fallback = bases[team === 1 ? 1 : 0] || bases[0];
   let best = null;
   let bestD = -1;
-  const now = Date.now();
+  const now = simNowMs();
   for (const p of (list || [])) {
     const key = p.x.toFixed(2) + ',' + p.z.toFixed(2);
     if ((room.spawnUse[key] || 0) > now) continue;
@@ -511,6 +728,7 @@ function normalizeWeaponData(raw, fallback) {
     reloadEmpty: Number(reload.empty && reload.empty.time || f.reloadEmpty) || 2.5,
     fireMode: fire.mode || (raw.cfg && raw.cfg.semi ? 'semi' : 'auto'),
     spreadScale: Number(raw.spreadScale || f.spreadScale) || 1,
+    attachments: raw.attachments && typeof raw.attachments === 'object' ? raw.attachments : (f.attachments || null),
   });
 }
 
@@ -529,14 +747,56 @@ function loadWeapons() {
   log('info', 'weapons loaded', { count: Object.keys(WEAPONS).length });
 }
 
-function resolveLoadout(raw) {
+// V53 SRV-11：服务器权威校验装备解锁等级。武器等级来自 UNLOCKS（weapon.<id>），
+// 默认武器 pac9/sidearm 视为 1 级。锁定/非法选择不会被装备，回退到默认并记录 adjusted。
+function unlockLevelFor(id) {
+  for (const u of UNLOCKS) if (u.id === id) return u.level;
+  return 1;
+}
+function sanitizeAttachments(raw, def, tag, adjusted) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const available = def && def.attachments;
+  const out = {};
+  for (const slot of Object.keys(raw)) {
+    const id = raw[slot];
+    const list = available && available[slot];
+    if (!Array.isArray(list) || typeof id !== 'string' || list.indexOf(id) < 0) {
+      adjusted.push('attachment:' + tag + '.' + slot);
+      continue;
+    }
+    out[slot] = id;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+function resolveLoadout(raw, level) {
+  const lvl = Math.max(1, Math.floor(numOr(level, 1)));
   const primaryRaw = raw && (raw.primary || raw.weapon || raw.primaryId);
   const secondaryRaw = raw && (raw.secondary || raw.secondaryId);
+  const adjusted = [];
   let primary = 'pac9';
-  if (typeof primaryRaw === 'string' && WEAPONS[primaryRaw] && WEAPONS[primaryRaw].slot === 'primary') primary = primaryRaw;
+  if (typeof primaryRaw === 'string' && WEAPONS[primaryRaw] && WEAPONS[primaryRaw].slot === 'primary') {
+    if (lvl >= unlockLevelFor('weapon.' + primaryRaw)) primary = primaryRaw;
+    else adjusted.push('primary:' + primaryRaw);
+  } else if (primaryRaw != null) {
+    adjusted.push('primary:' + String(primaryRaw).slice(0, 32));
+  }
   let secondary = 'sidearm';
-  if (typeof secondaryRaw === 'string' && WEAPONS[secondaryRaw] && WEAPONS[secondaryRaw].slot === 'secondary') secondary = secondaryRaw;
-  return { primary: primary, secondary: secondary };
+  if (typeof secondaryRaw === 'string' && WEAPONS[secondaryRaw] && WEAPONS[secondaryRaw].slot === 'secondary') {
+    if (lvl >= unlockLevelFor('weapon.' + secondaryRaw)) secondary = secondaryRaw;
+    else adjusted.push('secondary:' + secondaryRaw);
+  } else if (secondaryRaw != null) {
+    adjusted.push('secondary:' + String(secondaryRaw).slice(0, 32));
+  }
+  const out = { primary: primary, secondary: secondary };
+  const att = raw && raw.attachments;
+  if (att && typeof att === 'object') {
+    const pAtt = sanitizeAttachments(att.primary, WEAPONS[primary], 'primary', adjusted);
+    const sAtt = sanitizeAttachments(att.secondary, WEAPONS[secondary], 'secondary', adjusted);
+    const flat = (!att.primary && !att.secondary) ? sanitizeAttachments(att, WEAPONS[primary], 'primary', adjusted) : null;
+    if (pAtt || sAtt || flat) out.attachments = { primary: pAtt || flat, secondary: sAtt };
+  }
+  if (adjusted.length) out.adjusted = adjusted;
+  return out;
 }
 
 function makeWeaponState(def) {
@@ -559,6 +819,9 @@ function makeWeaponState(def) {
 const profiles = new Map();
 let profileDirty = false;
 let profileSaveTimer = null;
+// V53 SRV-1：只有成功加载（主档或有效备份）后才允许写盘/写 .bak；坏档不得被空数据覆盖。
+let profilesLoaded = false;
+let lastGoodProfilesJson = null;
 
 function levelForXp(xp) {
   const x = Math.max(0, Number(xp) || 0);
@@ -607,13 +870,66 @@ function profileView(profile, includeToken) {
 }
 
 // ---------------------------------------------------------------------------
-// V39：PROFILES_FILE 单进程锁
+// V39/V53：PROFILES_FILE 单进程锁
 // 同一 PROFILES_FILE 只允许一个 server.cjs 实例写入。启动时用 wx 原子创建
-// <PROFILES_FILE>.lock，内容含 pid / 时间 / token；已有锁且未 stale（30s）时
-// 第二个实例打印错误并以非 0 退出。旧进程被 SIGKILL 后，锁超过 30s 可被回收。
+// <PROFILES_FILE>.lock，内容含 pid / 时间 / token。持有期间每 5 秒刷新 at/mtime；
+// 只有「心跳超过 stale（默认 30s）」且「持有者进程已退出（ESRCH / pid 不可用）」
+// 才允许回收。持有者活着时，即使心跳过期也不回收，第二个实例非 0 退出。
 // ---------------------------------------------------------------------------
 let profileLockHeld = false;
 let profileLockToken = null;
+let profileLockHeartbeat = null;
+
+function profileLockOwnerAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  if (pid === process.pid) return true;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    // ESRCH = 进程不存在；EPERM 说明进程存在但无权限，保守视为存活。
+    if (e && e.code === 'ESRCH') return false;
+    return true;
+  }
+}
+
+function writeProfileLockInfo(token) {
+  const now = Date.now();
+  fs.writeFileSync(PROFILE_LOCK_FILE, JSON.stringify({
+    pid: process.pid,
+    at: now,
+    time: now,
+    token: token,
+    file: PROFILES_FILE,
+  }), { mode: 0o600 });
+  return now;
+}
+
+function startProfileLockHeartbeat() {
+  if (profileLockHeartbeat) return;
+  profileLockHeartbeat = setInterval(refreshProfileLock, PROFILE_LOCK_HEARTBEAT_MS);
+  if (profileLockHeartbeat.unref) profileLockHeartbeat.unref();
+}
+
+function refreshProfileLock() {
+  if (!profileLockHeld || !profileLockToken) return;
+  const held = readProfileLock();
+  if (!held || held.token !== profileLockToken) {
+    log('error', 'profiles lock lost; heartbeat stopped', { file: PROFILE_LOCK_FILE });
+    profileLockToken = null;
+    if (profileLockHeartbeat) {
+      clearInterval(profileLockHeartbeat);
+      profileLockHeartbeat = null;
+    }
+    return;
+  }
+  try {
+    writeProfileLockInfo(profileLockToken);
+  } catch (e) {
+    metrics.ioErrors++;
+    log('error', 'profiles lock heartbeat failed', { file: PROFILE_LOCK_FILE, error: e.message });
+  }
+}
 
 function readProfileLock() {
   try {
@@ -661,6 +977,7 @@ function acquireProfileLock() {
       if (!own || own.token !== token) return { ok: false, reason: 'race', lock: own };
       profileLockHeld = true;
       profileLockToken = token;
+      startProfileLockHeartbeat();
       return { ok: true, token: token };
     } catch (e) {
       if (!e || e.code !== 'EEXIST') return { ok: false, reason: 'io', error: e };
@@ -668,13 +985,28 @@ function acquireProfileLock() {
       if (!held) continue; // 锁刚好消失，重试创建
       const at = held.at != null ? held.at : held.mtimeMs;
       const ageMs = Math.max(0, Date.now() - at);
-      if (ageMs <= PROFILE_LOCK_STALE_MS) return { ok: false, reason: 'held', lock: held, ageMs: ageMs };
+      const ownerAlive = profileLockOwnerAlive(held.pid);
+      // V53 SRV-2：心跳过期 + 进程确认退出，两个条件同时满足才可回收。
+      if (!lockReclaimable(ageMs, PROFILE_LOCK_STALE_MS, ownerAlive)) {
+        return {
+          ok: false,
+          reason: ownerAlive ? 'held_alive' : 'held',
+          lock: held,
+          ageMs: ageMs,
+          ownerAlive: ownerAlive,
+        };
+      }
       // 回收前再核对 token/inode，避免把别人刚创建的新锁删掉。
       const again = readProfileLock();
       if (!again || again.token !== held.token || again.ino !== held.ino) continue;
       try {
         fs.unlinkSync(PROFILE_LOCK_FILE);
-        log('warn', 'profiles stale lock reclaimed', { file: PROFILE_LOCK_FILE, pid: held.pid, ageMs: ageMs });
+        log('warn', 'profiles stale lock reclaimed', {
+          file: PROFILE_LOCK_FILE,
+          pid: held.pid,
+          ageMs: ageMs,
+          ownerAlive: false,
+        });
       } catch (e2) {
         if (!e2 || e2.code !== 'ENOENT') return { ok: false, reason: 'io', error: e2 };
       }
@@ -684,6 +1016,10 @@ function acquireProfileLock() {
 }
 
 function releaseProfileLock() {
+  if (profileLockHeartbeat) {
+    clearInterval(profileLockHeartbeat);
+    profileLockHeartbeat = null;
+  }
   if (!profileLockHeld) return;
   profileLockHeld = false;
   const token = profileLockToken;
@@ -695,26 +1031,202 @@ function releaseProfileLock() {
   } catch (e) {}
 }
 
-function loadProfiles() {
-  try {
-    if (!fs.existsSync(PROFILES_FILE)) return;
-    const raw = JSON.parse(fs.readFileSync(PROFILES_FILE, 'utf8'));
-    const list = raw && raw.profiles ? raw.profiles : raw;
-    if (Array.isArray(list)) {
-      for (const p of list) if (p && p.token) profiles.set(p.token, p);
-    } else if (list && typeof list === 'object') {
-      for (const token of Object.keys(list)) {
-        const p = list[token];
-        if (p && typeof p === 'object') {
-          p.token = p.token || token;
-          profiles.set(token, p);
-        }
+function parseProfilesText(text) {
+  const raw = JSON.parse(text);
+  const list = raw && typeof raw === 'object' && raw.profiles !== undefined ? raw.profiles : raw;
+  const loaded = new Map();
+  if (Array.isArray(list)) {
+    for (const p of list) {
+      if (p && typeof p === 'object' && typeof p.token === 'string' && p.token) loaded.set(p.token, p);
+    }
+    if (!loaded.size && list.length) throw new Error('profiles 数组中没有有效档案');
+  } else if (list && typeof list === 'object') {
+    for (const token of Object.keys(list)) {
+      const p = list[token];
+      if (p && typeof p === 'object' && !Array.isArray(p)) {
+        p.token = p.token || token;
+        loaded.set(token, p);
       }
     }
-    log('info', 'profiles loaded', { count: profiles.size });
-  } catch (e) {
-    log('error', 'profiles load failed', { file: PROFILES_FILE, error: e.message });
+    // 有键但全部不是档案对象：说明 schema 不对，不能当成“空档案”覆盖。
+    if (!loaded.size && Object.keys(list).length) throw new Error('profiles 对象中没有有效档案');
+  } else {
+    throw new Error('profiles 数据格式无效');
   }
+  return loaded;
+}
+
+function tryReadProfilesFile(file) {
+  try {
+    const text = fs.readFileSync(file, 'utf8');
+    return { ok: true, text: text, map: parseProfilesText(text) };
+  } catch (e) {
+    return { ok: false, error: e };
+  }
+}
+
+function adoptProfiles(map, text) {
+  profiles.clear();
+  let stripped = 0;
+  for (const key of map.keys()) {
+    const p = map.get(key);
+    if (stripProfilePrivate(p)) stripped++;
+    profiles.set(key, p);
+  }
+  profilesLoaded = true;
+  // V53 SRV-11：启动即清理过期档案并压到上限内；有删除/脱敏时异步落盘。
+  const pruned = pruneProfiles(Date.now());
+  const capped = enforceProfileCap(PROFILE_MAX, 0);
+  // .bak 也只能保存脱敏后的档案，不能把原文件里的 IP 继续带到备份里。
+  lastGoodProfilesJson = JSON.stringify({
+    version: 1,
+    savedAt: new Date().toISOString(),
+    profiles: Object.fromEntries(profiles),
+  });
+  if (pruned || capped || stripped) {
+    log('info', 'profiles pruned', {
+      file: PROFILES_FILE,
+      pruned: pruned,
+      strippedIp: stripped,
+      evicted: metrics.profilesEvicted,
+      count: profiles.size,
+      max: PROFILE_MAX,
+      ttlDays: PROFILE_TTL_DAYS,
+    });
+    scheduleProfileSave();
+  }
+}
+
+// 坏档改名保留原字节；ISO 时间里的 ':' 换成 '-'，兼容 macOS/Windows 文件系统。
+function quarantineProfilesFile(file) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  let dest = file + '.corrupt-' + stamp;
+  for (let n = 1; fs.existsSync(dest); n++) dest = file + '.corrupt-' + stamp + '-' + n;
+  try {
+    fs.renameSync(file, dest);
+    return dest;
+  } catch (e) {
+    log('error', 'profiles corrupt file rename failed', { file: file, dest: dest, error: e.message });
+    return null;
+  }
+}
+
+function fsyncDirSync(dir) {
+  let fd = null;
+  try {
+    fd = fs.openSync(dir, 'r');
+    fs.fsyncSync(fd);
+  } catch (e) {
+    // 目录 fsync 在部分平台不支持；文件本身已 fsync。
+  } finally {
+    if (fd != null) {
+      try { fs.closeSync(fd); } catch (e) {}
+    }
+  }
+}
+
+function atomicWriteFileSync(file, data) {
+  const tmp = file + '.tmp';
+  const fd = fs.openSync(tmp, 'w', 0o600);
+  try {
+    fs.writeFileSync(fd, data);
+    try { fs.fsyncSync(fd); } catch (e) {}
+  } finally {
+    fs.closeSync(fd);
+  }
+  try {
+    fs.renameSync(tmp, file);
+  } catch (e) {
+    try { fs.unlinkSync(tmp); } catch (e2) {}
+    throw e;
+  }
+  fsyncDirSync(path.dirname(file));
+}
+
+function restoreProfilesMain(text) {
+  atomicWriteFileSync(PROFILES_FILE, text);
+}
+
+function loadProfiles() {
+  if (fs.existsSync(PROFILES_FILE)) {
+    const main = tryReadProfilesFile(PROFILES_FILE);
+    if (main.ok) {
+      adoptProfiles(main.map, main.text);
+      log('info', 'profiles loaded', { file: PROFILES_FILE, count: profiles.size });
+      return true;
+    }
+    log('error', 'profiles load failed', { file: PROFILES_FILE, error: main.error.message });
+
+    let backup = null;
+    if (fs.existsSync(PROFILES_BAK_FILE)) backup = tryReadProfilesFile(PROFILES_BAK_FILE);
+    if (backup && backup.ok) {
+      const corrupt = quarantineProfilesFile(PROFILES_FILE);
+      if (!corrupt) {
+        log('fatal', 'profiles.json 损坏但无法改名保留；为避免覆盖坏档，拒绝启动', {
+          file: PROFILES_FILE,
+          backup: PROFILES_BAK_FILE,
+        });
+        console.error('[fatal] profiles.json 损坏且无法改名保留，拒绝启动（不会覆盖原文件）。');
+        return false;
+      }
+      try {
+        restoreProfilesMain(backup.text);
+      } catch (e) {
+        log('fatal', 'profiles backup restore failed; refusing to start', {
+          file: PROFILES_FILE,
+          backup: PROFILES_BAK_FILE,
+          error: e.message,
+        });
+        console.error('[fatal] profiles.json 损坏且备份恢复失败：' + e.message);
+        return false;
+      }
+      adoptProfiles(backup.map, backup.text);
+      log('warn', 'profiles recovered from backup', {
+        file: PROFILES_FILE,
+        backup: PROFILES_BAK_FILE,
+        count: profiles.size,
+        corrupt: corrupt,
+      });
+      return true;
+    }
+
+    const corrupt = quarantineProfilesFile(PROFILES_FILE);
+    log('fatal', 'profiles.json 损坏且没有有效备份，拒绝启动（已保留坏档，不会用空档案覆盖）', {
+      file: PROFILES_FILE,
+      corrupt: corrupt,
+      backup: PROFILES_BAK_FILE,
+      backupError: backup && backup.error ? backup.error.message : null,
+    });
+    console.error('[fatal] profiles.json 损坏且没有有效备份，拒绝启动');
+    console.error('[fatal] 坏档已改名保留：' + (corrupt || '（改名失败，请手工备份）'));
+    console.error('[fatal] 请修复 profiles.json，或提供有效的 profiles.json.bak 后重启。');
+    return false;
+  }
+
+  // 主档缺失：若存在有效备份则恢复（防止 rename 期间断电造成主档丢失）。
+  if (fs.existsSync(PROFILES_BAK_FILE)) {
+    const backup = tryReadProfilesFile(PROFILES_BAK_FILE);
+    if (backup.ok) {
+      try {
+        restoreProfilesMain(backup.text);
+        adoptProfiles(backup.map, backup.text);
+        log('warn', 'profiles restored from backup (main file missing)', {
+          file: PROFILES_FILE,
+          backup: PROFILES_BAK_FILE,
+          count: profiles.size,
+        });
+        return true;
+      } catch (e) {
+        log('error', 'profiles restore from backup failed', { file: PROFILES_FILE, error: e.message });
+      }
+    } else {
+      log('warn', 'profiles backup invalid (main file missing)', { file: PROFILES_BAK_FILE, error: backup.error.message });
+    }
+  }
+  profilesLoaded = true;
+  lastGoodProfilesJson = null;
+  log('info', 'profiles file missing; starting empty', { file: PROFILES_FILE });
+  return true;
 }
 
 // V37：异步串行写队列。快照在写线程外构建，writeFile(tmp) + rename 保持原子性；
@@ -722,23 +1234,63 @@ function loadProfiles() {
 let profileSaveRunning = null;
 let profileSaveQueued = false;
 
-async function writeProfilesAsync() {
-  const dir = path.dirname(PROFILES_FILE);
-  await fs.promises.mkdir(dir, { recursive: true });
-  const out = { version: 1, savedAt: new Date().toISOString(), profiles: {} };
-  for (const key of profiles.keys()) out.profiles[key] = profiles.get(key);
-  const json = JSON.stringify(out);
-  const tmp = PROFILES_FILE + '.tmp';
+async function fsyncDirAsync(dir) {
+  let handle = null;
   try {
-    await fs.promises.writeFile(tmp, json);
-    await fs.promises.rename(tmp, PROFILES_FILE);
+    handle = await fs.promises.open(dir, 'r');
+    await handle.sync();
   } catch (e) {
+    // 目录 fsync 在部分平台不支持；文件本身已 fsync。
+  } finally {
+    if (handle) {
+      try { await handle.close(); } catch (e) {}
+    }
+  }
+}
+
+async function writeFileAtomicAsync(file, data) {
+  const tmp = file + '.tmp';
+  let handle = null;
+  try {
+    handle = await fs.promises.open(tmp, 'w', 0o600);
+    await handle.writeFile(data);
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await fs.promises.rename(tmp, file);
+    await fsyncDirAsync(path.dirname(file));
+  } catch (e) {
+    if (handle) {
+      try { await handle.close(); } catch (e2) {}
+    }
     try { await fs.promises.unlink(tmp); } catch (e2) {}
     throw e;
   }
 }
 
+async function writeProfilesAsync() {
+  if (!profilesLoaded) throw new Error('profiles_not_loaded');
+  const dir = path.dirname(PROFILES_FILE);
+  await fs.promises.mkdir(dir, { recursive: true });
+  // 无原型对象：token 即使是 "__proto__" 也只会成为普通键。
+  const out = { version: 1, savedAt: new Date().toISOString(), profiles: Object.create(null) };
+  for (const key of profiles.keys()) out.profiles[key] = profiles.get(key);
+  const json = JSON.stringify(out);
+  // V53 SRV-1：只有成功加载过有效主档后才写 .bak；.bak 保存的是上一份有效主档。
+  if (lastGoodProfilesJson) {
+    try {
+      await writeFileAtomicAsync(PROFILES_BAK_FILE, lastGoodProfilesJson);
+    } catch (e) {
+      metrics.ioErrors++;
+      log('error', 'profiles backup write failed', { file: PROFILES_BAK_FILE, error: e.message });
+    }
+  }
+  await writeFileAtomicAsync(PROFILES_FILE, json);
+  lastGoodProfilesJson = json;
+}
+
 function flushProfileWrites() {
+  if (!profilesLoaded) return Promise.resolve();
   if (profileSaveRunning) {
     profileSaveQueued = true;
     return profileSaveRunning;
@@ -762,6 +1314,7 @@ function flushProfileWrites() {
 }
 
 function scheduleProfileSave() {
+  if (!profilesLoaded) return;
   profileDirty = true;
   if (profileSaveTimer) return;
   profileSaveTimer = setTimeout(function () {
@@ -771,9 +1324,81 @@ function scheduleProfileSave() {
   profileSaveTimer.unref();
 }
 
-function createProfile(rawName, ip) {
+function profileLastActive(p) {
+  const t = Number(p && (p.updatedAt != null ? p.updatedAt : p.createdAt));
+  return Number.isFinite(t) && t > 0 ? t : 0;
+}
+
+/** V53 SRV-11：档案里不再保留任何客户端网络地址。 */
+function stripProfilePrivate(p) {
+  if (!p || typeof p !== 'object') return false;
+  let changed = false;
+  for (const key of ['ip', 'clientIp', 'lastIp']) {
+    if (Object.prototype.hasOwnProperty.call(p, key)) {
+      delete p[key];
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function pruneProfiles(nowMs) {
+  if (!(PROFILE_TTL_MS > 0)) return 0;
+  const now = Number.isFinite(nowMs) ? nowMs : Date.now();
+  let removed = 0;
+  for (const token of Array.from(profiles.keys())) {
+    const p = profiles.get(token);
+    const at = profileLastActive(p);
+    // 旧档案/测试可能用 1/2 这类哨兵时间戳；只有 2020 年之后的真实时间才参与过期。
+    if (at >= 1577836800000 && now - at > PROFILE_TTL_MS) {
+      profiles.delete(token);
+      removed++;
+    }
+  }
+  metrics.profilesPruned += removed;
+  return removed;
+}
+
+function profileInUse(token) {
+  if (!token) return false;
+  for (const room of rooms.values()) {
+    for (const q of room.players.values()) {
+      if (!q.isBot && q.profileToken === token) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 上限清理：优先淘汰最久未活跃且当前没有在线的档案。
+ * reserve 为即将新建的槽位（create 时传 1）。无法腾出空间则返回 false。
+ */
+function enforceProfileCap(limit, reserve) {
+  if (!(limit > 0)) return true;
+  const need = Math.max(0, profiles.size + (reserve || 0) - limit);
+  if (need <= 0) return true;
+  const candidates = [];
+  for (const [token, p] of profiles) {
+    if (profileInUse(token)) continue;
+    candidates.push({ token: token, at: profileLastActive(p) });
+  }
+  candidates.sort(function (a, b) { return a.at - b.at; });
+  let removed = 0;
+  for (const c of candidates) {
+    if (removed >= need) break;
+    profiles.delete(c.token);
+    removed++;
+  }
+  metrics.profilesEvicted += removed;
+  return removed >= need;
+}
+
+function createProfile(rawName) {
   const token = crypto.randomBytes(18).toString('hex');
   const now = Date.now();
+  // V53 SRV-11：先清过期，再按 LRU 腾出上限内的一个槽位；不再把客户端 IP 写进档案。
+  pruneProfiles(now);
+  if (!enforceProfileCap(PROFILE_MAX, 1)) return null;
   const name = sanitizeName(rawName, '几猫') || '几猫';
   const profile = {
     uid: 'u' + crypto.randomBytes(6).toString('hex'),
@@ -786,7 +1411,6 @@ function createProfile(rawName, ip) {
     wins: 0,
     createdAt: now,
     updatedAt: now,
-    ip: ip || null,
   };
   profiles.set(token, profile);
   scheduleProfileSave();
@@ -912,7 +1536,7 @@ function dot3(a, b) {
   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 function eyeHeight(p) {
-  return p.input && p.input.crouch ? 1.05 : 1.68;
+  return p.crouching || (p.input && p.input.crouch) ? 1.05 : 1.68;
 }
 function eyePos(p) {
   return { x: p.pos.x, y: p.pos.y + eyeHeight(p), z: p.pos.z };
@@ -922,7 +1546,8 @@ function eyePos(p) {
 // 房间 / 玩家
 // ---------------------------------------------------------------------------
 const rooms = new Map();
-let tick = 0;
+// V53 SRV-6：快照按“距上次快照的 tick 数”触发，追帧多步后不会因奇偶相位跳过。
+let lastSnapTick = -Infinity;
 
 // V37：统一的武器状态字段。respawn / roundStart / 换枪广播都带同一组字段，
 // 客户端收到后可直接写回本地两把枪的 slot/mag/reserve，避免 UI 与权威状态漂移。
@@ -988,10 +1613,9 @@ class Player {
     this.isBot = !!opts.isBot;
     this.botSkill = opts.botSkill != null ? opts.botSkill : BOT_SKILL;
     this.botState = { aimErr: 0, strafe: Math.random() < 0.5 ? -1 : 1, decideAt: 0, targetId: null, senseAt: 0 };
+    // joinedAt 只用于“最近加入”的平衡/补位排序，属于会话元数据，保留真实时钟。
     this.joinedAt = Date.now();
-    this.lastSeen = Date.now();
-    this.input = { move: { x: 0, y: 0 }, jump: false, sprint: false, crouch: false };
-    this.prevButtons = 0;
+    this.lastSeen = simNowMs();
     this.prevCmdButtons = 0;
     this.jumpQueued = false;
     this.yaw = 0;
@@ -1004,14 +1628,8 @@ class Player {
     this.lastFire = 0;
     this.kills = 0;
     this.deaths = 0;
-    this.height = MOVE.standHeight;
-    this.onGround = true;
-    this.surface = 'concrete';
-    this.spawnProtectUntil = Date.now() + 2000;
+    this.spawnProtectUntil = simNowMs() + 2000;
     this.spawn = spawnIn || { x: DEFAULT_SPAWN.x, y: 0, z: DEFAULT_SPAWN.z };
-    this.pos = { x: this.spawn.x, y: this.spawn.y, z: this.spawn.z };
-    this.vel = { x: 0, y: 0, z: 0 };
-    this.yaw = this.spawn.yaw || 0;
     this.rtt = 0;              // 服务端 ws ping/pong 实测 RTT（EWMA 0.7/0.3）
     this.clientRtt = 0;        // 客户端 ping.ts 自报，仅用于显示/兼容，不参与回滚
     this.lastPongAt = 0;
@@ -1019,7 +1637,10 @@ class Player {
     this.history = [];
     this.profileToken = opts.profileToken || null;
     this.profile = null;
-    this.loadout = resolveLoadout(opts.loadout);
+    // V53 SRV-11：按档案等级校验武器/配件；机器人是服务器内部生成，按最高等级信任。
+    const loadoutLevel = opts.isBot ? 99 : Math.max(1, Math.floor(numOr(opts.loadoutLevel, 1)));
+    this.loadout = resolveLoadout(opts.loadout, loadoutLevel);
+    this.loadoutAdjusted = this.loadout.adjusted || [];
     this.slots = [makeWeaponState(WEAPONS[this.loadout.primary]), makeWeaponState(WEAPONS[this.loadout.secondary])];
     this.slot = 0;
     this.cmdQueue = [];
@@ -1034,10 +1655,15 @@ class Player {
     this.snapPrev = null;
     this.snapBaseTick = 0;
     this.snapFullTick = -1;
+    // V53 NET-3：netId -> { x, y, z, yaw, tick }，只在“这一帧真的发给该接收者”后更新。
+    this.snapSent = new Map();
+    this.submergedSince = 0;
     this.stuckSince = 0;
     this.bytesOut = 0;
     this.bytesIn = 0;
     this.lastPingAt = 0;
+    // NET-2：共享 stepPlayer 需要的移动状态字段（crouching/slideT/jumpBuf/coyote/...）。
+    initPlayerMovement(this, this.spawn);
   }
 
   currentWeaponState() {
@@ -1095,9 +1721,9 @@ class Player {
       kills: this.kills,
       deaths: this.deaths,
       onGround: !!this.onGround,
-      crouch: !!(this.input && this.input.crouch),
-      sprinting: !!(this.input && this.input.sprint),
-      spawnProtect: this.spawnProtectUntil > Date.now(),
+      crouch: !!this.crouching,
+      sprinting: !!this.sprinting,
+      spawnProtect: this.spawnProtectUntil > simNowMs(),
       seq: this.lastSimSeq,
       ack: this.lastSimSeq,
       ping: Math.round(this.rtt),
@@ -1107,7 +1733,7 @@ class Player {
       mag: w.mag,
       reserve: w.reserve,
       slots: this.slots.map(function (s, i) { return { slot: i, wpn: s.def.id, mag: s.mag | 0, reserve: s.reserve | 0 }; }),
-      reloading: !!(w.reloadEnd > Date.now()),
+      reloading: !!(w.reloadEnd > simNowMs()),
     };
   }
 }
@@ -1116,14 +1742,14 @@ class Room {
   constructor(id, mapId, modeId) {
     this.id = id;
     this.mapId = mapId || 'harbor';
-    this.modeId = MODES[modeId] ? modeId : 'tdm';
+    this.modeId = typeof modeId === 'string' && Object.prototype.hasOwnProperty.call(MODES, modeId) ? modeId : 'tdm';
     this.mode = MODES[this.modeId];
     this.maxPlayers = Math.min(this.mode.maxPlayers, MAX_PLAYERS);
     this.setMapState(this.mapId);
     this.players = new Map();
     this.nextNetId = 1;
     this.createdAt = Date.now();
-    this.roundStart = Date.now();
+    this.roundStart = simNowMs();
     this.scoreLimit = SCORE_LIMIT || this.mode.scoreLimit;
     this.roundSeconds = ROUND_SECONDS || this.mode.roundSeconds;
     this.overtimeSeconds = OVERTIME_SECONDS;
@@ -1135,10 +1761,12 @@ class Room {
     this.pointScore = [0, 0];
     this.domAccum = 0;
     this.resetT = 0;
-    this.votes = {};
-    this.spawnUse = {};
+    // V53 SRV-5：投票表与失败计数用无原型对象/数字，避免客户端 id 触发原型链查找。
+    this.votes = Object.create(null);
+    this.spawnUse = Object.create(null);
+    this.failCount = 0;
     this.state = WARMUP_SECONDS > 0 ? 'warmup' : 'live';
-    this.stateSince = Date.now();
+    this.stateSince = simNowMs();
     this.warmupEndsAt = this.stateSince + WARMUP_SECONDS * 1000;
     this.stateEndsAt = 0;
     this.botNextAt = 0;
@@ -1264,7 +1892,7 @@ function broadcastMatchState(room) {
   room.broadcast({
     t: 'matchState',
     state: room.state,
-    timeLeft: roundTimeLeft(room, Date.now()),
+    timeLeft: roundTimeLeft(room, simNowMs()),
     overtime: !!room.overtime,
     mapId: room.mapId,
     mode: room.modeId,
@@ -1307,8 +1935,8 @@ function endRound(room, winnerTeam, reason, opts) {
   const delayMs = Number.isFinite(opts.delayMs) ? opts.delayMs : room.roundEndMs;
   room.roundOver = true;
   room.state = 'roundEnd';
-  room.stateSince = Date.now();
-  room.roundOverAt = Date.now() + delayMs;
+  room.stateSince = simNowMs();
+  room.roundOverAt = simNowMs() + delayMs;
   room.stateEndsAt = room.roundOverAt;
   // V37：teams 必须是“本模式比分”（据点模式为 pointScore），击杀数单独放 kills。
   const kills = room.teamKills.slice(0, 2);
@@ -1364,13 +1992,13 @@ function assignTeam(room, requested) {
 }
 
 function resetRoom(room) {
-  const counts = {};
+  const counts = Object.create(null);
   for (const id of Object.keys(room.votes)) counts[room.votes[id]] = (counts[room.votes[id]] || 0) + 1;
   let nextMap = room.mapId;
   let best = -1;
   for (const id of Object.keys(counts)) if (counts[id] > best) { best = counts[id]; nextMap = id; }
-  room.votes = {};
-  if (!MAPS[nextMap]) nextMap = room.mapId;
+  room.votes = Object.create(null);
+  if (!Object.prototype.hasOwnProperty.call(MAPS, nextMap)) nextMap = room.mapId;
   if (nextMap !== room.mapId) {
     room.setMapState(nextMap);
     room.broadcast({ t: 'mapChange', mapId: nextMap });
@@ -1381,7 +2009,7 @@ function resetRoom(room) {
   }
   room.roundOver = false;
   room.roundOverAt = 0;
-  room.roundStart = Date.now();
+  room.roundStart = simNowMs();
   room.overtime = false;
   room.teamKills = [0, 0];
   room.pointScore = [0, 0];
@@ -1397,10 +2025,10 @@ function resetRoom(room) {
     room.broadcast(respawnEvent(p));
   }
   if (WARMUP_SECONDS > 0) {
-    beginWarmup(room, Date.now());
+    beginWarmup(room, simNowMs());
     broadcastRoundStart(room, { teams: [0, 0], state: 'warmup' });
   } else {
-    startLive(room, Date.now(), true);
+    startLive(room, simNowMs(), true);
   }
 }
 
@@ -1421,11 +2049,14 @@ function respawn(p) {
   p.alive = true;
   p.respawnAt = 0;
   p.onGround = true;
-  p.spawnProtectUntil = Date.now() + 2000;
-  p.prevButtons = 0;
-  p.prevCmdButtons = 0;
-  p.jumpQueued = false;
+  p.submergedSince = 0;
+  p.spawnProtectUntil = simNowMs() + 2000;
   p.history = [];
+  initPlayerMovement(p, s);
+  p.pos.x = s.x;
+  p.pos.y = s.y;
+  p.pos.z = s.z;
+  p.yaw = s.yaw || 0;
   for (const w of p.slots) {
     w.mag = w.def.mag;
     w.reserve = w.def.reserve;
@@ -1434,7 +2065,7 @@ function respawn(p) {
     w.lastShotAt = 0;
   }
   p.slot = 0;
-  recordHistory(p, Date.now());
+  recordHistory(p, simNowMs());
 }
 
 function recordHistory(p, now) {
@@ -1445,7 +2076,7 @@ function recordHistory(p, now) {
     x: p.pos.x,
     y: p.pos.y,
     z: p.pos.z,
-    crouch: !!(p.input && p.input.crouch),
+    crouch: !!p.crouching,
     yaw: p.yaw,
   });
   const cutoff = now - 1000;
@@ -1458,7 +2089,7 @@ function currentPose(p) {
     x: p.pos.x,
     y: p.pos.y,
     z: p.pos.z,
-    crouch: !!(p.input && p.input.crouch),
+    crouch: !!p.crouching,
     yaw: p.yaw,
   };
 }
@@ -1488,73 +2119,56 @@ function sampleHistory(p, at) {
   };
 }
 
-function stepPlayer(p, dt) {
-  if (!p.alive) return;
-  const worldObj = p.room.world;
-  const inp = p.input;
-  const yaw = p.yaw;
-  const sinY = Math.sin(yaw);
-  const cosY = Math.cos(yaw);
-  const mx = inp.move.x;
-  const my = inp.move.y;
-  const moving = mx * mx + my * my > 0.01;
-  const sprinting = inp.sprint && my > 0.55 && Math.abs(mx) < 0.6 && !inp.crouch;
-  const speed = inp.crouch ? MOVE.crouch : sprinting ? MOVE.sprint : MOVE.walk;
-  p.height = inp.crouch ? MOVE.crouchHeight : MOVE.standHeight;
-
-  const desiredX = (mx * cosY - my * sinY) * speed;
-  const desiredZ = (-mx * sinY - my * cosY) * speed;
-  const accel = p.onGround
-    ? (moving ? MOVE.accelGround : MOVE.decelGround)
-    : (moving ? MOVE.accelAir : 0.6);
-
-  let diffX = desiredX - p.vel.x;
-  let diffZ = desiredZ - p.vel.z;
-  if (!p.onGround && !moving) {
-    diffX = -p.vel.x;
-    diffZ = -p.vel.z;
+// V53 NET-2：服务器不再维护 MOVE 表/stepPlayer 副本。Player 直接携带 packages/sim
+// stepPlayer 需要的完整状态字段，逐步调用共享实现；服务器只保留 seaY 死亡判定。
+/** 用共享 createPlayerState 初始化/重置 Player 上的移动字段（复活也走这里）。 */
+function initPlayerMovement(p, spawn) {
+  const st = sim.movement.createPlayerState(null, spawn, SERVER_TUNING);
+  for (let i = 0; i < SIM_STATE_FIELDS.length; i++) {
+    const k = SIM_STATE_FIELDS[i];
+    p[k] = st[k];
   }
-  const diffLen = Math.hypot(diffX, diffZ);
-  const maxDelta = accel * dt;
-  if (diffLen <= maxDelta || diffLen < 1e-6) {
-    if (p.onGround || moving) {
-      p.vel.x = desiredX;
-      p.vel.z = desiredZ;
-    }
-  } else {
-    p.vel.x += (diffX / diffLen) * maxDelta;
-    p.vel.z += (diffZ / diffLen) * maxDelta;
-  }
-
-  if (p.jumpQueued && p.onGround && !inp.crouch) {
-    p.vel.y = MOVE.jumpSpeed;
-    p.onGround = false;
-  }
+  // 服务器仍用 p.hp/armor 作为权威血量；sim 内部血量设成不可死亡，避免两套血量互相覆盖。
+  p.health = SERVER_TUNING.maxHealth;
+  p.maxHealth = SERVER_TUNING.maxHealth;
+  p.sinceDamage = 0;
+  p.simTuning = SERVER_TUNING;
+  p.input = { move: { x: 0, y: 0 }, jump: false, sprint: false, crouch: false };
+  p.prevCmdButtons = 0;
   p.jumpQueued = false;
+  return p;
+}
 
-  p.vel.y -= MOVE.gravity * dt * 0.5;
-  if (p.vel.y < -40) p.vel.y = -40;
-  const res = worldObj.moveCapsule(p.pos, p.vel, dt, MOVE.radius, p.height, true) || { onGround: false, surface: 'concrete' };
-  if (!res.onGround) p.vel.y -= MOVE.gravity * dt * 0.5;
-
-  const b = worldObj.bounds;
-  p.pos.x = clamp(p.pos.x, b.min.x + 0.4, b.max.x - 0.4);
-  p.pos.z = clamp(p.pos.z, b.min.z + 0.4, b.max.z - 0.4);
-  p.onGround = !!res.onGround;
-  if (res.surface) p.surface = res.surface;
-
+/** 权威一步：输入命令对象必须含 mx/my/yaw/pitch/buttons（tick 可选）。 */
+function stepPlayer(p, cmd, dt) {
+  if (!p.alive) return;
+  const worldObj = p.room && p.room.world;
+  if (!worldObj || !cmd) return;
+  p.input.move.x = numOr(cmd.mx, 0);
+  p.input.move.y = numOr(cmd.my, 0);
+  sim.movement.stepPlayer(p, cmd, worldObj, dt, SERVER_TUNING);
+  // 快照/角色姿态读取的是“实际姿态”：低顶棚下松蹲仍保持 crouch，滑铲期间也蹲伏。
+  p.input.crouch = !!p.crouching;
+  p.input.sprint = !!p.sprinting;
+  p.input.jump = false;
+  // V53 SRV-4：共享代码的掉海自救在服务器关闭（rescueDepth=1e9）；
+  // 这里保留服务器自己的 seaY 死亡处理，由 respawnAt 驱动复活。
   if (p.pos.y < worldObj.seaY - 2.2) {
-    respawn(p);
-    p.yaw += Math.PI;
+    if (!p.submergedSince) p.submergedSince = simNowMs();
+    killByEnvironment(p, 'sea', '坠海');
+  } else {
+    p.submergedSince = 0;
   }
 }
 
 function enqueueCommand(p, cmd) {
   if (!p || !p.alive) return false;
-  const now = Date.now();
+  const now = simNowMs();
   const win = p.cmdWindow;
-  if (now - win.start > 1000) {
-    win.start = now;
+  // 输入速率窗口是真实世界 1 秒；不能和模拟时钟混用，否则 sim 时间倒退会永远不重置窗口。
+  const realNow = Date.now();
+  if (realNow - win.start > 1000) {
+    win.start = realNow;
     win.count = 0;
   }
   win.count++;
@@ -1644,27 +2258,45 @@ function applyCommand(p, cmd) {
   p.input.sprint = !!(cmd.buttons & BTN.SPRINT);
   p.input.crouch = !!(cmd.buttons & BTN.CROUCH);
   if (cmd.slotExplicit && cmd.slot !== p.slot) switchSlot(p, cmd.slot, true);
-  if ((cmd.buttons & BTN.JUMP) && !(p.prevCmdButtons & BTN.JUMP)) p.jumpQueued = true;
+  // 跳跃/蹲/滑铲/翻越的按键边沿由共享 stepPlayer 用 st.prevButtons 统一处理，
+  // 服务器不再维护 jumpQueued 副本，避免两套边沿语义分叉。
   if ((cmd.buttons & BTN.RELOAD) && !(p.prevCmdButtons & BTN.RELOAD)) startReload(p, true);
   p.prevCmdButtons = cmd.buttons;
-  if (cmd.buttons & BTN.FIRE) attemptFire(p, { explicit: false, viaCommand: true });
+  // V53 NET-1：人控命令里的 FIRE 位只表示“客户端此刻按着扳机”，权威开火只走显式 t:'fire'。
+  // 机器人没有独立 fire 消息，仍用命令 FIRE 位开火（p.isBot 分支）。
+  if ((cmd.buttons & BTN.FIRE) && p.isBot) attemptFire(p, { explicit: false, viaCommand: true });
 }
 
-function consumeCommand(p, dt, now) {
+// V53 SRV-9：有界追赶。每 tick 至少消费 1 条；backlog>4 时消费 2 条，>12 时 3 条。
+// 每条命令仍按固定步 dt 依次 apply + stepPlayer，所以 60Hz 模拟与射击/换弹语义不变；
+// 追赶只是把该玩家欠下的模拟步在同一 tick 里补完，避免队列堆到 120（约 2 秒延迟）。
+function consumeCommands(p, dt, now) {
   if (!p.alive) {
     p.input.move.x = 0;
     p.input.move.y = 0;
-    return;
+    return 0;
   }
-  const cmd = nextCommand(p);
-  // V37：超过 500ms 没有收到新输入时停走（保留视角），避免掉线滑行/踩点。
-  if (now - p.lastSeen > 500) {
-    cmd.mx = 0;
-    cmd.my = 0;
+  const backlog = p.cmdQueue.length;
+  let budget = 1;
+  if (backlog > CMD_CATCHUP_BACKLOG * 3) budget = CMD_CATCHUP_MAX;
+  else if (backlog > CMD_CATCHUP_BACKLOG) budget = 2;
+  let consumed = 0;
+  for (let i = 0; i < budget; i++) {
+    if (i > 0 && !p.cmdQueue.length) break;
+    if (!p.alive) break;
+    const cmd = nextCommand(p);
+    // V37：超过 500ms 没有收到新输入时停走（保留视角），避免掉线滑行/踩点。
+    if (now - p.lastSeen > 500) {
+      cmd.mx = 0;
+      cmd.my = 0;
+    }
+    applyCommand(p, cmd);
+    stepPlayer(p, cmd, dt);
+    recordHistory(p, now);
+    consumed++;
   }
-  applyCommand(p, cmd);
-  stepPlayer(p, dt);
-  recordHistory(p, Date.now());
+  if (consumed > 1) metrics.cmdCatchup += consumed - 1;
+  return consumed;
 }
 
 // ---------------------------------------------------------------------------
@@ -1721,7 +2353,7 @@ function startReload(p, silent) {
     return false;
   }
   const duration = (w.mag === 0 ? w.def.reloadEmpty : w.def.reloadTactical) * 1000;
-  w.reloadStart = Date.now();
+  w.reloadStart = simNowMs();
   w.reloadEnd = w.reloadStart + duration;
   w.reloadEmpty = w.mag === 0;
   p.room.broadcast({ t: 'reloadStart', id: p.id, wpn: w.def.id, ms: Math.round(duration), bot: !!p.isBot });
@@ -1742,12 +2374,27 @@ function finishReload(p, now) {
   return true;
 }
 
-function rejectShot(p, reason, def) {
+// V53 NET-1：拒绝消息必须回带 shotSeq，客户端才能精确回滚对应那一发；
+// 同时带上当前权威 mag/reserve/wpn/slot，客户端按服务端状态回滚而不是猜“最后一发”。
+function rejectShot(p, reason, def, shotSeq) {
   metrics.shotsRejected++;
   metrics.rejectReasons[reason] = (metrics.rejectReasons[reason] || 0) + 1;
   audit('shot_' + reason, p, { wpn: def ? def.id : null });
-  if (p.ws) p.send({ t: 'shotRejected', reason: reason, wpn: def ? def.id : null, at: Date.now() });
-  return { ok: false, reason: reason };
+  const w = p.currentWeaponState();
+  const payload = {
+    t: 'shotRejected',
+    reason: reason,
+    wpn: def ? def.id : (w && w.def ? w.def.id : null),
+    shotSeq: Number.isFinite(shotSeq) ? Math.floor(shotSeq) : null,
+    slot: p.slot,
+    mag: w ? w.mag | 0 : null,
+    reserve: w ? w.reserve | 0 : null,
+    at: Date.now(),
+  };
+  // 兼容旧客户端字段名（ammo）
+  payload.ammo = payload.mag;
+  if (p.ws) p.send(payload);
+  return { ok: false, reason: reason, shotSeq: payload.shotSeq };
 }
 
 function raySphere(origin, dir, cx, cy, cz, radius) {
@@ -1928,79 +2575,99 @@ function applyDamageHit(shooter, victim, result, def) {
   return dealt;
 }
 
-function killPlayer(shooter, victim, hs, def, dist, rewindMs) {
-  const room = shooter.room;
-  const now = Date.now();
-  if (!victim.alive) return;
+// V53 SRV-4：统一的死亡入口。被击杀与掉海/环境死亡都走这里：计死亡、进入复活等待、
+// 广播 kill（带 reason），之后由 simulateRoom 的 respawnAt 定时复活并广播 respawn。
+function beginDeath(victim, info) {
+  if (!victim || !victim.alive || !victim.room) return false;
+  info = info || {};
+  const room = victim.room;
+  const now = simNowMs();
+  const killer = info.killer || null;
+  const def = info.def || null;
   victim.alive = false;
   victim.hp = 0;
   victim.respawnAt = now + RESPAWN_MS;
+  victim.submergedSince = 0;
   const live = room.state === 'live';
   if (live) {
     victim.deaths++;
     if (!victim.isBot && victim.profileToken) awardProfileXp(victim.profileToken, 0, { death: true });
   }
-  if (live) {
-    shooter.kills++;
-    room.teamKills[shooter.team] = (room.teamKills[shooter.team] || 0) + 1;
-    if (!shooter.isBot && shooter.profileToken) {
-      const profile = awardProfileXp(shooter.profileToken, hs ? 30 : 20, { kill: true });
-      if (!shooter.profile && profile) shooter.profile = profile;
+  if (killer && live) {
+    killer.kills++;
+    room.teamKills[killer.team] = (room.teamKills[killer.team] || 0) + 1;
+    if (!killer.isBot && killer.profileToken) {
+      const profile = awardProfileXp(killer.profileToken, info.hs ? 30 : 20, { kill: true });
+      if (!killer.profile && profile) killer.profile = profile;
     }
   }
   room.broadcast({
     t: 'kill',
-    by: shooter.id,
+    by: killer ? killer.id : null,
     victim: victim.id,
-    hs: !!hs,
-    wpn: def.id,
-    byName: shooter.name,
+    hs: !!info.hs,
+    wpn: def ? def.id : null,
+    byName: killer ? killer.name : (info.byName || null),
     victimName: victim.name,
-    team: shooter.team,
-    dist: round2(dist),
-    lagcomp: rewindMs || 0,
-    bot: !!shooter.isBot,
+    team: killer ? killer.team : null,
+    dist: round2(info.dist || 0),
+    lagcomp: info.rewind || 0,
+    bot: !!(killer && killer.isBot),
     victimBot: !!victim.isBot,
     warmup: room.state === 'warmup',
+    reason: info.reason || 'shot',
   });
-  if (live) {
+  if (killer && live) {
     const scores = room.matchScore();
-    if (scores[shooter.team] >= room.scoreLimit) {
-      endRound(room, shooter.team, 'score', {
-        winner: { id: shooter.id, name: shooter.name, kills: shooter.kills, bot: !!shooter.isBot },
+    if (scores[killer.team] >= room.scoreLimit) {
+      endRound(room, killer.team, 'score', {
+        winner: { id: killer.id, name: killer.name, kills: killer.kills, bot: !!killer.isBot },
       });
     }
   }
+  return true;
+}
+
+function killPlayer(shooter, victim, hs, def, dist, rewindMs) {
+  return beginDeath(victim, {
+    killer: shooter, hs: hs, def: def, dist: dist, rewind: rewindMs, reason: 'shot',
+  });
+}
+
+// 掉海/出界：不直接回满，走正常死亡流程（计死亡、等 RESPAWN_MS、广播 kill + respawn）。
+function killByEnvironment(p, reason, byName) {
+  return beginDeath(p, { killer: null, reason: reason || 'environment', byName: byName || '坠海' });
 }
 
 function attemptFire(p, opts) {
   opts = opts || {};
-  const now = Date.now();
+  const now = simNowMs();
   const room = p.room;
+  const shotSeq = Number.isFinite(opts.shotSeq) ? Math.floor(opts.shotSeq) : null;
   if (!room) return { ok: false, reason: 'no_room' };
-  if (!p.alive) return opts.explicit ? rejectShot(p, 'dead', p.currentWeapon()) : { ok: false, reason: 'dead' };
+  if (!p.alive) return opts.explicit ? rejectShot(p, 'dead', p.currentWeapon(), shotSeq) : { ok: false, reason: 'dead' };
   if (room.state === 'roundEnd' || room.roundOver) {
-    return opts.explicit ? rejectShot(p, 'round_end', p.currentWeapon()) : { ok: false, reason: 'round_end' };
+    return opts.explicit ? rejectShot(p, 'round_end', p.currentWeapon(), shotSeq) : { ok: false, reason: 'round_end' };
   }
   const w = p.currentWeaponState();
   const def = w.def;
   if (w.reloadEnd) {
     if (now >= w.reloadEnd) finishReload(p, now);
-    else return opts.explicit ? rejectShot(p, 'reloading', def) : { ok: false, reason: 'reloading' };
+    else return opts.explicit ? rejectShot(p, 'reloading', def, shotSeq) : { ok: false, reason: 'reloading' };
   }
   if (w.mag <= 0) {
     if (w.reserve > 0) startReload(p, true);
-    return opts.explicit ? rejectShot(p, 'empty', def) : { ok: false, reason: 'empty' };
+    return opts.explicit ? rejectShot(p, 'empty', def, shotSeq) : { ok: false, reason: 'empty' };
   }
   const minInterval = 60000 / def.rpm - 2;
   if (now - w.lastShotAt < minInterval) {
-    return opts.explicit ? rejectShot(p, 'rate', def) : { ok: false, reason: 'rate' };
+    return opts.explicit ? rejectShot(p, 'rate', def, shotSeq) : { ok: false, reason: 'rate' };
   }
   let dir = normalizeDir(opts.dir);
   if (!dir) dir = dirFromAngles(p.yaw, p.pitch);
   const view = dirFromAngles(p.yaw, p.pitch);
   if (dot3(dir, view) < Math.cos(0.06)) {
-    return opts.explicit ? rejectShot(p, 'aim_mismatch', def) : { ok: false, reason: 'aim_mismatch' };
+    return opts.explicit ? rejectShot(p, 'aim_mismatch', def, shotSeq) : { ok: false, reason: 'aim_mismatch' };
   }
   w.mag--;
   w.lastShotAt = now;
@@ -2344,59 +3011,121 @@ function broadcastScore(room, now) {
   });
 }
 
-function simulate(dt) {
-  tick++;
-  const now = Date.now();
-  for (const room of rooms.values()) {
-    for (const p of room.players.values()) {
-      // 换弹完成（每个模拟步检查，权威于客户端表现）
-      const wsReload = p.currentWeaponState();
-      if (wsReload.reloadEnd && now >= wsReload.reloadEnd) finishReload(p, now);
-      if (!p.alive && p.respawnAt && now >= p.respawnAt) {
+// V53 SRV-7：每个房间单独模拟。一个房间抛错只影响本房间，后续房间继续推进；
+// 连续失败达到 ROOM_FAIL_LIMIT 次后关闭该房间并广播，避免“毒房间”每 tick 反复抛错。
+function simulateRoom(room, dt, now) {
+  for (const p of room.players.values()) {
+    // 换弹完成（每个模拟步检查，权威于客户端表现）
+    const wsReload = p.currentWeaponState();
+    if (wsReload.reloadEnd && now >= wsReload.reloadEnd) finishReload(p, now);
+    if (!p.alive && p.respawnAt && now >= p.respawnAt) {
+      respawn(p);
+      room.broadcast(respawnEvent(p));
+    }
+    // V53 SRV-4 防卡死兜底：若出生点异常等原因让玩家在水下仍存活超过 3 秒，
+    // 直接回出生点并广播 respawn，避免反复死亡/卡死。
+    if (p.alive && p.pos.y < room.world.seaY - 2.2) {
+      if (!p.submergedSince) p.submergedSince = now;
+      else if (now - p.submergedSince > 3000) {
         respawn(p);
         room.broadcast(respawnEvent(p));
       }
-      if (p.isBot && p.alive) botThink(p, room, now, dt);
+    } else if (p.alive) {
+      p.submergedSince = 0;
     }
-    for (const p of room.players.values()) consumeCommand(p, dt, now);
-    updateDomination(room, dt, now);
+    if (p.isBot && p.alive) botThink(p, room, now, dt);
+  }
+  for (const p of room.players.values()) consumeCommands(p, dt, now);
+  updateDomination(room, dt, now);
 
-    if (room.state === 'warmup' && now >= room.warmupEndsAt) {
-      startLive(room, now, true);
-    } else if (room.state === 'live') {
-      if (room.roundOver) {
-        // 比分已结算，等 state 切换
-      } else {
-        const left = roundTimeLeft(room, now);
-        if (left <= 0) {
-          const scores = room.matchScore();
-          if (scores[0] === scores[1]) {
-            if (!room.overtime) {
-              room.overtime = true;
-              room.roundStart = now;
-              room.domAccum = 0;
-              room.broadcast({
-                t: 'overtime',
-                seconds: room.overtimeSeconds,
-                teams: scores,
-                mapId: room.mapId,
-                mode: room.modeId,
-                state: room.state,
-              });
-              broadcastMatchState(room);
-            } else {
-              endRound(room, leaderTeam(room), 'time');
-            }
+  if (room.state === 'warmup' && now >= room.warmupEndsAt) {
+    startLive(room, now, true);
+  } else if (room.state === 'live') {
+    if (room.roundOver) {
+      // 比分已结算，等 state 切换
+    } else {
+      const left = roundTimeLeft(room, now);
+      if (left <= 0) {
+        const scores = room.matchScore();
+        if (scores[0] === scores[1]) {
+          if (!room.overtime) {
+            room.overtime = true;
+            room.roundStart = now;
+            room.domAccum = 0;
+            room.broadcast({
+              t: 'overtime',
+              seconds: room.overtimeSeconds,
+              teams: scores,
+              mapId: room.mapId,
+              mode: room.modeId,
+              state: room.state,
+            });
+            broadcastMatchState(room);
           } else {
             endRound(room, leaderTeam(room), 'time');
           }
+        } else {
+          endRound(room, leaderTeam(room), 'time');
         }
       }
-    } else if (room.state === 'roundEnd' && room.roundOverAt && now >= room.roundOverAt) {
-      resetRoom(room);
     }
+  } else if (room.state === 'roundEnd' && room.roundOverAt && now >= room.roundOverAt) {
+    resetRoom(room);
+  }
 
-    if (tick % Math.max(1, Math.round(TICK_HZ / 2)) === 0) broadcastScore(room, now);
+  if (tick % Math.max(1, Math.round(TICK_HZ / 2)) === 0) broadcastScore(room, now);
+}
+
+function closeRoomAfterFailures(room, err) {
+  metrics.roomsClosed++;
+  const reason = err && err.message ? err.message : String(err);
+  log('error', 'room closed after repeated simulate failures (V53 SRV-7)', {
+    room: room.id,
+    fails: room.failCount,
+    players: room.size,
+    error: reason,
+  });
+  audit('room_closed', null, { room: room.id, fails: room.failCount, error: reason });
+  try {
+    room.broadcast({ t: 'error', code: 'room_closed', message: '房间因连续模拟异常已关闭，请重新加入' });
+  } catch (e) {}
+  for (const p of Array.from(room.players.values())) {
+    if (p.isBot) continue;
+    try { p.ws.close(1011, 'room_error'); } catch (e) {}
+  }
+  room.players.clear();
+  rooms.delete(room.id);
+}
+
+function simulate(dt) {
+  // SRV-8：每推进一个模拟步，tick 与模拟时钟一起前进；主循环追帧多步时
+  // 每次 simulate() 的时间都不同，射速/换弹/复活/回合计时不会挤在同一毫秒。
+  const now = advanceSimClock();
+  dt = STEP;
+  metrics.cmdQueueLen = 0;
+  for (const room of Array.from(rooms.values())) {
+    try {
+      simulateRoom(room, dt, now);
+      if (room.failCount) room.failCount = 0;
+    } catch (e) {
+      room.failCount = (room.failCount || 0) + 1;
+      metrics.roomErrors++;
+      log('error', 'room simulate failed (isolated)', {
+        room: room.id,
+        fails: room.failCount,
+        limit: ROOM_FAIL_LIMIT,
+        error: e && e.stack ? e.stack : String(e),
+      });
+      if (room.failCount >= ROOM_FAIL_LIMIT) closeRoomAfterFailures(room, e);
+    }
+  }
+  // V53 SRV-9：队列长度指标（当前最大值 + 历史峰值），用于回归“持续负载下不无界增长”。
+  for (const room of rooms.values()) {
+    for (const p of room.players.values()) {
+      const len = p.cmdQueue.length;
+      if (len > metrics.cmdQueueLen) metrics.cmdQueueLen = len;
+      if (len > metrics.cmdQueuePeak) metrics.cmdQueuePeak = len;
+    }
   }
 }
 
@@ -2409,7 +3138,7 @@ function binPlayerList(room) {
     const w = p.currentWeaponState();
     let state = 0;
     if (p.slot === 1) state |= 1;
-    if (w.reloadEnd > Date.now()) state |= 2;
+    if (w.reloadEnd > simNowMs()) state |= 2;
     if (!p.alive) state |= 4;
     if (p.isBot) state |= 8;
     out.push({
@@ -2422,8 +3151,8 @@ function binPlayerList(room) {
       armor: Math.round(p.armor),
       team: p.team,
       alive: !!p.alive,
-      crouch: !!(p.input && p.input.crouch),
-      spawnProtect: p.spawnProtectUntil > Date.now(),
+      crouch: !!p.crouching,
+      spawnProtect: p.spawnProtectUntil > simNowMs(),
       seq: p.lastSimSeq & 255,
       state: state,
     });
@@ -2437,20 +3166,62 @@ function previousMapFromList(list) {
   return map;
 }
 
+// V53 NET-3：与 packages/net/protocol.js 的 sameSnapshot 保持完全一致的量化阈值。
+// 该函数没有导出（不在本任务可改文件内），这里复制一份仅用于判定“这一帧会不会被增量跳过”。
+function binSameSnapshot(a, b) {
+  return Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y - b.y) < 0.005 && Math.abs(a.z - b.z) < 0.01 &&
+    Math.abs(a.yaw - b.yaw) < 0.002 && a.hp === b.hp && a.armor === b.armor && a.team === b.team &&
+    (a.alive !== false) === (b.alive !== false) && !!a.crouch === !!b.crouch &&
+    !!a.spawnProtect === !!b.spawnProtect && (a.state | 0) === (b.state | 0);
+}
+function snapshotIncludedIds(players, prev) {
+  const ids = [];
+  for (const q of players) {
+    const old = prev && prev[q.id];
+    if (!old || !binSameSnapshot(q, old)) ids.push(q.id);
+  }
+  return ids;
+}
+
 function sendBinarySnapshot(p, now, binList, shared) {
   if (!p.ws || p.ws.readyState !== WebSocket.OPEN) return;
   const full = !p.snapPrev || (tick - p.snapFullTick >= SNAP_FULL_EVERY);
   let data;
+  let included;
   try {
     if (full) {
       if (!shared.fullBuf) shared.fullBuf = Buffer.from(SALT_NET.encodeSnapshot(tick, 0, binList, null));
       data = shared.fullBuf;
-    } else if (p.snapPrev === shared.prev && p.snapBaseTick === shared.baseTick) {
-      if (!shared.deltaBuf) shared.deltaBuf = Buffer.from(SALT_NET.encodeSnapshot(tick, shared.baseTick, binList, shared.prev));
-      data = shared.deltaBuf;
+      included = binList.map(function (q) { return q.id; });
     } else {
-      // 该客户端因背压漏过帧/刚从全量恢复：单独编码，基线仍是它最后收到的 tick。
-      data = Buffer.from(SALT_NET.encodeSnapshot(tick, p.snapBaseTick, binList, p.snapPrev));
+      const sharedBaseline = p.snapPrev === shared.prev && p.snapBaseTick === shared.baseTick;
+      const prev = sharedBaseline ? shared.prev : p.snapPrev;
+      // V53 NET-3：对“上次真正发给该接收者”的位姿做慢漂移判定。
+      // 协议增量按上一 tick 比较，慢速移动每帧都小于 0.01m/0.002rad 会被永久跳过；
+      // 这里超过 0.03m/0.02rad 或 0.5 秒未发送就强制包含该玩家。
+      const forced = [];
+      for (const q of binList) {
+        const last = p.snapSent.get(q.id);
+        if (!last) continue;
+        if (!snapshotForceDue(last, q, tick - last.tick)) continue;
+        const old = prev && prev[q.id];
+        if (old && binSameSnapshot(q, old)) forced.push(q.id);
+      }
+      let useShared = sharedBaseline && forced.length === 0;
+      let encodePrev = prev;
+      if (forced.length) {
+        encodePrev = Object.assign(Object.create(null), prev || {});
+        for (const id of forced) delete encodePrev[id];
+        metrics.snapForced += forced.length;
+      }
+      if (useShared) {
+        if (!shared.deltaBuf) shared.deltaBuf = Buffer.from(SALT_NET.encodeSnapshot(tick, shared.baseTick, binList, shared.prev));
+        data = shared.deltaBuf;
+      } else {
+        // 该客户端因背压漏过帧/刚从全量恢复/慢漂移强制包含：单独编码，基线仍是它最后收到的 tick。
+        data = Buffer.from(SALT_NET.encodeSnapshot(tick, p.snapBaseTick, binList, encodePrev));
+      }
+      included = snapshotIncludedIds(binList, encodePrev);
     }
   } catch (e) {
     metrics.ioErrors++;
@@ -2466,6 +3237,15 @@ function sendBinarySnapshot(p, now, binList, shared) {
     p.snapPrev = shared.nextPrev;
     p.snapBaseTick = tick;
     if (full) p.snapFullTick = tick;
+    // V53 NET-3：只为真正出现在本帧里的玩家记录“上次发送位姿”。
+    if (full) p.snapSent.clear();
+    for (const id of included) {
+      for (const q of binList) {
+        if (q.id !== id) continue;
+        p.snapSent.set(id, { x: q.x, y: q.y, z: q.z, yaw: q.yaw, tick: tick });
+        break;
+      }
+    }
     shared.sent = true;
   }
 }
@@ -2553,14 +3333,16 @@ function sendError(ws, code, message) {
   } catch (e) {}
 }
 
-function rateLimited(p) {
+// V53 SRV-3：cost 让 JSON input 按“命令条数”计入窗口，而不是一条消息只算一次。
+function rateLimited(p, cost) {
   const now = Date.now();
   if (now - p._msgWindow.start > 1000) {
     p._msgWindow.start = now;
     p._msgWindow.count = 0;
     p._violations = Math.max(0, p._violations - 1);
   }
-  p._msgWindow.count++;
+  const add = Math.max(1, Math.min(Number(cost) || 1, readRateLimit()));
+  p._msgWindow.count += add;
   if (p._msgWindow.count > readRateLimit()) {
     metrics.rateLimited++;
     p._violations++;
@@ -2590,8 +3372,22 @@ function handleBinaryInput(p, msg) {
 }
 
 function handleJsonInput(p, msg) {
-  if (rateLimited(p)) return;
-  const list = Array.isArray(msg.cmds) ? msg.cmds : [msg];
+  const rawList = Array.isArray(msg.cmds) ? msg.cmds : [msg];
+  let list = rawList;
+  // V53 SRV-3：单条消息最多处理 8 条命令；多余命令丢弃并审计（日志本身再按 reason 限频）。
+  if (rawList.length > MAX_CMDS_PER_INPUT) {
+    const dropped = rawList.length - MAX_CMDS_PER_INPUT;
+    list = rawList.slice(0, MAX_CMDS_PER_INPUT);
+    metrics.cmdsTruncated += dropped;
+    metrics.cmdDropped += dropped;
+    audit('cmd_batch_truncated', p, {
+      count: rawList.length,
+      accepted: list.length,
+      dropped: dropped,
+      cap: MAX_CMDS_PER_INPUT,
+    });
+  }
+  if (rateLimited(p, list.length)) return;
   for (const raw of list) {
     if (!raw || typeof raw !== 'object') continue;
     let buttons = 0;
@@ -2631,23 +3427,25 @@ function handleJsonInput(p, msg) {
 function handleFireMessage(p, msg) {
   if (!p || !p.room) return;
   if (rateLimited(p)) return;
+  // V53 NET-1：显式开火消息携带客户端 shotSeq；拒绝时原样回带，客户端按 seq 回滚。
+  const shotSeq = Number.isFinite(msg.shotSeq) ? Math.floor(msg.shotSeq) : null;
   const alias = { rifle: 'pac9', shotgun: 'breaker12', pistol: 'sidearm', sniper: 'dmr' };
   let wpn = typeof msg.wpn === 'string' ? (alias[msg.wpn] || msg.wpn) : null;
   if (wpn) {
     let slot = -1;
     for (let i = 0; i < p.slots.length; i++) if (p.slots[i].def.id === wpn) slot = i;
     if (slot < 0) {
-      rejectShot(p, 'bad_weapon', p.currentWeapon());
+      rejectShot(p, 'bad_weapon', p.currentWeapon(), shotSeq);
       return;
     }
     if (slot !== p.slot) switchSlot(p, slot, true);
   }
   const dir = normalizeDir(msg.dir);
   if (!dir) {
-    rejectShot(p, 'bad_dir', p.currentWeapon());
+    rejectShot(p, 'bad_dir', p.currentWeapon(), shotSeq);
     return;
   }
-  attemptFire(p, { explicit: true, dir: dir });
+  attemptFire(p, { explicit: true, dir: dir, shotSeq: shotSeq });
 }
 
 function handleJoin(ws, msg, ctx) {
@@ -2658,9 +3456,12 @@ function handleJoin(ws, msg, ctx) {
     return;
   }
   const roomId = sanitizeRoom(msg.room);
-  const requestedMap = MAPS[msg.map] ? msg.map : 'harbor';
+  // V53 SRV-5：map/mode 必须是字符串且是自有属性，__proto__/constructor 只按未知值处理。
+  const requestedMap = typeof msg.map === 'string' &&
+    Object.prototype.hasOwnProperty.call(MAPS, msg.map) ? msg.map : 'harbor';
   // V37：显式传入未知模式必须明确报错，不回退 tdm；未传 mode 才使用默认 tdm。
-  if (msg.mode != null && msg.mode !== '' && !Object.prototype.hasOwnProperty.call(MODES, msg.mode)) {
+  if (msg.mode != null && msg.mode !== '' &&
+      (typeof msg.mode !== 'string' || !Object.prototype.hasOwnProperty.call(MODES, msg.mode))) {
     sendError(ws, 'mode_unsupported', '不支持的模式：' + String(msg.mode).slice(0, 32) + '（可用：' + MODE_IDS.join('/') + '）');
     ws.close(4004, 'mode_unsupported');
     return;
@@ -2696,12 +3497,19 @@ function handleJoin(ws, msg, ctx) {
   let profileToken = typeof msg.profileToken === 'string' ? msg.profileToken : null;
   // 兼容：客户端把账号 token 放在 join.token 里（未配置 PROFILE_TOKEN 时）
   if (!profileToken && typeof msg.token === 'string' && profiles.has(msg.token)) profileToken = msg.token;
+  const joinProfile = profileToken && profiles.has(profileToken) ? profiles.get(profileToken) : null;
+  // dev token 是服务器运维通道；机器人由服务器内部生成，二者不受玩家解锁等级限制。
+  const loadoutLevel = devAuthed ? 99 : (joinProfile ? levelForXp(joinProfile.xp) : 1);
   const p = new Player(ws, room, name, team, spawn, {
     bin: Array.isArray(msg.caps) && msg.caps.indexOf('bin') >= 0,
     loadout: msg.loadout,
+    loadoutLevel: loadoutLevel,
     profileToken: profileToken,
   });
-  if (p.profileToken && profiles.has(p.profileToken)) p.profile = profiles.get(p.profileToken);
+  if (joinProfile) p.profile = joinProfile;
+  if (p.loadoutAdjusted.length) {
+    audit('loadout_adjusted', p, { level: loadoutLevel, adjusted: p.loadoutAdjusted });
+  }
   room.players.set(p.id, p);
   if (!devAuthed) balanceTeams(room);
   if (p.team !== team) {
@@ -2735,7 +3543,9 @@ function handleJoin(ws, msg, ctx) {
     serverTime: Date.now(),
     warmupSeconds: WARMUP_SECONDS,
     weapons: WEAPON_IDS.slice(),
-    loadout: p.loadout,
+    loadout: { primary: p.loadout.primary, secondary: p.loadout.secondary, attachments: p.loadout.attachments },
+    loadoutLevel: loadoutLevel,
+    loadoutAdjusted: p.loadoutAdjusted.length ? p.loadoutAdjusted : undefined,
     map: {
       boxes: room.world.boxes.count,
       bounds: room.world.bounds,
@@ -2763,7 +3573,7 @@ function handleDev(p, msg) {
   if (msg.cmd === 'round') {
     endRound(room, 0, 'dev', { delayMs: 1500, winner: { id: p.id, name: p.name, kills: p.kills } });
   } else if (msg.cmd === 'live') {
-    startLive(room, Date.now(), true);
+    startLive(room, simNowMs(), true);
   } else if (msg.cmd === 'tp' && typeof msg.x === 'number' && typeof msg.z === 'number') {
     const w = room.world;
     p.pos.x = clamp(msg.x, w.bounds.min.x + 0.5, w.bounds.max.x - 0.5);
@@ -2775,7 +3585,7 @@ function handleDev(p, msg) {
     p.armor = 50;
     p.spawnProtectUntil = 0;
     p.history = [];
-    recordHistory(p, Date.now());
+    recordHistory(p, simNowMs());
     p.send(respawnEvent(p, { dev: true }));
   } else if (msg.cmd === 'team' && (msg.team === 0 || msg.team === 1)) {
     p.team = msg.team;
@@ -2843,7 +3653,9 @@ function handleMessage(ws, raw, ctx) {
       switchSlot(p, msg.slot === 1 ? 1 : 0, false);
       break;
     case 'vote':
-      if (typeof msg.map === 'string' && MAPS[msg.map]) p.room.votes[p.id] = msg.map;
+      if (typeof msg.map === 'string' && Object.prototype.hasOwnProperty.call(MAPS, msg.map)) {
+        p.room.votes[p.id] = msg.map;
+      }
       break;
     case 'dev':
       handleDev(p, msg);
@@ -2965,6 +3777,15 @@ function metricsAllowed(req, query) {
   return isLoopbackIp(requestIp(req));
 }
 
+// V53 SRV-10：?detail=1 的房间明细比基础计数敏感。
+// 配置 METRICS_TOKEN 时必须带有效 token；否则要求“真实回环连接”——直接 socket 地址
+// 与解析后的客户端地址都必须是回环，XFF 无法把远端连接伪装成 127.0.0.1。
+function metricsDetailAllowed(req, query) {
+  if (!query || !query.get || query.get('detail') !== '1') return true;
+  if (METRICS_TOKEN) return metricsAllowed(req, query);
+  return isLoopbackIp(socketIp(req)) && isLoopbackIp(requestIp(req));
+}
+
 function sendText(res, status, body, type) {
   res.writeHead(status, {
     'Content-Type': type || 'text/plain; charset=utf-8',
@@ -2988,17 +3809,52 @@ function serveStatic(req, res, pathname) {
   }
   if (rel === '/' || rel === '') rel = '/index.html';
   const abs = path.resolve(STATIC_DIR, '.' + rel);
-  if (!abs.startsWith(STATIC_DIR + path.sep) || !fs.existsSync(abs) || !fs.statSync(abs).isFile()) {
+  let stat = null;
+  try {
+    if (!abs.startsWith(STATIC_DIR + path.sep)) {
+      sendJson(req, res, 404, { ok: false, error: 'not_found' });
+      return;
+    }
+    stat = fs.statSync(abs);
+  } catch (e) {
+    sendJson(req, res, 404, { ok: false, error: 'not_found' });
+    return;
+  }
+  if (!stat.isFile()) {
     sendJson(req, res, 404, { ok: false, error: 'not_found' });
     return;
   }
   const ext = path.extname(abs).toLowerCase();
+  // V53 SRV-13：读流必须挂 error 处理。文件在 stat 之后被删除/权限变化时，
+  // 未处理的 'error' 会冒泡成 uncaughtException；这里保证只记录指标并结束响应。
+  let stream;
+  try {
+    stream = fs.createReadStream(abs);
+  } catch (e) {
+    metrics.ioErrors++;
+    sendJson(req, res, 500, { ok: false, error: 'read_error' });
+    return;
+  }
+  stream.on('error', function (err) {
+    metrics.ioErrors++;
+    audit('static_read_error', null, { file: rel, error: err && err.message });
+    if (!res.headersSent) {
+      sendJson(req, res, 500, { ok: false, error: 'read_error' });
+    } else {
+      try { res.destroy(); } catch (e) {}
+    }
+  });
+  res.on('close', function () {
+    if (!stream.destroyed) {
+      try { stream.destroy(); } catch (e) {}
+    }
+  });
   res.writeHead(200, {
     'Content-Type': MIME[ext] || 'application/octet-stream',
-    'Content-Length': fs.statSync(abs).size,
+    'Content-Length': stat.size,
     'Cache-Control': ext === '.html' ? 'no-store' : 'public, max-age=60',
   });
-  fs.createReadStream(abs).pipe(res);
+  stream.pipe(res);
 }
 
 function readJsonBody(req, limit) {
@@ -3044,29 +3900,39 @@ function profileRateLimited(ip) {
   return e.count > 30;
 }
 
-function metricsText() {
+function promEscape(s) {
+  return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+}
+function metricsText(includeDetail) {
   const now = Date.now();
   const lines = [];
   function g(name, value, help) {
     if (help) lines.push('# HELP ' + name + ' ' + help);
     lines.push(name + ' ' + value);
   }
-  const tickMs = metrics.tickLast.toFixed(3);
-  const tickP99Val = tickP99().toFixed(3);
+  const simMs = metrics.tickLast.toFixed(3);
+  const simP99 = tickP99().toFixed(3);
+  const callbackMs = metrics.callbackLast.toFixed(3);
+  const callbackP99Val = callbackP99().toFixed(3);
   const snapKbpsNow = snapKbps(now).toFixed(3);
   const playersNow = totalPlayers();
   const roomsNow = rooms.size;
-  // 规范前缀名（推荐）与任务/看板约定的短名同时输出
-  g('saltline_tick_ms', tickMs, 'last simulation step duration in milliseconds');
-  g('saltline_tick_ms_p99', tickP99Val, 'p99 simulation step duration');
+  // V53 SRV-13：模拟步耗时与定时器回调总耗时是两种量，分开暴露。
+  g('saltline_sim_step_ms', simMs, 'last single simulation step duration in milliseconds');
+  g('saltline_sim_step_ms_p99', simP99, 'p99 single simulation step duration');
+  g('saltline_tick_callback_ms', callbackMs, 'last tick timer callback duration (all steps + snapshots) in milliseconds');
+  g('saltline_tick_callback_ms_p99', callbackP99Val, 'p99 tick timer callback duration');
+  // 兼容旧看板：tick_ms 仍表示模拟步耗时（不再混入回调总耗时）。
+  g('saltline_tick_ms', simMs, 'alias: last simulation step duration in milliseconds');
+  g('saltline_tick_ms_p99', simP99, 'alias: p99 simulation step duration');
   g('saltline_snap_kbps', snapKbpsNow, 'snapshot downstream kbit/s (last 1s)');
   g('saltline_players', playersNow, 'players including bots');
   g('saltline_humans', totalHumans(), 'human players');
   g('saltline_bots', totalBots(), 'bot players');
   g('saltline_rooms', roomsNow, 'rooms');
   g('saltline_lagcomp_hits', metrics.lagcompHits, 'hits resolved against rewound history');
-  g('tick_ms', tickMs, 'alias: last simulation step duration in milliseconds');
-  g('tick_ms_p99', tickP99Val, 'alias: p99 simulation step duration');
+  g('tick_ms', simMs, 'alias: last simulation step duration in milliseconds');
+  g('tick_ms_p99', simP99, 'alias: p99 simulation step duration');
   g('snap_kbps', snapKbpsNow, 'alias: snapshot downstream kbit/s (last 1s)');
   g('players', playersNow, 'alias: players including bots');
   g('rooms', roomsNow, 'alias: rooms');
@@ -3074,16 +3940,28 @@ function metricsText() {
   g('saltline_lagcomp_shots', metrics.lagcompShots, 'shots fired with rewind > 0');
   g('saltline_shots_rejected', metrics.shotsRejected, 'server-rejected shots');
   g('saltline_commands_dropped', metrics.cmdDropped, 'commands dropped (queue/out-of-order/rate)');
+  g('saltline_commands_truncated', metrics.cmdsTruncated, 'commands discarded from oversized JSON input batches (V53 SRV-3)');
   g('saltline_command_queue_full', metrics.cmdQueueFull, 'commands rejected because the per-player queue was full');
+  g('saltline_command_queue_len', metrics.cmdQueueLen, 'current max per-player input queue length (V53 SRV-9)');
+  g('saltline_command_queue_peak', metrics.cmdQueuePeak, 'peak per-player input queue length since start (V53 SRV-9)');
+  g('saltline_command_catchup', metrics.cmdCatchup, 'extra commands consumed by bounded queue catch-up (V53 SRV-9)');
+  g('saltline_room_sim_errors', metrics.roomErrors, 'isolated room simulation errors (V53 SRV-7)');
+  g('saltline_rooms_closed', metrics.roomsClosed, 'rooms closed after repeated simulation failures (V53 SRV-7)');
   g('saltline_acks_sent', metrics.acksSent, 'binary ACK frames sent');
   g('saltline_json_snap_encodes', metrics.jsonSnapEncodes, 'full JSON snapshots serialized (all-bin rooms skip this)');
+  g('saltline_snap_forced_players', metrics.snapForced, 'slow-drift players force-included in binary deltas (V53 NET-3)');
   g('saltline_audit_events', metrics.audit, 'audit events');
+  g('saltline_audit_suppressed', metrics.auditSuppressed, 'audit log lines suppressed by player+reason rate limit (V53 SRV-3)');
   g('saltline_rate_limited', metrics.rateLimited, 'rate limited messages');
   g('saltline_messages_in', metrics.msgsIn, 'inbound messages');
   g('saltline_messages_out', metrics.msgsOut, 'outbound messages');
   g('saltline_snap_frames', metrics.snapFrames, 'snapshot frames sent');
   g('saltline_snap_bytes_total', metrics.snapBytesTotal, 'snapshot bytes sent');
   g('saltline_profiles', profiles.size, 'profiles');
+  g('saltline_profiles_max', PROFILE_MAX, 'profile count cap (0 = unlimited)');
+  g('saltline_profiles_pruned_total', metrics.profilesPruned, 'profiles removed by TTL');
+  g('saltline_profiles_evicted_total', metrics.profilesEvicted, 'profiles evicted by count cap');
+  g('saltline_sim_time_ms', simNowMs(), 'simulation clock in milliseconds (tick * 1000/tickRate)');
   g('saltline_uptime_seconds', Math.round((now - STARTED_AT) / 1000), 'uptime');
   lines.push('# HELP saltline_shot_reject_reason server rejected shot reasons');
   lines.push('# TYPE saltline_shot_reject_reason counter');
@@ -3095,6 +3973,15 @@ function metricsText() {
   for (const reason of Object.keys(metrics.auditReasons)) {
     lines.push('saltline_audit_reason{reason="' + reason + '"} ' + metrics.auditReasons[reason]);
   }
+  // ?detail=1（仅 METRICS_TOKEN 或真实回环地址可达）追加逐房间明细。
+  if (includeDetail) {
+    lines.push('# HELP saltline_room_players players per room');
+    lines.push('# TYPE saltline_room_players gauge');
+    for (const r of rooms.values()) {
+      lines.push('saltline_room_players{room="' + promEscape(r.id) + '",map="' + promEscape(r.mapId) +
+        '",mode="' + promEscape(r.modeId) + '",state="' + promEscape(r.state) + '"} ' + r.size);
+    }
+  }
   return lines.join('\n') + '\n';
 }
 
@@ -3102,11 +3989,13 @@ function healthPayload(includeDetail) {
   const payload = {
     ok: true,
     service: 'saltline-mp',
-    version: 'V37',
+    version: 'V53',
     protocol: 2,
     tick: tick,
     tickRate: TICK_HZ,
     snapRate: SNAP_HZ,
+    simTimeMs: simNowMs(),
+    realTimeMs: Date.now(),
     rooms: rooms.size,
     players: totalPlayers(),
     humans: totalHumans(),
@@ -3124,16 +4013,28 @@ function healthPayload(includeDetail) {
     uptime: Math.round((Date.now() - STARTED_AT) / 1000),
     now: Date.now(),
     profiles: profiles.size,
+    profilesMax: PROFILE_MAX,
+    profileTtlDays: PROFILE_TTL_DAYS,
+    profilesPruned: metrics.profilesPruned,
+    profilesEvicted: metrics.profilesEvicted,
     warmupSeconds: WARMUP_SECONDS,
     botsTarget: BOTS_TARGET,
     weapons: WEAPON_IDS.slice(),
     metrics: {
       tickMs: round3(metrics.tickLast),
       tickP99Ms: round3(tickP99()),
+      simStepMs: round3(metrics.tickLast),
+      simStepP99Ms: round3(tickP99()),
+      tickCallbackMs: round3(metrics.callbackLast),
+      tickCallbackP99Ms: round3(callbackP99()),
       snapKbps: round3(snapKbps(Date.now())),
       lagcompHits: metrics.lagcompHits,
       shotsRejected: metrics.shotsRejected,
       audit: metrics.audit,
+      cmdCatchup: metrics.cmdCatchup,
+      cmdQueueLen: metrics.cmdQueueLen,
+      cmdQueuePeak: metrics.cmdQueuePeak,
+      snapForced: metrics.snapForced,
     },
   };
   // V37：房间明细可能包含玩家/房间 id，仅内网或 ?detail=1 返回。
@@ -3179,11 +4080,12 @@ const server = http.createServer(function (req, res) {
     return;
   }
   if (req.method === 'GET' && pathname === '/metrics') {
-    if (!metricsAllowed(req, query)) {
+    if (!metricsAllowed(req, query) || !metricsDetailAllowed(req, query)) {
       sendText(res, 401, 'unauthorized\n');
       return;
     }
-    sendText(res, 200, metricsText(), 'text/plain; version=0.0.4; charset=utf-8');
+    const detail = !!(query && query.get && query.get('detail') === '1');
+    sendText(res, 200, metricsText(detail), 'text/plain; version=0.0.4; charset=utf-8');
     return;
   }
   if (pathname === '/api/profile') {
@@ -3209,7 +4111,11 @@ const server = http.createServer(function (req, res) {
     }
     if (req.method === 'POST') {
       readJsonBody(req, 4096).then(function (body) {
-        const profile = createProfile(body && body.name, ip);
+        const profile = createProfile(body && body.name);
+        if (!profile) {
+          sendJson(req, res, 507, { ok: false, error: 'profile_limit', max: PROFILE_MAX });
+          return;
+        }
         sendJson(req, res, 201, { ok: true, token: profile.token, profile: profileView(profile, false) });
         log('info', 'profile created', { uid: profile.uid, name: profile.name });
       }).catch(function (e) {
@@ -3224,7 +4130,7 @@ const server = http.createServer(function (req, res) {
     sendJson(req, res, 200, {
       ok: true,
       service: 'saltline-mp',
-      version: 'V37',
+      version: 'V53',
       protocol: 2,
       endpoints: ['/healthz', '/metrics', '/api/profile', 'ws://' + (req.headers.host || HOST + ':' + PORT)],
       tick: tick,
@@ -3244,12 +4150,16 @@ const server = http.createServer(function (req, res) {
 // ---------------------------------------------------------------------------
 // Origin / IP / WebSocket
 // ---------------------------------------------------------------------------
+// V53 SRV-10：socket 直连地址（不经代理）与解析后的客户端地址分开。
+// 只有 TRUST_PROXY 才看 X-Forwarded-For，且取最右合法项；远端连接声称 127.0.0.1 视为伪造。
+function socketIp(req) {
+  const raw = req && req.socket ? req.socket.remoteAddress : '';
+  return normalizeIp(raw) || 'unknown';
+}
 function requestIp(req) {
-  if (TRUST_PROXY) {
-    const xff = req.headers['x-forwarded-for'];
-    if (typeof xff === 'string' && xff) return xff.split(',')[0].trim();
-  }
-  return ((req.socket.remoteAddress || '').replace(/^::ffff:/, '')) || 'unknown';
+  const direct = socketIp(req);
+  const xff = req && req.headers ? req.headers['x-forwarded-for'] : '';
+  return forwardedClientIp(xff, direct, TRUST_PROXY);
 }
 
 function originAllowed(req) {
@@ -3260,6 +4170,11 @@ function originAllowed(req) {
       const u = new URL(origin);
       const host = String(req.headers.host || '');
       if (u.host === host) return true;
+      // 单文件 file:// 客户端只允许连本机回环服务，避免把本地文件当成远程白名单。
+      if (u.protocol === 'file:') {
+        const hostName = (host.match(/^\[([^\]]+)\]/) || [])[1] || host.split(':')[0];
+        return hostName === 'localhost' || hostName === '127.0.0.1' || hostName === '::1';
+      }
       return u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '::1';
     } catch (e) {
       return false;
@@ -3390,16 +4305,18 @@ const tickTimer = setInterval(function () {
     try {
       simulate(STEP);
     } catch (e) {
-      log('error', 'simulate failed (room isolated)', { error: e && e.stack ? e.stack : String(e) });
+      log('error', 'simulate failed (unexpected outer failure)', { error: e && e.stack ? e.stack : String(e) });
     }
     recordTick(Number(process.hrtime.bigint() - s0) / 1e6);
     accMs -= STEP_MS;
     steps++;
   }
-  if (steps > 0 && totalPlayers() > 0 && tick % SNAP_EVERY === 0) {
+  if (steps > 0 && totalPlayers() > 0 && snapshotDue(tick, lastSnapTick, SNAP_EVERY)) {
+    lastSnapTick = tick;
     broadcastSnapshots(Date.now());
   }
-  recordTick(Number(process.hrtime.bigint() - t0) / 1e6);
+  // V53 SRV-13：回调总耗时单独记录，不污染“模拟步”指标。
+  recordCallback(Number(process.hrtime.bigint() - t0) / 1e6);
 }, Math.max(2, Math.floor(STEP_MS / 4)));
 
 // V37：真实 RTT。每 2 秒发一次带时间戳的 ping，客户端 pong 原样回传，服务端算 EWMA。
@@ -3432,6 +4349,14 @@ const botMaintainTimer = setInterval(function () {
   for (const room of rooms.values()) syncBots(room);
 }, 3000);
 
+// V53 SRV-11：长时间运行时也定期清理过期档案；有删除才落盘。unref 不阻止进程退出。
+const profilePruneTimer = setInterval(function () {
+  if (!profilesLoaded) return;
+  const removed = pruneProfiles(Date.now());
+  if (removed) scheduleProfileSave();
+}, 6 * 3600 * 1000);
+profilePruneTimer.unref();
+
 // ---------------------------------------------------------------------------
 // 启动 / 关闭
 // ---------------------------------------------------------------------------
@@ -3446,9 +4371,11 @@ function shutdown(sig) {
   clearInterval(heartbeatTimer);
   clearInterval(rttTimer);
   clearInterval(botMaintainTimer);
+  clearInterval(profilePruneTimer);
   if (profileSaveTimer) clearTimeout(profileSaveTimer);
   // 退出前强制落盘一次（异步队列，不阻塞 tick；最多等 1.2 秒）。
-  profileDirty = true;
+  // 只有成功加载过 profile 才允许置脏；坏档启动会在 listen 前退出，不会走到这里。
+  if (profilesLoaded) profileDirty = true;
   const saving = flushProfileWrites().catch(function () {});
   for (const room of rooms.values()) {
     for (const p of room.players.values()) {
@@ -3485,13 +4412,20 @@ if (!profileLock.ok) {
   console.error('[fatal] PROFILES_FILE 已被另一个实例占用，拒绝启动（单进程保护）');
   console.error('[fatal] 数据文件：' + PROFILES_FILE);
   console.error('[fatal] 锁文件：' + PROFILE_LOCK_FILE + '（' + pidText + atText + '）');
-  console.error('[fatal] 若确认旧进程已退出，删除锁文件或等待 ' + Math.round(PROFILE_LOCK_STALE_MS / 1000) + ' 秒后重试。');
+  if (profileLock.ownerAlive) {
+    console.error('[fatal] 锁心跳已过期，但持有进程仍存活；V53 SRV-2 不会回收存活进程的锁。');
+  } else {
+    console.error('[fatal] 若确认旧进程已退出，删除锁文件或等待心跳超时（' + PROFILE_LOCK_STALE_MS + ' ms）后重试。');
+  }
   if (profileLock.reason === 'io' && profileLock.error) console.error('[fatal] IO 错误：' + profileLock.error.message);
   process.exit(1);
 }
 
 loadWeapons();
-loadProfiles();
+if (!loadProfiles()) {
+  // 坏档已改名保留；绝不以空 profiles 覆盖原文件。
+  process.exit(1);
+}
 loadWorldSafe();
 
 server.listen(PORT, HOST, function () {

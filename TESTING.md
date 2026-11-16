@@ -45,9 +45,11 @@
 
 ## 分层
 
-- `tool/test_fast.mjs`：启动、6 枪、8 关、固定步哈希、4/5/6 槽、新机体、m7 图、滑铲、语言、pageerror。
+- `tools/test_fast.mjs`：启动、6 枪、8 关、固定步哈希、4/5/6 槽、新机体、m7 图、滑铲、语言、pageerror。
+- `tools/test_v53_acceptance.mjs`：构建元数据、暂停时钟、四图海面/天空、LOD 恢复、存档旧键镜像、pageerror；已加入 `test:full`。
+- `test:full` 的 85 项默认连 `127.0.0.1:3311`，先另开终端跑 `npm run serve:test`。
 - 域测试：按改动选一个域，不要每次 85 项。
-- `test_suite.mjs`：发布前 85 项全量；V32–V40 复现用 `check_versions.mjs --all`。
+- `test_suite.mjs`：发布前 85 项全量；V32–V53 复现用 `check_versions.mjs --all`。
 - 性能：`tools/test_v41_perf.mjs`（四图同步 gl.finish 帧时间、灯池恒定、程序数稳定、动态分辨率）；基线 `bench/v40_baseline.json`，详细结果 `bench/V41_RESULTS.md`。
 - 配置：`tests/unit/config.test.mjs`（画质/平衡/武器 JSON/manifest/构建顺序）；拆分后用 `node tools/game_bundle.mjs --check` 做语法检查。
 - 角色：`tools/test_v43_avatar.mjs`（模型层级/43 mesh/双队配色/蹲伏/死亡/行走/清理）；成本 `tools/perf/bench_mp_avatar.mjs`，姿势标定 `tools/perf/probe_avatar.mjs`。

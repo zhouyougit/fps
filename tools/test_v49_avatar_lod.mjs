@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 /* V49 · 联机远端距离 LOD：8 人近/远两组 draw calls 对比 */
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
-import { PW_ARGS } from './pwargs.mjs';
-const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', args: PW_ARGS });
+import { PW_ARGS, findChrome, ROOT } from './pwargs.mjs';
+
+const GAME = pathToFileURL(path.join(ROOT, 'game.html')).href;
+const browser = await chromium.launch({ headless: true, executablePath: findChrome(), args: PW_ARGS });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errs = []; page.on('pageerror', (e) => errs.push(String(e && e.message || e)));
-await page.goto('file://' + process.cwd() + '/game.html?q=medium&noaudio=1&autostart=1', { waitUntil: 'load', timeout: 240000 });
+await page.goto(GAME + '?q=medium&noaudio=1&autostart=1', { waitUntil: 'load', timeout: 240000 });
 await page.waitForFunction(() => (window.__ready === true && !!window.__SX && !!window.__MP) || window.__fatal, null, { timeout: 300000 });
 await page.evaluate(() => {
   const G = window.__G;

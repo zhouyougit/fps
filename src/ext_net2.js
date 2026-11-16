@@ -15,7 +15,7 @@
   var VERSION = 2;
   var BTN = Object.freeze({
     FIRE: 1, ADS: 2, JUMP: 4, SPRINT: 8, CROUCH: 16, RELOAD: 32,
-    MELEE: 64, GRENADE: 128, INTERACT: 256, SCAN: 512
+    MELEE: 64, GRENADE: 128, INTERACT: 256, SCAN: 512, LEAN_L: 1024, LEAN_R: 2048
   });
   var CAPS = Object.freeze(['bin']);
   var MAX_PENDING = 120;
@@ -98,7 +98,7 @@
   };
   function friendlyError(code, message) {
     var key = code == null ? '' : String(code);
-    if (ERRORS[key]) return ERRORS[key];
+    if (Object.prototype.hasOwnProperty.call(ERRORS, key) && typeof ERRORS[key] === 'string') return ERRORS[key];
     if (typeof message === 'string' && message.trim()) return String(message).slice(0, 160);
     return '服务器错误' + (key ? '（' + key.slice(0, 32) + '）' : '');
   }

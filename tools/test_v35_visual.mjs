@@ -103,8 +103,11 @@ const shards = await page.evaluate(() => {
   if (e) G.events.emit('sx:shield-break', { enemy: e, pos: e.pos });
   return { alive: !!e };
 });
-await page.waitForTimeout(1500);
-const breakFx = await page.evaluate(() => ({ debris: window.__SX_VISUAL.stats.effects.debris, rings: window.__SX_VISUAL.stats.effects.rings }));
+// V53：冲击环寿命 0.55s，旧断言等 1.5s 后必然为 0（测试时序错误）；事件后立刻推进一帧再读。
+const breakFx = await page.evaluate(() => {
+  window.__G.render.frame(0.016);
+  return { debris: window.__SX_VISUAL.stats.effects.debris, rings: window.__SX_VISUAL.stats.effects.rings };
+});
 ok('护盾破碎生成碎片 + 冲击环', shards.alive && breakFx.debris >= 8 && breakFx.rings >= 1, breakFx);
 
 /* 5. 300 帧无 pageerror + 帧时间（无头渲染直接同步渲染 300 帧，避免 rAF 节流） */

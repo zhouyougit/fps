@@ -1,6 +1,57 @@
 # 更新日志
 
-## V52 · 收口（当前）
+## V53 · 改进（当前）
+
+V53 按 `TECH_TASKS_V53.md` 做了一轮以“不丢数据、联机正确、测试可信”为主的收口，不做新玩法。多 agent 分文件并行，lead 统一构建与验收。
+
+### 工程地基
+- `git init` + 项目级 `.gitignore`，提交 V52 基线并打 `v52` 标签；构建产物 `__BUILD__.commit` 不再是 `local`。
+- `tools/build.cjs`：`versions/` 下已存在的快照默认拒绝覆盖，必须显式 `--force`；修复 `dev` profile 必然报错；产物记录 three.js r180。
+- `package.json` 移除 `build:v32..v51` 过期脚本，新增 `build` / `build:release` / `test:lint` / `test:v53`；依赖移入 `devDependencies`，锁文件更名。
+- `tools/run_tests.mjs` 只信退出码，不再把 `20 FAIL` 当 `0 FAIL`；`test:server` 纳入新的 profiles 回归。
+
+### 服务器 / 联机
+- **SRV-1**：坏 `profiles.json` 先读有效 `.bak`，无效则改名为 `.corrupt-<时间>` 并拒绝启动；写盘改为 tmp→fsync→rename，`.bak` 只保存上一份有效主档。
+- **SRV-2**：锁持有期间 5s 心跳；只有心跳过期且 pid 确认退出（ESRCH）才回收，存活进程不会被第二实例顶掉。
+- **SRV-3**：单条 input 最多 8 条命令，按命令计限速；审计日志按 player+reason 限频，5000 条命令不再刷 4880 行日志。
+- **SRV-4**：掉海走正常死亡/复活流程（计死亡、等待 1.5s、广播），不再免费回满。
+- **SRV-5/6/7/12**：join 的 map/mode 做类型+自有属性校验；快照按 tick 差发；每房间单独 try/catch，连续失败关闭房间；坏 `maps.json` 直接 fatal，不再静默回退旧 `map_boxes.json`。
+- **SRV-8**：射速/换弹/复活/回合/延迟补偿历史改用 `tick × STEP_MS` 模拟时钟；`healthz` 暴露 tick/simTimeMs。
+- **SRV-9**：输入队列有界追赶（backlog 大时单 tick 最多补 3 步），队列峰值从 90+ 降到 <30，停止负载后归零。
+- **SRV-10/11/13**：只在 `TRUST_PROXY` 时读取 XFF 最右合法项并拒绝伪造回环；档案上限 5000/TTL 180 天、不再存 IP、按等级校验武器；拆分模拟步/回调耗时 ring，静态读流有 error 处理。
+- **NET-1**：人控输入命令不再携带 FIRE 位，开火只走显式 `fire`；机器人保留命令 FIRE；`shotRejected` 回带 `shotSeq`/弹药，按住开火不再一枪扣两次。
+- **NET-2**：服务器删除本地 `MOVE`/stepPlayer 副本，直接调用 `packages/sim/movement.stepPlayer`；服务器/客户端 290 步位置/速度/高度最大误差 0。
+- **NET-3**：增量快照为每个接收者记录上次位姿，慢漂移玩家不再连续 60 帧不更新。
+- **NET-4/5**：协议与 `ext_net2` 新增 69 项 Node 单测；协议补齐 `LEAN_L/R` 位，客户端按 `__SX_MOVE.state().lean` 发送；`friendlyError` 修复原型链泄漏。
+
+### 客户端
+- **SAVE-1**：导入/重置后立即 `mirrorLegacy()`，旧键不会再在下次 `saveCamp` 时把进度推回统一档；战役订阅 `SXSave` 的 import/reset。
+- **SAVE-2**：高版本存档保留 schema 外字段；越界值钳制而非重置；写失败重试+退避；`visibilitychange`/`pagehide` 落盘。
+- **CLI-1**：BOSS 逻辑迁入 `fixedUpdate`，渲染帧只做表现；`__SX_LOOP.step(n)` 能推进 BOSS，暂停冻结；新增 `__SX_BOSS.logicState()`。
+- **CLI-2**：`CLOCK.tick` 与 `SX_SYSTEMS.fixedUpdate` 只在 playing/intro 推进；结算完成回调改用 UI 实时钟。
+- **通关结算回写（V52 老 bug）**：complete 事件里 ext 层的 `CLOCK.cancelGroup("mission")` 会取消战役模块 0.4s 后执行 `onMissionComplete` 的定时器，导致已验证通关但不写 best/不解锁下一关/没有“下一行动”按钮。V53 改为 `UICLOCK.after(0.4, onMissionComplete)`（complete 时模拟时钟已冻结，不能再用 CLOCK 的 "campaign" 组）；新增 V53 验收：`beforeUnlocked=1 → afterUnlocked=2` 且 `best.m1` 写入。
+- **CLI-3**：抽出 `applySeaMode(seaOnly)`，depot/core→ship→harbor 切换不再残留地面/天空/太阳；`applySeaMode` 覆盖所有非港区加载。
+- **CLI-4**：LOD `rebuild()` 先恢复隐藏组与 farMesh 的原始可见性，切图不再永久隐藏；`__SX_LOD.ready` 可用。
+- **ARCH-1/2/3/5**：`G.game.update`/`G.hud.radio` 加宿主标记；`ext.js` 32 处空 catch 清零并接 `SXErrors.soft`；hash 加入 BOSS/移动/时钟/手雷/RNG 并记录低帧率丢弃时间；MapKit 去重改 Set、FogExp2 复用、非港区 extend 拒绝。
+- **I18N-1**：`ext_progress/ext_ui2/ext_input` 替换 154 处硬编码中文，新增 80 个中英同键；新增 `i18n_keys` 单测（中英键集合/占位符/missing）。
+- **PERF-4/5/6**：去掉 feedback 重复 rAF、缓存 reduceMotion、visual 300 帧滚动和、missions/progress 后台暂停、ext 槽位脏检查；高画质 perf 阈值待补。
+
+### 验证
+- 单元测试 **196/196**；`test:fast` **12/12**；V53 专项 **13/13**（含通关回写回归）。
+- 服务器：profiles **64** + round **31** + net2 **110** 全绿；`check_versions --all` **154/154**。
+- 域测试：save/map/ui/gameplay/visual/audio/perf/net 全绿；双端 e2e 9/9；旧 JSON 兼容 52/52。
+- 产物：`versions/几猫_V53.html` 3.62MB（3,710.8KB），`__VERSION_LABEL="V53 · 改进"`，`__BUILD__.version="0.53.0"`。
+
+### 已知限制 / 未完成
+- **PERF-1/2/3**：渲染分配、切图 280ms 卡顿、透明网格合批仍是原型级问题，未做大改；需要性能 trace 后再动。
+- **ARCH-1 长期钩子表 / ARCH-4 卸载路径**：只做了短期宿主标记，未把约 30 处猴子补丁改成显式钩子表；单页生命周期内仍无卸载。
+- **ENG-6 压缩**：仓库没有 minifier 依赖，本版只记录 gzip 约 946KB，未把产物压到 3.5MB 以下。
+- **SRV-11 配件等级**：武器数据没有配件解锁等级字段，服务器只能拒绝非法配件，不能按等级拒绝未解锁配件。
+- **I18N-1 余量**：campaign/mp/armory/ext_boss2 等仍有中文；`ext.js` 任务电台仍靠中文前缀识别。
+- **TEST-3**：孤儿测试未删除（避免误删证据），只建立清单与静态基线；`waitForTimeout` 仍有 348 处。
+- 历史 V32–V39 旧套件仍有 28 处本机路径；V41+ 已清零。
+
+## V52 · 收口
 
 ### 架构文档与守卫
 - 新增 `ARCHITECTURE.md`：构建流水线、源码地图、运行时链路、测试分层、新增模块步骤、不可破坏约定；

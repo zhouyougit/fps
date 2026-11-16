@@ -30,10 +30,13 @@
   };
   // V37：8 关 × 3 挑战 = 24；档位与徽章上限同步到 24（不再硬编码 18）。
   var CHALLENGE_TIERS = [3, 6, 9, 12, 15, 18, 21, 24];
-  var CROSS_AT = { 3: "绿色准星", 6: "红色准星", 9: "金色准星" };
+  var CROSS_AT = { 3: "progress.cross.3", 6: "progress.cross.6", 9: "progress.cross.9" };
 
   var DIFF_MUL = { recruit: 0.9, normal: 1, veteran: 1.08, nightmare: 1.16 };
-  var DIFF_LABEL = { recruit: "新兵", normal: "标准", veteran: "老兵", nightmare: "噩梦" };
+  var DIFF_LABEL = {
+    recruit: "progress.diff.recruit", normal: "progress.diff.normal",
+    veteran: "progress.diff.veteran", nightmare: "progress.diff.nightmare"
+  };
 
   /* 每关评级参数：标准时间 / 标准受伤 / 标准击杀（可由 mission.timeTarget 覆盖） */
   var PAR = {
@@ -45,24 +48,28 @@
     m6: { time: 480, damage: 90, kills: 28 },
     train: { time: 90, damage: 0, kills: 20 }
   };
-  var GRADE_LABEL = { S: "完美突击", A: "干净利落", B: "稳扎稳打", C: "险象环生" };
+  var GRADE_LABEL = {
+    S: "ui2.rating.perfect", A: "ui2.rating.clean", B: "ui2.rating.solid", C: "ui2.rating.risky"
+  };
   var ELITE_VARIANTS = { elite: 1, heavy: 1, marksman: 1 };
 
-  /* 成就：12 个（挑战 9/18 是同一成就的两个阶段） */
+  /* 成就：12 个（挑战 9/18 是同一成就的两个阶段）；名称/说明只存 key。 */
   var ACHIEVEMENTS = [
-    { id: "first_blood", name: "首杀", desc: "完成第一次击杀", metric: "kills", need: 1 },
-    { id: "headshot50", name: "弹无虚发", desc: "累计爆头击杀 50 次", metric: "headshots", need: 50 },
-    { id: "flawless", name: "毫发无伤", desc: "无伤完成一次行动", metric: "flawlessRuns", need: 1 },
-    { id: "speedrun", name: "争分夺秒", desc: "在标准时间内完成一次行动", metric: "speedRuns", need: 1 },
-    { id: "relays_all", name: "全中继", desc: "单局切断全部中继", metric: "fullRelayRuns", need: 1 },
-    { id: "boss_kill", name: "屠龙者", desc: "击杀一次 BOSS", metric: "bossKills", need: 1 },
-    { id: "missions_all", name: "八面来风", desc: "通关 8 个行动", metric: "missionsCleared", need: 8 },
-    { id: "challenger", name: "挑战者", desc: "完成 9 个挑战（24 个达成大师）", metric: "challenges", need: 9, tier2: 24 },
-    { id: "train8000", name: "神枪手", desc: "训练场单局 8000 分", metric: "trainBest", need: 8000 },
-    { id: "mp10", name: "线上猎手", desc: "联机累计 10 次击杀", metric: "mpKills", need: 10 },
-    { id: "grenade3", name: "破片风暴", desc: "手雷累计 3 次击杀", metric: "grenadeKills", need: 3 },
-    { id: "melee5", name: "贴身格斗", desc: "近战累计 5 次击杀", metric: "meleeKills", need: 5 }
+    { id: "first_blood", metric: "kills", need: 1 },
+    { id: "headshot50", metric: "headshots", need: 50 },
+    { id: "flawless", metric: "flawlessRuns", need: 1 },
+    { id: "speedrun", metric: "speedRuns", need: 1 },
+    { id: "relays_all", metric: "fullRelayRuns", need: 1 },
+    { id: "boss_kill", metric: "bossKills", need: 1 },
+    { id: "missions_all", metric: "missionsCleared", need: 8 },
+    { id: "challenger", metric: "challenges", need: 9, tier2: 24 },
+    { id: "train8000", metric: "trainBest", need: 8000 },
+    { id: "mp10", metric: "mpKills", need: 10 },
+    { id: "grenade3", metric: "grenadeKills", need: 3 },
+    { id: "melee5", metric: "meleeKills", need: 5 }
   ];
+  function achName(def) { return t("ui2.ach." + def.id + ".name"); }
+  function achDesc(def) { return t("ui2.ach." + def.id + ".desc"); }
   var METRICS = [
     "kills", "headshots", "eliteKills", "bossKills", "grenadeKills", "meleeKills",
     "mpKills", "missionsCleared", "challenges", "trainBest", "flawlessRuns",
@@ -83,6 +90,10 @@
   var badgeAt = 0;
   var achWrap = null;
   var toastEl = null;
+  /* 最近一次渲染的结算数据：切换语言时按同数据重绘 */
+  var lastRating = null;
+  var lastRunCredits = null;
+  var lastTraining = null;
 
   /* ------------------------------------------------------------- utils */
   function n(v, d) {
@@ -111,6 +122,35 @@
   }
   function state() {
     try { return window.__SX ? window.__SX.S : null; } catch (e) { return null; }
+  }
+
+  /* ------------------------------------------------------------- i18n */
+  /* 所有玩家可见文案在渲染时取词，data 表只存 key：切语言后重绘即可生效。 */
+  function i18n() {
+    try { return window.SXI18n || null; } catch (e) { return null; }
+  }
+  function t(key, vars) {
+    var I = i18n();
+    if (I && typeof I.t === "function") return I.t(key, vars);
+    var ex = window.__SX_I18N_EXTRA;
+    var s = ex && ex.zh ? ex.zh[key] : null;
+    if (s == null) return key;
+    if (!vars) return s;
+    return String(s).replace(/\{(\w+)\}/g, function (_, name) {
+      return vars[name] == null ? "" : String(vars[name]);
+    });
+  }
+  /* 配件 id 形如 wid:slot:opt，直接映射到军械库词典键；拿不到时用调用方给的名称 */
+  function attachName(id, fallback) {
+    if (id) {
+      var parts = String(id).split(":");
+      if (parts.length === 3) {
+        var I = i18n();
+        var key = "ui2.ar.attach." + parts[0] + "." + parts[1] + "." + parts[2] + ".name";
+        if (I && typeof I.has === "function" && I.has(key)) return I.t(key);
+      }
+    }
+    return fallback || t("progress.unlock.attachment");
   }
 
   /* ------------------------------------------------------------ storage */
@@ -208,7 +248,7 @@
     e.credits -= price;
     e.unlocked.push(id);
     writeEconomy(e);
-    notify("已解锁 " + (name || "配件") + " · -" + price + " 信用点");
+    notify(t("progress.unlock.notify", { name: attachName(id, name), price: price }));
     sfx("ui:click", { gain: 0.7, pitch: 1.25 });
     return { ok: true, credits: e.credits, price: price };
   }
@@ -297,8 +337,8 @@
       var rec = achCache[def.id];
       out.push({
         id: def.id,
-        name: def.name,
-        desc: def.desc,
+        name: achName(def),
+        desc: achDesc(def),
         metric: def.metric,
         need: def.need,
         tier2: def.tier2 || 0,
@@ -393,7 +433,8 @@
       total: total,
       raw: Math.round(raw),
       grade: grade,
-      label: GRADE_LABEL[grade],
+      labelKey: GRADE_LABEL[grade],
+      label: t(GRADE_LABEL[grade]),
       diff: d,
       mul: mul,
       par: par,
@@ -406,15 +447,18 @@
     };
   }
   function hintFor(r) {
-    if (r.total >= 85) return "已达最高评级 S";
+    if (r.total >= 85) return t("progress.hint.max");
     var next = r.total >= 70 ? "S" : r.total >= 50 ? "A" : "B";
     var target = r.total >= 70 ? 85 : r.total >= 50 ? 70 : 50;
     var worst = "time", wv = r.parts.time;
     if (r.parts.kills < wv) { worst = "kills"; wv = r.parts.kills; }
     if (r.parts.surv < wv) { worst = "surv"; wv = r.parts.surv; }
     if (r.parts.obj < wv) { worst = "obj"; wv = r.parts.obj; }
-    var names = { time: "压缩用时", kills: "提高击杀", surv: "减少受伤", obj: "完成中继" };
-    return "距 " + next + " 还差 " + (target - r.total) + " 分 · " + names[worst] + "收益最高";
+    var names = {
+      time: "progress.hint.time", kills: "progress.hint.kills",
+      surv: "progress.hint.surv", obj: "progress.hint.obj"
+    };
+    return t("progress.hint.next", { next: next, n: target - r.total, tip: t(names[worst]) });
   }
 
   /* ------------------------------------------------------------------ UI */
@@ -490,10 +534,13 @@
       var wrap = ensureAchWrap();
       var item = document.createElement("div");
       item.className = "i";
+      /* 标记 id/tier：ext_ui2 的成就浮层按属性重绘，不依赖中文原文反查 */
+      item.setAttribute("data-sx-ach-id", def.id);
+      item.setAttribute("data-sx-ach-tier", String(tier > 1 ? 2 : 1));
       item.innerHTML =
-        '<div class="k">成就解锁' + (tier > 1 ? " · 大师" : "") + "</div>" +
-        '<b class="n">' + def.name + "</b>" +
-        '<span class="d">' + def.desc + "</span>";
+        '<div class="k">' + t(tier > 1 ? "ui2.ach.unlocked.master" : "ui2.ach.unlocked") + "</div>" +
+        '<b class="n">' + achName(def) + "</b>" +
+        '<span class="d">' + achDesc(def) + "</span>";
       wrap.appendChild(item);
       while (wrap.children.length > 3) wrap.removeChild(wrap.firstChild);
       setTimeout(function () { item.classList.add("on"); }, 30);
@@ -501,7 +548,7 @@
         item.classList.remove("on");
         setTimeout(function () { if (item.parentNode) item.parentNode.removeChild(item); }, 320);
       }, 2800);
-      notify("成就解锁 · " + def.name);
+      notify(t(tier > 1 ? "progress.ach.notifyMaster" : "progress.ach.notify", { name: achName(def) }));
       sfx("objective_done", { gain: 0.55, pitch: tier > 1 ? 1.15 : 1.45 });
       sfx("ui:click", { gain: 0.5, pitch: 1.2 });
     } catch (e) {}
@@ -512,8 +559,10 @@
     var e = readEconomy();
     var got = achievementCount();
     var chal = n(stats && stats.challenges);
-    var text = "信用点 <b>" + fmt(e.credits) + "</b> · 成就 <b>" + got + "/" + ACHIEVEMENTS.length +
-      "</b> · 挑战 <b>" + chal + "/" + challengeTotal() + "</b>";
+    var text = t("progress.badge", {
+      credits: fmt(e.credits), got: got, total: ACHIEVEMENTS.length,
+      chal: chal, chalTotal: challengeTotal()
+    });
     var badge = document.querySelector(".x-prog-badge");
     if (!badge) {
       var title = document.querySelector(".m-title");
@@ -540,9 +589,9 @@
     }
   }
   function maybeBadge() {
-    var t = nowMs();
-    if (t - badgeAt < 400) return;
-    badgeAt = t;
+    var at = nowMs();
+    if (at - badgeAt < 400) return;
+    badgeAt = at;
     updateBadges();
   }
 
@@ -560,18 +609,22 @@
     if (old && old.parentNode) old.parentNode.removeChild(old);
     var box = document.createElement("div");
     box.className = "x-rate";
-    var detail = "用时 " + clock(r0.time) + " / 标准 " + clock(r.par.time) +
-      " · 击杀 " + r0.kills + "/" + r.par.kills +
-      " · 受伤 " + Math.round(r0.damage) +
-      " · 中继 " + r0.relays + "/" + r0.relaysTotal;
+    lastRating = { r: r, r0: r0 };
+    var detail = t("progress.debrief.detail", {
+      time: clock(r0.time), par: clock(r.par.time),
+      kills: r0.kills, parKills: r.par.kills,
+      damage: Math.round(r0.damage), relays: r0.relays, total: r0.relaysTotal
+    });
+    var diffKey = DIFF_LABEL[r.diff];
     box.innerHTML =
-      partRow("用时", r.parts.time) +
-      partRow("击杀", r.parts.kills) +
-      partRow("生存", r.parts.surv) +
-      partRow("目标", r.parts.obj) +
-      '<div class="sum">评级 <b>' + r.grade + " · " + r.label + "</b> · 总分 " + r.total +
-      " · 难度 " + (DIFF_LABEL[r.diff] || r.diff) + " ×" + r.mul.toFixed(2) +
-      "<em>" + detail + "</em><em>" + hintFor(r) + "</em></div>";
+      partRow(t("progress.debrief.time"), r.parts.time) +
+      partRow(t("progress.debrief.kills"), r.parts.kills) +
+      partRow(t("progress.debrief.surv"), r.parts.surv) +
+      partRow(t("progress.debrief.obj"), r.parts.obj) +
+      '<div class="sum">' + t("progress.debrief.sum", {
+        grade: r.grade, label: t(r.labelKey), total: r.total,
+        diff: diffKey ? t(diffKey) : r.diff, mul: r.mul.toFixed(2)
+      }) + "<em>" + detail + "</em><em>" + hintFor(r) + "</em></div>";
     var rating = panel.querySelector(".m-rating");
     if (rating && rating.parentNode) rating.parentNode.insertBefore(box, rating.nextSibling);
     else panel.appendChild(box);
@@ -585,10 +638,12 @@
     var parts = r0.creditParts || {};
     var box = document.createElement("div");
     box.className = "x-credit";
-    box.innerHTML = "<b>+" + Math.round(n(r0.earned)) + "</b> 信用点 · 本局收益" +
-      "<em>击杀 " + (parts.kill | 0) + " · 爆头 " + (parts.headshot | 0) +
-      " · 精英 " + (parts.elite | 0) + " · BOSS " + (parts.boss | 0) +
-      " · 任务 +" + (parts.mission | 0) + " · 总余额 " + fmt(credits()) + "</em>";
+    lastRunCredits = r0;
+    box.innerHTML = t("progress.credit.run", { n: Math.round(n(r0.earned)) }) +
+      "<em>" + t("progress.credit.parts", {
+        kill: parts.kill | 0, head: parts.headshot | 0, elite: parts.elite | 0,
+        boss: parts.boss | 0, mission: parts.mission | 0, balance: fmt(credits())
+      }) + "</em>";
     var actions = panel.querySelector(".m-actions");
     panel.insertBefore(box, actions || null);
   }
@@ -600,8 +655,9 @@
     if (old && old.parentNode) old.parentNode.removeChild(old);
     var box = document.createElement("div");
     box.className = "x-credit";
-    box.innerHTML = "<b>+" + Math.round(gain) + "</b> 信用点 · 本局收益" +
-      "<em>训练得分 " + Math.round(score) + " × 0.05 · 总余额 " + fmt(credits()) + "</em>";
+    lastTraining = { gain: gain, score: score };
+    box.innerHTML = t("progress.credit.run", { n: Math.round(gain) }) +
+      "<em>" + t("progress.credit.train", { score: Math.round(score), balance: fmt(credits()) }) + "</em>";
     var actions = panel.querySelector(".x-tr-actions");
     panel.insertBefore(box, actions || null);
   }
@@ -786,8 +842,8 @@
   function challengeTotal() {
     try {
       if (window.__SX_CAMP && typeof window.__SX_CAMP.challengeTotal === "function") {
-        var t = Math.round(window.__SX_CAMP.challengeTotal());
-        if (t > 0) return t;
+        var total = Math.round(window.__SX_CAMP.challengeTotal());
+        if (total > 0) return total;
       }
       var ms = window.__SX_CAMP && window.__SX_CAMP.missions;
       if (ms && ms.length) return ms.length * 3;
@@ -800,19 +856,24 @@
     var awarded = stats.challengeRewards && typeof stats.challengeRewards === "object" ? stats.challengeRewards : {};
     var sum = 0, names = [];
     for (var i = 0; i < CHALLENGE_TIERS.length; i++) {
-      var t = CHALLENGE_TIERS[i];
-      var key = String(t);
-      if (count >= t && !awarded[key]) {
+      var tier = CHALLENGE_TIERS[i];
+      var key = String(tier);
+      if (count >= tier && !awarded[key]) {
         awarded[key] = true;
-        sum += CREDIT.challenge[t] || 0;
-        names.push(t + " 项" + (CROSS_AT[t] ? " · " + CROSS_AT[t] : ""));
+        sum += CREDIT.challenge[tier] || 0;
+        names.push(t(CROSS_AT[key] ? "progress.chal.tierCross" : "progress.chal.tier", {
+          n: tier, reward: CROSS_AT[key] ? t(CROSS_AT[key]) : ""
+        }));
       }
     }
     if (sum > 0) {
       stats.challengeRewards = awarded;
       saveStats();
       addCredits(sum, "挑战奖励");
-      notify("挑战 " + count + "/" + challengeTotal() + " · " + names.join("、") + " · +" + sum + " 信用点");
+      notify(t("progress.chal.notify", {
+        count: count, total: challengeTotal(),
+        names: names.join(t("progress.listSep")), sum: sum
+      }));
       sfx("objective_done", { gain: 0.6, pitch: 1.15 });
     }
   }
@@ -849,6 +910,15 @@
       saveStats();
       checkAchievements();
     }
+  }
+
+  /* -------------------------------------------------------------- 语言切换 */
+  /* 数据表存 key，切换语言后按最近一次结算数据重绘，避免停留在旧语言 */
+  function applyLang() {
+    try { updateBadges(); } catch (e) {}
+    try { if (lastRating) renderDebriefRating(lastRating.r, lastRating.r0); } catch (e) {}
+    try { if (lastRunCredits) renderDebriefCredits(lastRunCredits); } catch (e) {}
+    try { if (lastTraining) renderTrainingCredits(lastTraining.gain, lastTraining.score); } catch (e) {}
   }
 
   /* -------------------------------------------------------------- 观察器 */
@@ -916,7 +986,9 @@
     installDebug();
     updateBadges();
     setTimeout(function () { try { sync(); } catch (e) {} }, 300);
+    // PERF-4：页面不可见时不刷新成长/成就 DOM。
     var iv = setInterval(function () {
+      if (document.hidden) return;
       try { sync(); } catch (e) {}
     }, 2000);
     if (iv && typeof iv.unref === "function") iv.unref();
@@ -950,6 +1022,7 @@
     G.events.on("sx:boss-dead", function () { try { checkAchievements(); } catch (e) {} });
     G.events.on("sx:training-start", onTrainingStart);
     G.events.on("sx:training-end", onTrainingEnd);
+    G.events.on("sx:lang", applyLang);
   }
 
   /* --------------------------------------------------------- 公共接口 */
@@ -971,7 +1044,13 @@
     stats: function () { return copy(stats || {}); },
     definitions: function () {
       var out = [];
-      for (var i = 0; i < ACHIEVEMENTS.length; i++) out.push(copy(ACHIEVEMENTS[i]));
+      for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+        var src = ACHIEVEMENTS[i];
+        var def = copy(src);
+        def.name = achName(src);
+        def.desc = achDesc(src);
+        out.push(def);
+      }
       return out;
     }
   };

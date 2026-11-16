@@ -1,15 +1,13 @@
 /* 共享测试工具：GPU 参数、快速 URL、状态等待、固定步进、可靠关闭 */
 import { chromium } from 'playwright';
-import { PW_ARGS, GPU_MODE, HEADLESS, VIEWPORT, gameUrl } from './pwargs.mjs';
+import { PW_ARGS, GPU_MODE, HEADLESS, VIEWPORT, gameUrl, findChrome, ROOT } from './pwargs.mjs';
 
-export { PW_ARGS, GPU_MODE, HEADLESS, VIEWPORT, gameUrl };
+export { PW_ARGS, GPU_MODE, HEADLESS, VIEWPORT, gameUrl, findChrome, ROOT };
 
 export async function launchBrowser(overrides) {
-  return chromium.launch(Object.assign({
-    headless: HEADLESS,
-    executablePath: process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    args: PW_ARGS
-  }, overrides || {}));
+  const opts = Object.assign({ headless: HEADLESS, args: PW_ARGS }, overrides || {});
+  if (!opts.executablePath) opts.executablePath = findChrome();
+  return chromium.launch(opts);
 }
 
 export async function waitReady(page, timeout = 300000) {

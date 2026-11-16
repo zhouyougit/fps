@@ -6,6 +6,9 @@
      过载冲刺 / EMP / 残响分身
    - 只从 G.enemies.list 找 boss，复用 boss.js 的血条，不重复创建
    - 所有伤害只在 exec 阶段发生；预警 ≥0.6s，红环 + 激光 + 音效
+   - V53 CLI-1：逻辑全部走 fixedUpdate（tickLogic），update 只做表现
+   - V53 ARCH-2：高频空 catch 统一走 SXErrors.soft('boss2:<tag>')
+   - V53 ARCH-3：__SX_BOSS.logicState() 提供无 DOM 的确定性状态快照
    ===================================================================== */
 (function () {
   "use strict";
@@ -68,6 +71,7 @@
     summons: [], echoes: [],
     announced: {}, barBase: "", lastBarSig: "",
     hudGlitch: 0, empEl: null, queue: [],
+    barForce: false, barStale: false, glitchReset: false,
     debug: false, debugEl: null,
     lock: null, dashFrom: null, dashTo: null, dashT: 0, dashDur: 0.26, dashHit: false,
     shotsFired: 0, hits: 0, execCount: 0, telegraphCount: 0,
@@ -79,18 +83,33 @@
   var registered = false;
 
   /* ------------------------------------------------------- 小工具 */
+  // V53 ARCH-2：高频路径不再用空 catch 静默吞错。SXErrors.soft 按标签计数、
+  // 每个标签只记一条诊断；缺少诊断接口时退回 window.__errors 环形缓冲。
+  function soft(tag, e) {
+    try {
+      if (typeof window !== "undefined" && window.SXErrors && typeof window.SXErrors.soft === "function") {
+        window.SXErrors.soft("boss2:" + tag, e);
+        return;
+      }
+    } catch (_) { /* 诊断失败不能影响调用方 */ }
+    try {
+      if (typeof window !== "undefined" && window.__errors) {
+        window.__errors.push("[boss2:" + tag + "] " + ((e && e.stack) || e));
+      }
+    } catch (_) { /* 只读数组：仍然吞掉并继续 */ }
+  }
   function emit(name, payload) {
-    try { if (G && G.events && G.events.emit) G.events.emit(name, payload || {}); } catch (e) {}
+    try { if (G && G.events && G.events.emit) G.events.emit(name, payload || {}); } catch (e) { soft("emit", e); }
   }
   function sfx(name, opts) {
-    try { if (G && G.audio && G.audio.play) G.audio.play(name, opts || {}); } catch (e) {}
+    try { if (G && G.audio && G.audio.play) G.audio.play(name, opts || {}); } catch (e) { soft("sfx", e); }
   }
   function shake(v) {
-    try { if (G && G.player && G.player.addShake) G.player.addShake(v); } catch (e) {}
+    try { if (G && G.player && G.player.addShake) G.player.addShake(v); } catch (e) { soft("shake", e); }
   }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function mission() {
-    try { return (G && G.game && G.game.currentMission) || null; } catch (e) { return null; }
+    try { return (G && G.game && G.game.currentMission) || null; } catch (e) { soft("mission", e); return null; }
   }
   function isFinalMission(m) {
     return !!m && (m.id === "m6" || (m.bossHp | 0) >= 2600 || /终形/.test(String(m.bossName || "")));
@@ -99,10 +118,10 @@
     try {
       var y = G.physics.groundHeight(x, z, 8);
       return typeof y === "number" && isFinite(y) ? y : 0;
-    } catch (e) { return 0; }
+    } catch (e) { soft("groundY", e); return 0; }
   }
   function walkable(x, z) {
-    try { return !!G.physics.nav.isWalkable(x, z); } catch (e) { return true; }
+    try { return !!G.physics.nav.isWalkable(x, z); } catch (e) { soft("walkable", e); return true; }
   }
   function vec3(v) {
     return v ? { x: +v.x.toFixed(2), y: +v.y.toFixed(2), z: +v.z.toFixed(2) } : null;
@@ -169,7 +188,7 @@
       group.position.set(x, y + 0.05, z);
       G.scene.add(group);
       return addFx(group, mats, geos, life, opts.kind || "ring", opts);
-    } catch (e) { return null; }
+    } catch (e) { soft("ringFx", e); return null; }
   }
 
   function laserFx(from, to, color, life) {
@@ -182,7 +201,7 @@
       var line = new THREE.Line(geo, mat);
       G.scene.add(line);
       return addFx(line, [mat], [geo], life, "laser");
-    } catch (e) { return null; }
+    } catch (e) { soft("laserFx", e); return null; }
   }
 
   function removeFx(rec) {
@@ -192,9 +211,9 @@
     if (rec.kind === "telegraph" && S.telegraphs > 0) S.telegraphs--;
     try {
       if (rec.obj && rec.obj.parent) rec.obj.parent.remove(rec.obj);
-      for (var k = 0; k < rec.geos.length; k++) { try { rec.geos[k].dispose(); } catch (e) {} }
-      for (var m = 0; m < rec.mats.length; m++) { try { rec.mats[m].dispose(); } catch (e) {} }
-    } catch (e) {}
+      for (var k = 0; k < rec.geos.length; k++) { try { rec.geos[k].dispose(); } catch (e) { soft("fx-dispose", e); } }
+      for (var m = 0; m < rec.mats.length; m++) { try { rec.mats[m].dispose(); } catch (e) { soft("fx-dispose", e); } }
+    } catch (e) { soft("fx-remove", e); }
     var j = S.moveFx.indexOf(rec);
     if (j >= 0) S.moveFx.splice(j, 1);
   }
@@ -216,18 +235,18 @@
       var op;
       if (f.kind === "wave") {
         var sc = 0.12 + (1 - k) * (f.growTo || 1);
-        try { f.obj.scale.setScalar(sc); } catch (e) {}
+        try { f.obj.scale.setScalar(sc); } catch (e) { soft("fx-tick", e); }
         op = k * 0.9;
       } else if (f.kind === "telegraph") {
         op = 0.28 + 0.62 * k;
-        try { f.obj.scale.setScalar(0.97 + 0.03 * (1 - k)); } catch (e) {}
+        try { f.obj.scale.setScalar(0.97 + 0.03 * (1 - k)); } catch (e) { soft("fx-tick", e); }
       } else {
         op = k * 0.9;
       }
       for (var m = 0; m < f.mats.length; m++) {
         try {
           f.mats[m].opacity = (m === 0 ? op : op * 0.14);
-        } catch (e) {}
+        } catch (e) { soft("fx-tick", e); }
       }
     }
   }
@@ -250,17 +269,18 @@
     }
     for (var j = 0; j < due.length; j++) {
       if (!G.game || G.game.state !== "playing") continue;      // V37：回调时再守一次
-      try { due[j].fn(); } catch (e) { console.error("[boss2] timer", e); }
+      try { due[j].fn(); } catch (e) { soft("timer", e); }
     }
   }
 
   /* ------------------------------------------------------- HUD / 血条 */
+  // V53 CLI-1：血条是表现层，只在 tickPresentation 里同步；逻辑层只置脏标记。
   function captureBarBase() {
     var base = "";
     try {
       var t = document.querySelector(".x-boss-k");
       if (t) base = String(t.textContent || "").replace(/\s*｜.*$/, "").trim();
-    } catch (e) {}
+    } catch (e) { soft("bar-base", e); }
     if (!base) {
       var m = mission();
       base = (m && m.bossName) || "港区主控 · 蜃";
@@ -280,7 +300,12 @@
         barPips = barEl ? barEl.querySelectorAll(".x-boss-pips em") : null;
         barTitle = barEl ? barEl.querySelector(".x-boss-k") : null;
       }
+      if (!S.active) {
+        if (S.barStale && barEl) { S.barStale = false; barEl.classList.remove("on"); }
+        return;
+      }
       if (!barEl) return;
+      if (!S.barBase) captureBarBase();
       var pips = barPips;
       for (var i = 0; pips && i < pips.length; i++) pips[i].classList.toggle("on", i >= S.phase);
       if (barTitle && barTitle.isConnected) {
@@ -292,7 +317,7 @@
         barTitle = barEl.querySelector(".x-boss-k");
       }
       S.lastBarSig = S.phase + "|" + (S.final ? 1 : 0) + "|" + S.phase;
-    } catch (e) {}
+    } catch (e) { soft("bar-sync", e); }
   }
 
   /* ------------------------------------------------------- 阶段 */
@@ -308,8 +333,8 @@
       warn = finalNow ? "蜃·终形 · 坍缩开始" : "主控过载 · 核心脱离吊臂";
       radio = finalNow ? "反应堆失稳！安全区在缩小，借柱子躲开贯穿光束。" : "核心落地了！躲开冲刺，EMP 能让它短路。";
     }
-    try { if (G.hud && G.hud.warn) G.hud.warn(warn, 3.4); } catch (e) {}
-    try { if (G.hud && G.hud.radio) G.hud.radio(radio, 4.2); } catch (e) {}
+    try { if (G.hud && G.hud.warn) G.hud.warn(warn, 3.4); } catch (e) { soft("announce", e); }
+    try { if (G.hud && G.hud.radio) G.hud.radio(radio, 4.2); } catch (e) { soft("announce", e); }
     sfx("alert", { gain: 0.8, pitch: n === 2 ? 0.55 : 0.72 });
     emit("sx:boss2-announce", { phase: n, text: warn, at: S.clock, final: finalNow });
   }
@@ -331,7 +356,7 @@
     if (n === 2) S.queue = ["dash", "emp"];
     else if (n === 1 && !S.once.summon) S.queue = ["summon"];
     if (n !== prev) announcePhase(n);
-    syncBar(true);
+    S.barForce = true;
     emit("sx:boss2-phase", { phase: n, prev: prev, at: S.clock, final: S.final });
   }
 
@@ -366,6 +391,9 @@
     S.queue = n === 2 ? ["dash", "emp"] : (n === 1 && !S.once.summon ? ["summon"] : []);
     S.globalCd = 0.15;
     applyPhase(n, true);
+    // API/调试入口（不在固定步内）：立即刷新血条，保持 V34 起的外部行为。
+    try { syncBar(true); } catch (e) { soft("bar-sync", e); }
+    S.barForce = false;
     emit("sx:boss2-forced", { phase: n, at: S.clock });
     return stateSnapshot();
   }
@@ -549,11 +577,11 @@
     var P = G && G.player;
     if (!P || !P.alive) return false;
     var ok = true;
-    try { P.damage(amount, from); } catch (e) { ok = false; }
+    try { P.damage(amount, from); } catch (e) { soft("hurt", e); ok = false; }
     if (!ok) return false;
-    try { P.addShake(tag === "dash" ? 0.8 : 0.5); } catch (e) {}
+    try { P.addShake(tag === "dash" ? 0.8 : 0.5); } catch (e) { soft("hurt", e); }
     S.hits++;
-    try { if (G.hud && G.hud.hit) G.hud.hit(); } catch (e) {}
+    try { if (G.hud && G.hud.hit) G.hud.hit(); } catch (e) { soft("hurt", e); }
     emit("sx:boss-attack-hit", {
       move: tag, damage: amount, at: S.clock,
       dist: +(dist || 0).toFixed(2), telegraph: MOVES[tag] ? MOVES[tag].telegraph : 0
@@ -612,12 +640,12 @@
         Math.cos(ang) * Math.cos(pitch)
       ).normalize();
       var hit = false;
-      try { hit = G.combat.enemyShot(muzzle, d, { damage: 8, range: 120 }); } catch (e) {}
+      try { hit = G.combat.enemyShot(muzzle, d, { damage: 8, range: 120 }); } catch (e) { soft("fan", e); }
       try {
         G.fx.tracer(muzzle, muzzle.clone().addScaledVector(d, 40), {
           color: HOT_COLOR, speed: 280, width: 0.055
         });
-      } catch (e) {}
+      } catch (e) { soft("fan", e); }
       S.shotsFired++;
       if (hit) { anyHit = true; S.hits++; }
     }
@@ -631,7 +659,7 @@
   function spawnKind(kinds, pos) {
     for (var i = 0; i < kinds.length; i++) {
       var e = null;
-      try { e = G.enemies.spawn(kinds[i], pos, { state: "alert" }); } catch (err) { e = null; }
+      try { e = G.enemies.spawn(kinds[i], pos, { state: "alert" }); } catch (err) { soft("spawn", err); e = null; }
       if (e) return e;
     }
     return null;
@@ -659,7 +687,7 @@
     }
     emit("sx:boss2-summon", { count: made.length, kinds: made, at: S.clock });
     if (made.length) {
-      try { G.hud.warn("蜃 · 护盾无人机 ×" + made.length, 2.8); } catch (err) {}
+      try { G.hud.warn("蜃 · 护盾无人机 ×" + made.length, 2.8); } catch (err) { soft("summon", err); }
       sfx("impact_metal", { gain: 0.6, pitch: 0.7 });
     }
   }
@@ -696,7 +724,7 @@
     var k = clamp(S.dashT / S.dashDur, 0, 1);
     var x = S.dashFrom.x + (S.dashTo.x - S.dashFrom.x) * k;
     var z = S.dashFrom.z + (S.dashTo.z - S.dashFrom.z) * k;
-    try { e.pos.set(x, groundY(x, z), z); } catch (err) {}
+    try { e.pos.set(x, groundY(x, z), z); } catch (err) { soft("dash", err); }
     var P = G.player;
     if (!S.dashHit && P && P.alive) {
       var d = Math.hypot(P.pos.x - x, P.pos.z - z);
@@ -707,7 +735,7 @@
       }
     }
     if (k >= 1) {
-      try { G.fx.explosion(new THREE.Vector3(x, groundY(x, z) + 0.6, z), 1.1); } catch (err) {}
+      try { G.fx.explosion(new THREE.Vector3(x, groundY(x, z) + 0.6, z), 1.1); } catch (err) { soft("dash", err); }
       finishMove();
     }
   }
@@ -720,19 +748,19 @@
       document.body.appendChild(d);
       S.empEl = d;
       return d;
-    } catch (e) { return null; }
+    } catch (e) { soft("emp-overlay", e); return null; }
   }
 
   function execEmp() {
     S.hudGlitch = 1.5;
-    try { document.body.classList.add("sx-emp"); } catch (e) {}
+    try { document.body.classList.add("sx-emp"); } catch (e) { soft("emp", e); }
     var over = ensureEmpOverlay();
     if (over) over.style.opacity = "1";
     emit("sx:emp", {
       source: "boss", enemy: S.ref, at: S.clock, duration: 1.5,
       radius: 999, pos: S.ref ? vec3(S.ref.pos) : null
     });
-    try { if (G.hud && G.hud.warn) G.hud.warn("EMP 脉冲 · HUD 故障 1.5s", 2.6); } catch (e) {}
+    try { if (G.hud && G.hud.warn) G.hud.warn("EMP 脉冲 · HUD 故障 1.5s", 2.6); } catch (e) { soft("emp", e); }
     sfx("alert", { gain: 0.7, pitch: 0.5 });
     S.shotsFired++;
   }
@@ -757,12 +785,12 @@
       u.__sxEcho = true;
       u.shotDamage = 12;
       u.coolMul = 0.85;
-      try { if (u.rig && u.rig.group) u.rig.group.scale.setScalar(1.35); } catch (e) {}
+      try { if (u.rig && u.rig.group) u.rig.group.scale.setScalar(1.35); } catch (e) { soft("echo", e); }
       S.echoes.push(u);
     }
     emit("sx:boss2-echo", { count: S.echoes.length, hp: hp, at: S.clock });
     if (S.echoes.length) {
-      try { G.hud.warn("残响 · 幻影投射 ×" + S.echoes.length, 3); } catch (e) {}
+      try { G.hud.warn("残响 · 幻影投射 ×" + S.echoes.length, 3); } catch (e) { soft("echo", e); }
     }
     return S.echoes.length;
   }
@@ -774,11 +802,11 @@
     if (!e) return;
     // V37：引擎没有 G.enemies.retire；回收必须走 debug.ctx.retire。
     // 先标记 sx2.dead，避免回收后残留的 post/召唤逻辑再跑一帧。
-    try { if (e.sx2) e.sx2.dead = true; } catch (err) {}
+    try { if (e.sx2) e.sx2.dead = true; } catch (err) { soft("retire", err); }
     try {
       var ctx = G && G.enemies && G.enemies.debug && G.enemies.debug.ctx;
       if (e.active !== false && ctx && typeof ctx.retire === "function") ctx.retire(e);
-    } catch (err) {}
+    } catch (err) { soft("retire", err); }
   }
   function stepSummons() {
     for (var i = S.summons.length - 1; i >= 0; i--) {
@@ -801,6 +829,7 @@
 
   /* ------------------------------------------------------- EMP 故障 */
   function tickGlitch(dt) {
+    if (S.glitchReset) { S.glitchReset = false; resetGlitch(); }
     if (!G || !G.game || G.game.state !== "playing") return;   // V37：暂停/非 playing 不推进
     if (S.hudGlitch > 0) {
       S.hudGlitch -= dt;
@@ -811,8 +840,8 @@
   }
   function resetGlitch() {
     S.hudGlitch = 0;
-    try { document.body.classList.remove("sx-emp"); } catch (e) {}
-    if (S.empEl) { try { S.empEl.style.opacity = "0"; } catch (e) {} }
+    try { document.body.classList.remove("sx-emp"); } catch (e) { soft("glitch-reset", e); }
+    if (S.empEl) { try { S.empEl.style.opacity = "0"; } catch (e) { soft("glitch-reset", e); } }
   }
 
   /* ------------------------------------------------------- 遭遇管理 */
@@ -845,18 +874,16 @@
     S.phase = phaseFrom(e);
     S.announced[0] = 1;
     S.globalCd = 0.6;
-    captureBarBase();
-    syncBar(true);
+    S.barBase = "";
+    S.barForce = true;
     emit("sx:boss2-start", { enemy: e, final: S.final, phase: S.phase, at: S.clock });
     return true;
   }
 
   function cleanup(reason) {
-    // V37：无论是否有活动 BOSS，都摘掉血条 on 类，避免死亡后残留
-    try {
-      var staleBar = document.querySelector(".x-boss");
-      if (staleBar) staleBar.classList.remove("on");
-    } catch (e) {}
+    // V37：无论是否有活动 BOSS，都摘掉血条 on 类，避免死亡后残留。
+    // V53 CLI-1：DOM 操作交给下一帧 tickPresentation（逻辑层不查 DOM）。
+    S.barStale = true;
     if (!S.active && !S.ref) return;
     var info = {
       reason: reason || "unknown",
@@ -881,12 +908,11 @@
     S.echoes.length = 0;
     cancelMove();
     clearFx();
-    resetGlitch();
+    S.glitchReset = true;
     S.active = false;
     S.ref = null;
     S.barBase = "";
-    syncBar(true);
-    updateDebug();
+    S.barForce = true;
     emit("sx:boss2-dead", info);
   }
 
@@ -917,6 +943,9 @@
     S.telegraphCount = 0;
     S.barBase = "";
     S.lastBarSig = "";
+    S.barForce = false;
+    S.barStale = false;
+    S.glitchReset = false;
     S.cleanupInfo = null;
     S.active = false;
     S.ref = null;
@@ -926,28 +955,42 @@
     S.lock = null;
   }
 
-  function tick(dt) {
+  /* ------------------------------------------------------- 逻辑（固定步 60Hz） */
+  // V53 CLI-1：scanBoss/冷却/阶段/移动/召唤/计时器都在固定步里推进，
+  // 与渲染帧率解耦；__SX_LOOP.step(n) 因此能精确驱动 BOSS。
+  function tickLogic(h) {
+    if (!G || !G.game) return;
+    // 暂停/标题/死亡/结算：逻辑与时钟都冻结（不改状态，不推进冷却）
+    if (G.game.state !== "playing") return;
+    if (!(typeof h === "number" && isFinite(h) && h > 0)) return;
+    // V53 修正：BOSS 未激活时不累积 S.clock，避免重开行动后 hash 携带上一局时间。
+    if (!S.active) {
+      scanBoss();
+      if (!S.active) return;
+    }
+    S.clock += h;
+    if (!S.ref || !S.ref.alive || S.ref.active === false) { cleanup("dead"); return; }
+    S.globalCd = Math.max(0, S.globalCd - h);
+    S.engineGap = Math.max(0, S.engineGap - h);
+    for (var id in S.cool) S.cool[id] = Math.max(0, S.cool[id] - h);
+    updatePhase();
+    updateMove(h);
+    chooseMove();
+    stepSummons();
+    stepEchoes();
+    tickTimers(h);
+  }
+
+  /* ------------------------------------------------------- 表现（渲染帧） */
+  // 只做视觉/DOM：特效淡出、EMP 故障叠加、血条、调试面板。
+  function tickPresentation(dt) {
     if (!G) return;
-    S.clock += dt;
-    if (!S.active) scanBoss();
-    if (S.active && (!S.ref || !S.ref.alive || S.ref.active === false)) cleanup("dead");
-    if (S.active && G.game && G.game.state === "playing") {
-      S.globalCd = Math.max(0, S.globalCd - dt);
-      S.engineGap = Math.max(0, S.engineGap - dt);
-      for (var id in S.cool) S.cool[id] = Math.max(0, S.cool[id] - dt);
-      updatePhase();
-      updateMove(dt);
-      chooseMove();
-      stepSummons();
-      stepEchoes();
-      syncBar();
-    }
-    // V37：暂停/非 playing 时不推进定时器与 EMP 故障
-    if (G.game && G.game.state === "playing") {
-      tickTimers(dt);
-      tickGlitch(dt);
-    }
-    tickFx(dt);
+    if (!(typeof dt === "number" && isFinite(dt) && dt > 0)) dt = 0.016;
+    var playing = !!(G.game && G.game.state === "playing");
+    if (playing) tickFx(dt);          // 暂停时特效定格，恢复后继续
+    tickGlitch(dt);                  // 内部自带 playing 门控与待重置标记
+    syncBar(!!S.barForce);
+    S.barForce = false;
     updateDebug();
   }
 
@@ -960,7 +1003,7 @@
       document.body.appendChild(d);
       S.debugEl = d;
       return d;
-    } catch (e) { return null; }
+    } catch (e) { soft("debug-panel", e); return null; }
   }
   function toggleDebug() {
     S.debug = !S.debug;
@@ -974,7 +1017,7 @@
     if (!d) return;
     var html = "<b>BOSS 攻击冷却 · F6</b>";
     if (!S.active) {
-      d.innerHTML = html + '<div class="row">无 BOSS</div>';
+      try { d.innerHTML = html + '<div class="row">无 BOSS</div>'; } catch (e) { soft("debug-draw", e); }
       return;
     }
     var e = S.ref || {};
@@ -992,7 +1035,7 @@
       parts.push(id + " " + (S.once[id] ? "✓" : cd > 0 ? cd.toFixed(1) + "s" : "READY"));
     }
     html += '<div class="row">' + parts.join(" · ") + "</div>";
-    d.innerHTML = html;
+    try { d.innerHTML = html; } catch (e) { soft("debug-draw", e); }
   }
 
   /* ------------------------------------------------------- 对外 API */
@@ -1011,7 +1054,7 @@
           pipsTotal: pips.length, visible: b.classList.contains("on")
         };
       }
-    } catch (err) {}
+    } catch (err) { soft("bar-state", err); }
     var cds = {};
     for (var id in S.cool) cds[id] = +S.cool[id].toFixed(2);
     return {
@@ -1066,8 +1109,8 @@
       e = G.enemies.spawn("boss", new THREE.Vector3(x, groundY(x, z), z), {
         state: "alert", target: P ? P.pos : null
       });
-    } catch (err) { e = null; }
-    if (e) { try { G.game.run.bossAlive = true; } catch (err2) {} }
+    } catch (err) { soft("spawn-boss", err); e = null; }
+    if (e) { try { G.game.run.bossAlive = true; } catch (err2) { soft("spawn-boss", err2); } }
     return e;
   }
 
@@ -1089,14 +1132,39 @@
     spawnEchoes();
     syncBar(true);
     emit("sx:boss2-final", { enemy: e, at: S.clock });
-    try { if (G.hud && G.hud.warn) G.hud.warn("蜃 · 终形 · 残响展开", 3.5); } catch (err) {}
+    try { if (G.hud && G.hud.warn) G.hud.warn("蜃 · 终形 · 残响展开", 3.5); } catch (err) { soft("final", err); }
     sfx("alert", { gain: 0.8, pitch: 0.55 });
     return stateSnapshot();
+  }
+
+  // V53 ARCH-3：确定性状态快照（无 DOM 查询），供 __SX_LOOP 的 stateHash
+  // 与无头单测使用；字段全部来自固定步逻辑，不含任何渲染/时间随机量。
+  function logicState() {
+    var e = S.ref;
+    var cds = {};
+    for (var id in S.cool) cds[id] = +(+S.cool[id] || 0).toFixed(3);
+    return {
+      active: !!S.active,
+      phase: S.phase | 0,
+      final: !!S.final,
+      hp: e ? Math.round(e.hp || 0) : 0,
+      maxHp: e ? Math.round(e.maxHp || 0) : 0,
+      move: S.move || "",
+      stage: S.stage || "",
+      cooldowns: cds,
+      clock: +(+S.clock || 0).toFixed(3),
+      globalCd: +(+S.globalCd || 0).toFixed(3),
+      timers: S.timers.length,
+      summons: S.summons.length,
+      echoes: S.echoes.length,
+      queue: S.queue.length ? S.queue.join(">") : ""
+    };
   }
 
   window.__SX_BOSS = {
     version: VERSION,
     state: function () { return stateSnapshot(); },
+    logicState: logicState,
     attacks: function () { return attacksFor(S.phase); },
     forcePhase: function (n) { return forcePhase(n); },
     spawnFinal: function () { return spawnFinal(); }
@@ -1118,7 +1186,7 @@
         "#sx-boss-debug .row{white-space:nowrap;}"
       ].join("\n");
       document.head.appendChild(css);
-    } catch (e) {}
+    } catch (e) { soft("css", e); }
   }
 
   /* ------------------------------------------------------- 事件 */
@@ -1151,12 +1219,12 @@
     if (!ev) return;
     var k = ev.key || "";
     if (k === "F6" || ev.keyCode === 117) {
-      try { ev.preventDefault(); } catch (e) {}
+      try { ev.preventDefault(); } catch (e) { soft("key", e); }
       toggleDebug();
     }
   }
 
-  try { document.addEventListener("keydown", onKey, true); } catch (e) {}
+  try { document.addEventListener("keydown", onKey, true); } catch (e) { soft("key-bind", e); }
 
   /* ------------------------------------------------------- 系统注册 */
   var sys = {
@@ -1174,7 +1242,13 @@
         G.events.on("enemy:melee", onEnemyMelee);
       }
     },
-    update: function (dt) { tick(dt || 0.016); },
+    // V53 CLI-1：玩法逻辑走固定步；update 只做表现（DOM/特效）。
+    fixedUpdate: function (cmd, h) {
+      try { tickLogic(h); } catch (e) { soft("fixedUpdate", e); }
+    },
+    update: function (dt) {
+      try { tickPresentation(dt); } catch (e) { soft("presentation", e); }
+    },
     onState: function (next) {
       if (next === "intro" || next === "title" || next === "dead" || next === "result") cleanup("state:" + next);
       else if (next === "playing") scanBoss();
@@ -1182,6 +1256,7 @@
     dispose: function () { cleanup("dispose"); }
   };
 
+  var registerFails = 0;
   function tryRegister() {
     if (registered) return true;
     try {
@@ -1190,7 +1265,11 @@
         registered = true;
         return true;
       }
-    } catch (e) { console.error("[boss2] register", e); }
+    } catch (e) {
+      // 低频启动失败保留一条 console.error，之后按标签限频
+      if (++registerFails === 1) console.error("[boss2] register", e);
+      else soft("register", e);
+    }
     return false;
   }
   if (!tryRegister()) {

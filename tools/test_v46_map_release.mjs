@@ -6,13 +6,17 @@
      · 几何体/场景子节点在多次切图后不无限增长
      · 无 pageerror
    用法：node tools/test_v46_map_release.mjs */
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
-import { PW_ARGS } from './pwargs.mjs';
+import { PW_ARGS, findChrome, ROOT } from './pwargs.mjs';
 
-const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', args: PW_ARGS });
+const GAME = pathToFileURL(path.join(ROOT, 'game.html')).href;
+
+const browser = await chromium.launch({ headless: true, executablePath: findChrome(), args: PW_ARGS });
 const page = await browser.newPage({ viewport: { width: 900, height: 520 } });
 const errs = []; page.on('pageerror', (e) => errs.push(String(e && e.message || e)));
-await page.goto('file://' + process.cwd() + '/game.html?q=low&novisual=1&noaudio=1&autostart=1&dt=0.1', { waitUntil: 'load', timeout: 240000 });
+await page.goto(GAME + '?q=low&novisual=1&noaudio=1&autostart=1&dt=0.1', { waitUntil: 'load', timeout: 240000 });
 await page.waitForFunction(() => (window.__ready === true && !!window.__SX && !!window.MapKit) || window.__fatal, null, { timeout: 300000 });
 await page.evaluate(() => { try { window.__G.game.start({ skipIntro: true }); } catch (e) {} });
 

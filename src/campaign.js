@@ -246,7 +246,25 @@
   }
   function saveCamp() {
     try { localStorage.setItem(CAMP_KEY, JSON.stringify(camp)); } catch (e) {}
-    try { if (window.SXBridge) SXBridge.campaign(camp); } catch (e) {}
+    try { if (window.SXBridge) window.SXBridge.campaign(camp); } catch (e) {}
+  }
+  function reloadCamp() {
+    loadCamp();
+    return camp;
+  }
+  /* V53 SAVE-1：导入/重置会把统一档镜像回旧键（含 saltline.campaign.v1）。
+     这里同步内存态；否则下一次 saveCamp() 会把导入前的旧进度再推回统一档。 */
+  var saveUnsub = null;
+  function bindSaveSync() {
+    if (saveUnsub) return saveUnsub;
+    try {
+      if (!window.SXSave || typeof window.SXSave.subscribe !== "function") return null;
+      saveUnsub = window.SXSave.subscribe(function (s, info) {
+        var reason = info && info.reason;
+        if (reason === "import" || reason === "reset") reloadCamp();
+      });
+    } catch (e) { console.error("[ext] save sync", e); }
+    return saveUnsub || null;
   }
 
   var RELAY_STATIONS = {
@@ -921,6 +939,7 @@
 
   function initCampaign() {
     loadCamp();
+    bindSaveSync();
     initRelayPool();
     var profile = (typeof window !== "undefined" && window.__SX_PROFILE) || "v4";
     if (profile === "v3") {
@@ -985,7 +1004,15 @@
         try { G.render.post.saturation = m.saturation; } catch (err) {}
         try { G.render.exposure = m.exposure; } catch (err) {}
       }
-      if (e.state === "complete") gameAfter(0.4, onMissionComplete, "mission");
+      // V53 CLI-2：complete 状态下模拟时钟冻结，结算面板的延迟更新改用 UI 实时钟，
+      // 否则 onMissionComplete（最佳成绩/挑战/解锁/存档）永远不会执行。
+      if (e.state === "complete") {
+        if (typeof UICLOCK !== "undefined" && UICLOCK && typeof UICLOCK.after === "function") {
+          UICLOCK.after(0.4, onMissionComplete);
+        } else {
+          setTimeout(onMissionComplete, 400);
+        }
+      }
     });
   }
 
@@ -1001,6 +1028,8 @@
       state: function () { return camp; },
       index: function () { return camp.current; },
       save: saveCamp,
+      reload: reloadCamp,
+      bindSaveSync: bindSaveSync,
       launch: launchMission,
       apply: applyMission,
       challengeTotal: function () { return MISSIONS.length * 3; },

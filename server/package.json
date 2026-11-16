@@ -1,10 +1,10 @@
 {
   "name": "saltline-server",
-  "version": "0.36.0",
+  "version": "0.53.0",
   "private": true,
   "scripts": {
     "start": "node server.cjs",
-    "test": "node test_round.cjs && node test_net2.cjs"
+    "test": "node test_profiles.cjs && node test_round.cjs && node test_net2.cjs"
   },
   "dependencies": {
     "ws": "^8.22.2"

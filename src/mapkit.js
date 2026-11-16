@@ -161,6 +161,30 @@
       maps[id] = def;
     }
 
+    /* V53 ARCH-5：两个 builder 的 label() 逐字重复，抽成共享实现。
+       返回的 mesh 由调用方决定挂到 labels 组还是 root。 */
+    function makeLabelMesh(text, x, y, z, yaw, w, h) {
+      var c = document.createElement("canvas");
+      c.width = 512; c.height = 128;
+      var g = c.getContext("2d");
+      g.fillStyle = "rgba(8,10,12,.72)"; g.fillRect(0, 0, 512, 128);
+      g.strokeStyle = "rgba(255,179,71,.8)"; g.lineWidth = 4; g.strokeRect(2, 2, 508, 124);
+      g.fillStyle = "#ffd27a"; g.font = "bold 58px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(text, 256, 68);
+      var tex = new T.CanvasTexture(c);
+      tex.colorSpace = T.SRGBColorSpace;
+      var m = new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.95, depthWrite: false });
+      var lgeo = new T.PlaneGeometry(w || 4.2, h || 1.05);
+      lgeo.userData = lgeo.userData || {};
+      lgeo.userData.sxMapOwned = true;
+      m.userData = m.userData || {};
+      m.userData.sxMapOwned = true;
+      var mesh = new T.Mesh(lgeo, m);
+      mesh.position.set(x, y, z);
+      mesh.rotation.y = yaw || 0;
+      return mesh;
+    }
+
     function makeBuilder() {
       var root = new T.Group();
       var dyn = new T.Group();
@@ -245,24 +269,7 @@
           return rec;
         },
         label: function (text, x, y, z, yaw, w, h) {
-          var c = document.createElement("canvas");
-          c.width = 512; c.height = 128;
-          var g = c.getContext("2d");
-          g.fillStyle = "rgba(8,10,12,.72)"; g.fillRect(0, 0, 512, 128);
-          g.strokeStyle = "rgba(255,179,71,.8)"; g.lineWidth = 4; g.strokeRect(2, 2, 508, 124);
-          g.fillStyle = "#ffd27a"; g.font = "bold 58px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-          g.fillText(text, 256, 68);
-          var tex = new T.CanvasTexture(c);
-          tex.colorSpace = T.SRGBColorSpace;
-          var m = new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.95, depthWrite: false });
-          var lgeo = new T.PlaneGeometry(w || 4.2, h || 1.05);
-          lgeo.userData = lgeo.userData || {};
-          lgeo.userData.sxMapOwned = true;
-          m.userData = m.userData || {};
-          m.userData.sxMapOwned = true;
-          var mesh = new T.Mesh(lgeo, m);
-          mesh.position.set(x, y, z);
-          mesh.rotation.y = yaw || 0;
+          var mesh = makeLabelMesh(text, x, y, z, yaw, w, h);
           def.labels.add(mesh);
           return mesh;
         }
@@ -338,24 +345,7 @@
           return rec;
         },
         label: function (text, x, y, z, yaw, w, h) {
-          var c = document.createElement("canvas");
-          c.width = 512; c.height = 128;
-          var g = c.getContext("2d");
-          g.fillStyle = "rgba(8,10,12,.72)"; g.fillRect(0, 0, 512, 128);
-          g.strokeStyle = "rgba(255,179,71,.8)"; g.lineWidth = 4; g.strokeRect(2, 2, 508, 124);
-          g.fillStyle = "#ffd27a"; g.font = "bold 58px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-          g.fillText(text, 256, 68);
-          var tex = new T.CanvasTexture(c);
-          tex.colorSpace = T.SRGBColorSpace;
-          var m = new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.95, depthWrite: false });
-          var lgeo = new T.PlaneGeometry(w || 4.2, h || 1.05);
-          lgeo.userData = lgeo.userData || {};
-          lgeo.userData.sxMapOwned = true;
-          m.userData = m.userData || {};
-          m.userData.sxMapOwned = true;
-          var mesh = new T.Mesh(lgeo, m);
-          mesh.position.set(x, y, z);
-          mesh.rotation.y = yaw || 0;
+          var mesh = makeLabelMesh(text, x, y, z, yaw, w, h);
           root.add(mesh);
           return mesh;
         }
@@ -364,6 +354,12 @@
     }
 
     function extend(id, fn) {
+      // V53 ARCH-5：追加层会直接 P.addBox 到当前碰撞集；非港区激活时调用会污染
+      // 当前地图的碰撞（箱子留在 P.boxes 里，玩家撞到不存在的墙）。直接拒绝并告警。
+      if (current !== "harbor") {
+        try { console.warn("[mapkit] extend('" + id + "') ignored while map='" + current + "' is active"); } catch (e) {}
+        return false;
+      }
       if (id === "harbor") {
         if (!harbor) return false;
         if (!harbor.extraGroup) {
@@ -406,6 +402,8 @@
       def.env = meta.env || null;
       def.seaOnly = !!meta.seaOnly;
       def.fog = meta.fog || null;
+      // V53 ARCH-5：每张地图只创建一个 FogExp2，load 时复用
+      def.fogObject = new T.FogExp2(def.fog ? def.fog.color : 0x090c10, def.fog ? def.fog.density : 0.026);
       def.merged = mergeRoot(b.root);
       def.merged.add(b.dyn);
       def.merged.add(b.labels);
@@ -435,22 +433,24 @@
       return def;
     }
 
+    /* V53 CLI-3：海面/天空/太阳强度只由“目标地图是否 seaOnly”决定。
+       每次加载非港区地图都调用，避免 depot/core(false) ↔ ship(true) 互相切图时
+       残留上一张图的可见性与太阳强度。 */
+    function applySeaMode(seaOnly) {
+      seaOnly = !!seaOnly;
+      if (G.ground && G.ground.root) G.ground.root.visible = seaOnly;
+      if (harbor && harbor.apron) harbor.apron.visible = !seaOnly;
+      if (harbor && harbor.quaySkirt) harbor.quaySkirt.visible = !seaOnly;
+      if (G.render && G.render.sky) G.render.sky.visible = seaOnly;
+      if (G.render && G.render.sun) G.render.sun.intensity = seaOnly ? 1.2 : 0.25;
+      if (G.backdrop) G.backdrop.root.visible = false;
+    }
+
     function hideHarbor(seaOnly) {
       harbor.root.visible = false;
       if (harbor.extraGroup) harbor.extraGroup.visible = false;
       if (harbor.extraLights) harbor.extraLights.visible = false;
-      if (G.backdrop) G.backdrop.root.visible = false;
-      if (seaOnly) {
-        G.ground.root.visible = true;
-        if (harbor.apron) harbor.apron.visible = false;
-        if (harbor.quaySkirt) harbor.quaySkirt.visible = false;
-        G.render.sky.visible = true;
-        G.render.sun.intensity = 1.2;
-      } else {
-        G.ground.root.visible = false;
-        G.render.sky.visible = false;
-        G.render.sun.intensity = 0.25;
-      }
+      applySeaMode(seaOnly);
       for (var i = 0; i < harbor.pointLights.length; i++) harbor.pointLights[i].l.intensity = 0;
     }
 
@@ -485,13 +485,15 @@
     var MAP_CACHE_LIMIT = 2;
     var cacheStats = { releases: 0, geos: 0, mats: 0, total: 0, skipped: 0 };
     function disposeMap(def) {
-      var geos = 0, mats = 0, total = 0, skipped = 0, seen = [];
+      var geos = 0, mats = 0, total = 0, skipped = 0;
+      // V53 ARCH-5：用 Set 去重（原来是 seen.indexOf => O(n²)）
+      var seen = new Set();
       if (!def || !def.merged) return { geos: 0, mats: 0, total: 0, skipped: 0 };
       def.merged.traverse(function (o) {
         if (!o.isMesh) return;
         var g = o.geometry;
-        if (g && seen.indexOf(g) < 0) { seen.push(g); total++; }
-        if (g && (!g.userData || !g.userData.sxMapOwned) && seen.indexOf(g) >= 0) {
+        if (g && !seen.has(g)) { seen.add(g); total++; }
+        if (g && (!g.userData || !g.userData.sxMapOwned)) {
           if (!g.__sxCountedSkipped) { g.__sxCountedSkipped = true; skipped++; }
         }
         if (g && g.userData && g.userData.sxMapOwned && !g.__sxMapDisposed) {
@@ -545,6 +547,8 @@
       if (!def) return false;
       if (current === "harbor") hideHarbor(!!def.seaOnly);
       else if (maps[current] && maps[current].merged) { maps[current].merged.visible = false; maps[current].lights.visible = false; }
+      // V53 CLI-3：非港区 → 非港区也要重设海面/天空/太阳（hideHarbor 只在离开港区时跑）
+      if (id !== "harbor") applySeaMode(!!def.seaOnly);
       if (id === "harbor") {
         showHarbor();
         G.__navQuayX = 30;
@@ -567,7 +571,8 @@
       }
       def.merged.visible = true;
       def.lights.visible = true;
-      G.scene.fog = new T.FogExp2(def.fog ? def.fog.color : 0x090c10, def.fog ? def.fog.density : 0.026);
+      // V53 ARCH-5：FogExp2 按地图复用（build 时创建一次），不再每次 load 新建对象
+      G.scene.fog = def.fogObject;
       G.__navQuayX = 1e9;
       P.boxes.length = 0;
       for (var k = 0; k < def.boxes.length; k++) {

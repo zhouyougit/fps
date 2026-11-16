@@ -17,10 +17,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { PW_ARGS, GPU_MODE } from './pwargs.mjs';
+import { PW_ARGS, GPU_MODE, findChrome } from './pwargs.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = findChrome();
 const TARGET = path.resolve(ROOT, process.env.SX_TARGET || 'game.html');
 const BASE = path.resolve(ROOT, process.env.SX_BASELINE || 'bench/v40_baseline.json');
 const LIMIT = +(process.env.SX_PERF_LIMIT || 16.7);
@@ -55,7 +55,7 @@ try {
     lightsApi: !!window.__SX_LIGHTS,
     pool: window.__SX_LIGHTS ? window.__SX_LIGHTS.stats().pool : null
   }));
-  ok('构建为 V41+ 且暴露 __SX_LIGHTS', /V4[1-9]/.test(env.label) && env.lightsApi, env);
+  ok('构建为 V41+ 且暴露 __SX_LIGHTS', /V(4[1-9]|5\d)/.test(env.label) && env.lightsApi, env);
   ok('?q=medium 不被自动画质改写（autoQuality=false）', env.autoQuality === false, { autoQuality: env.autoQuality });
 
   const results = {};

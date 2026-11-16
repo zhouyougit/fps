@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const env = { ...process.env };
-for (const f of ['test_round.cjs', 'test_net2.cjs']) {
+for (const f of ['test_profiles.cjs', 'test_round.cjs', 'test_net2.cjs']) {
   const r = spawnSync(process.execPath, [f], { cwd: path.join(ROOT, 'server'), env, stdio: 'inherit' });
   if (r.status !== 0) process.exit(r.status || 1);
 }

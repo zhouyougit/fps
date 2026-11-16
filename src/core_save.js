@@ -282,8 +282,9 @@
       if (field.type === "number") {
         if (typeof normalized !== "number" || !isFinite(normalized)) return def;
         if (field.int && Math.floor(normalized) !== normalized) return def;
-        if (field.min != null && normalized < field.min) return def;
-        if (field.max != null && normalized > field.max) return def;
+        // V53 SAVE-2：越界值钳制到合法区间，而不是整段重置为默认值
+        if (field.min != null && normalized < field.min) normalized = field.min;
+        if (field.max != null && normalized > field.max) normalized = field.max;
         return normalized;
       }
       if (field.type === "enum") {
@@ -318,8 +319,9 @@
     if (type === "number") {
       if (typeof value !== "number" || !isFinite(value)) return def;
       if (field.int && Math.floor(value) !== value) return def;
-      if (field.min != null && value < field.min) return def;
-      if (field.max != null && value > field.max) return def;
+      // V53 SAVE-2：越界值钳制而不是重置（旧档 sens=99 保留为 3 而不是回到 1）
+      if (field.min != null && value < field.min) value = field.min;
+      if (field.max != null && value > field.max) value = field.max;
       return value;
     }
     if (type === "boolean") return typeof value === "boolean" ? value : def;
@@ -423,6 +425,45 @@
       }
     }
     return target;
+  }
+
+  /* V53 SAVE-2：收集 schema 之外的字段（顶层 + 已知对象段里的未知子键）。
+     高版本存档（v > CURRENT）只做尽力读取，但任何后续写回都不能把这些字段裁掉。 */
+  function collectUnknown(raw, schema, into) {
+    if (!isPlain(raw) || !isPlain(schema)) return false;
+    var found = false;
+    var keys = Object.keys(raw);
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      if (!has(schema, key)) { into[key] = raw[key]; found = true; continue; }
+      var field = schema[key];
+      if (field && field.type === "object" && isPlain(field.fields) && isPlain(raw[key])) {
+        var sub = {}, any = false;
+        var subKeys = Object.keys(raw[key]);
+        for (var j = 0; j < subKeys.length; j++) {
+          if (!has(field.fields, subKeys[j])) { sub[subKeys[j]] = raw[key][subKeys[j]]; any = true; }
+        }
+        if (any) { into[key] = sub; found = true; }
+      }
+    }
+    return found;
+  }
+
+  function withFutureFields(base) {
+    if (!futureFields) return base;
+    var out = copy(base);
+    for (var key in futureFields) {
+      if (!has(futureFields, key)) continue;
+      var extra = futureFields[key];
+      if (isPlain(out[key]) && isPlain(extra)) {
+        var merged = copy(out[key]);
+        for (var sub in extra) if (has(extra, sub) && !has(merged, sub)) merged[sub] = extra[sub];
+        out[key] = merged;
+      } else if (!has(out, key)) {
+        out[key] = extra;
+      }
+    }
+    return out;
   }
 
   function migrateLegacySix() {
@@ -532,6 +573,12 @@
   var timer = null;
   var dirty = false;
   var debounceMs = 250;
+  // V53 SAVE-2：更高版本存档里 schema 之外的字段。写回时原样保留，避免降级裁字段。
+  var futureFields = null;
+  var lastWriteError = null;
+  var writeRetries = 0;
+  var retryTimer = null;
+  var lifecycleBound = false;
 
   function notify(reason) {
     var snapshot = listeners.slice();
@@ -542,22 +589,66 @@
 
   function writeState(next) {
     var text;
-    try { text = JSON.stringify(next); } catch (e) { return false; }
-    try {
-      var store = storage();
-      var prev = store.getItem(KEY);
-      var prevValid = false;
-      if (prev != null) {
-        try { prevValid = isPlain(JSON.parse(prev)); } catch (e) { prevValid = false; }
-      }
-      // 只有合法旧主档才允许写进备份；否则会把唯一可用的备份覆盖成坏文本
+    try { text = JSON.stringify(withFutureFields(next)); }
+    catch (e) { lastWriteError = "序列化失败"; return false; }
+    // V53 SAVE-2：写失败重试一次（配额/瞬时异常），仍失败时保留内存态并交给 retryLater。
+    for (var attempt = 0; attempt < 2; attempt++) {
       try {
-        if (!prevValid) store.setItem(BAK, text);
-        else store.setItem(BAK, prev);
-      } catch (e) { /* 备份写失败（配额）不应阻止主档写入 */ }
-      store.setItem(KEY, text);
-      return true;
-    } catch (e) { return false; }
+        var store = storage();
+        var prev = store.getItem(KEY);
+        var prevValid = false;
+        if (prev != null) {
+          try { prevValid = isPlain(JSON.parse(prev)); } catch (e) { prevValid = false; }
+        }
+        // 只有合法旧主档才允许写进备份；否则会把唯一可用的备份覆盖成坏文本
+        try {
+          if (!prevValid) store.setItem(BAK, text);
+          else store.setItem(BAK, prev);
+        } catch (e) { /* 备份写失败（配额）不应阻止主档写入 */ }
+        store.setItem(KEY, text);
+        lastWriteError = null;
+        writeRetries = 0;
+        return true;
+      } catch (e) {
+        lastWriteError = String((e && e.message) || e);
+      }
+    }
+    return false;
+  }
+
+  function retryLater() {
+    if (retryTimer || typeof setTimeout !== "function") return false;
+    if (writeRetries >= 3) return false;
+    var delay = 500 * Math.pow(2, writeRetries++);
+    retryTimer = setTimeout(function () {
+      retryTimer = null;
+      if (!dirty) return;
+      var ok = writeState(state || DEFAULTS());
+      if (ok) { dirty = false; notify("save"); }
+      else retryLater();
+    }, delay);
+    if (retryTimer && typeof retryTimer.unref === "function") retryTimer.unref();
+    return true;
+  }
+
+  // V53 SAVE-2：移动端切后台/关闭页面时（不只 beforeunload）也落盘，避免丢最后 250ms。
+  function bindLifecycle() {
+    if (lifecycleBound) return;
+    lifecycleBound = true;
+    try {
+      if (typeof document !== "undefined" && document && typeof document.addEventListener === "function") {
+        document.addEventListener("visibilitychange", function () {
+          try { if (document.hidden === true) saveNow(); } catch (e) { /* ignore */ }
+        });
+      }
+    } catch (e) { /* no document */ }
+    try {
+      if (typeof window !== "undefined" && window && typeof window.addEventListener === "function") {
+        window.addEventListener("pagehide", function () {
+          try { saveNow(); } catch (e) { /* ignore */ }
+        });
+      }
+    } catch (e) { /* no window */ }
   }
 
   function readCandidate(key) {
@@ -589,22 +680,33 @@
     if (parsed) {
       var v = typeof parsed.v === "number" ? parsed.v : null;
       var needsMigration = v === null || v < CURRENT;
+      var isFuture = typeof v === "number" && v > CURRENT;
       var next = migrateRaw(parsed);
       state = sanitize(next, SCHEMA);
       loadedSource = source;
+      // V53 SAVE-2：高版本存档只做尽力读取；记下未知字段，后续写回时原样带上。
+      if (isFuture) {
+        var extra = {};
+        futureFields = collectUnknown(parsed, SCHEMA, extra) ? extra : null;
+      } else {
+        futureFields = null;
+      }
       // 主档 v1/无版本或来自备份：迁移/修复后回写主档；旧键保留。
       if ((needsMigration && source === "main") || source === "backup") writeState(state);
     } else if (hasLegacyKeys()) {
       state = sanitize(migrateLegacySix(), SCHEMA);
       loadedSource = "legacy";
+      futureFields = null;
       writeState(state); // 旧键不删，新主档落盘
     } else {
       state = DEFAULTS();
       loadedSource = "default";
+      futureFields = null;
     }
     if (bootSource === null) bootSource = loadedSource;
     dirty = false;
     if (timer) { clearTimeout(timer); timer = null; }
+    bindLifecycle();
     return state;
   }
 
@@ -613,6 +715,7 @@
     if (!state) state = DEFAULTS();
     var ok = writeState(state);
     if (ok) { dirty = false; notify("commit"); }
+    else { dirty = true; retryLater(); } // 写失败时保留内存态并安排重试，别让下次 reload 丢掉
     return ok;
   }
 
@@ -621,6 +724,7 @@
     if (!dirty) return true;
     var ok = writeState(state || DEFAULTS());
     if (ok) { dirty = false; notify("save"); }
+    else retryLater();
     return ok;
   }
 
@@ -633,6 +737,7 @@
       if (!dirty) return;
       var ok = writeState(state || DEFAULTS());
       if (ok) { dirty = false; notify("save"); }
+      else retryLater();
     }, debounceMs);
     if (timer && typeof timer.unref === "function") timer.unref();
   }
@@ -688,8 +793,12 @@
   function reset() {
     state = DEFAULTS();
     loadedSource = "reset";
+    futureFields = null;
     var ok = writeState(state);
-    dirty = false;
+    dirty = !ok;
+    if (!ok) retryLater();
+    // V53 SAVE-1：重置后同步镜像旧键，避免旧模块再读回重置前进度并推回统一档。
+    try { mirrorLegacy(); } catch (e) { /* mirror 失败不影响重置 */ }
     notify("reset");
     return state;
   }
@@ -697,7 +806,8 @@
   /* ------------------------------------------------------- export / import */
 
   function exportJSON() {
-    return JSON.stringify(state || load(), null, 2);
+    // V53 SAVE-2：高版本存档的未知字段也导出，避免“读入再导出”丢数据
+    return JSON.stringify(withFutureFields(state || load()), null, 2);
   }
 
   function exportFile(filename) {
@@ -728,12 +838,22 @@
     try {
       var migrated = migrateRaw(rawState);
       var next = sanitize(migrated, SCHEMA);
+      var importV = typeof rawState.v === "number" ? rawState.v : null;
       // 先写盘成功再提交内存态；失败时保持原存档不变
       var ok = writeState(next);
       if (!ok) return { ok: false, error: "存档写入失败" };
+      // V53 SAVE-2：导入高版本存档时同样保留未知字段。
+      if (importV !== null && importV > CURRENT) {
+        var extra = {};
+        futureFields = collectUnknown(rawState, SCHEMA, extra) ? extra : null;
+      } else {
+        futureFields = null;
+      }
       state = next;
       loadedSource = "import";
       dirty = false;
+      // V53 SAVE-1：导入成功写盘后立即镜像旧键，下一次 saveCamp 才不会把旧进度推回。
+      try { mirrorLegacy(); } catch (e) { /* mirror 失败不应让导入回滚 */ }
       notify("import");
       return { ok: true, state: state };
     } catch (e) {
@@ -846,6 +966,8 @@
     importJSON: importJSON,
     importFile: importFile,
     mirrorLegacy: mirrorLegacy,
+    // V53 SAVE-2：最近一次写盘失败原因（成功后清空），供 UI/调试提示
+    writeError: function () { return lastWriteError; },
     state: function () { return state || load(); }
   };
   return api;

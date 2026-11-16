@@ -1685,6 +1685,7 @@
   }
 
   var lastFrameT = 0;
+  var ringSum = 0; // PERF-4：300 帧滚动和，避免每帧对环形缓冲做 O(n) 求和
   function wrapRender() {
     var base = G.render.frame;
     if (!base || base.__sxVisual) return;
@@ -1718,10 +1719,9 @@
           var ms = now - lastFrameT;
           if (S.frames > 3) {
             S.ring.push(ms);
-            if (S.ring.length > 300) S.ring.shift();
-            var sum = 0;
-            for (var i = 0; i < S.ring.length; i++) sum += S.ring[i];
-            S.frameMs300 = sum / S.ring.length;
+            ringSum += ms;
+            if (S.ring.length > 300) ringSum -= S.ring.shift();
+            S.frameMs300 = ringSum / S.ring.length;
             S.frameMsAvg += (ms - S.frameMsAvg) * 0.08;
           }
         }

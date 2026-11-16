@@ -9,7 +9,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { PW_ARGS } from './pwargs.mjs';
+import { PW_ARGS, findChrome } from './pwargs.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -40,7 +40,8 @@ const EXPECT = [
   { profile: 'v49', file: '几猫_V49.html', label: 'V49 · 视距', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 },
   { profile: 'v50', file: '几猫_V50.html', label: 'V50 · 设置', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 },
   { profile: 'v51', file: '几猫_V51.html', label: 'V51 · 可读', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 },
-  { profile: 'v52', file: '几猫_V52.html', label: 'V52 · 收口', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 }
+  { profile: 'v52', file: '几猫_V52.html', label: 'V52 · 收口', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 },
+  { profile: 'v53', file: '几猫_V53.html', label: 'V53 · 改进', weapons: 6, missions: 8, budget: 6 * 1024 * 1024 }
 ];
 const WEAPON_IDS = ['pac9', 'breaker12', 'dmr', 'smg', 'lmg', 'sidearm'];
 
@@ -111,17 +112,19 @@ if (!NO_BROWSER) {
     ok('Playwright 可用', false, String(e && e.message || e));
   }
   if (chromium) {
-    const chrome = [process.env.CHROME_EXE, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
-      .find(p => p && existsSync(p));
+    let chrome = null;
+    try { chrome = findChrome(); } catch (e) { ok('Chrome 可执行文件可用', false, String(e && e.message || e).split('\n')[0]); }
     let browser = null;
-    try {
-      browser = await chromium.launch({
-        headless: true,
-        executablePath: chrome,
-        args: PW_ARGS
-      });
-    } catch (e) {
-      ok('Playwright 启动', false, String(e && e.message || e).split('\n')[0]);
+    if (chrome) {
+      try {
+        browser = await chromium.launch({
+          headless: true,
+          executablePath: chrome,
+          args: PW_ARGS
+        });
+      } catch (e) {
+        ok('Playwright 启动', false, String(e && e.message || e).split('\n')[0]);
+      }
     }
     const targets = ONLY
       ? parsed.filter(p => p.expect.profile === ONLY)

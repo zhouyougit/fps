@@ -2417,11 +2417,19 @@
       var B = (window.SALT_NET && SALT_NET.BTN) || { FIRE: 1, ADS: 2, JUMP: 4, SPRINT: 8, CROUCH: 16, RELOAD: 32 };
       var b = 0;
       var inp = G.input || {};
-      if (inp.fire) b |= B.FIRE;
+      // V53 NET-1：输入命令不再携带 FIRE 位。按住开火时服务端会把“命令 FIRE”与
+      // 显式 t:'fire' 各处理一次（同一枪扣两次弹药、大量 rate 拒绝）；权威开火只走
+      // fireHandlerFn 的显式 fire 消息。服务端也只对 p.isBot 的命令 FIRE 开火。
+      // if (inp.fire) b |= B.FIRE;
       if (inp.ads) b |= B.ADS;
       if (inp.down && inp.down("jump")) b |= B.JUMP;
       if (p.sprinting) b |= B.SPRINT;
       if (p.crouching) b |= B.CROUCH;
+      // NET-5：侧身位此前只在 sim/server 中，协议 BTN 表缺位；现在按移动系统的 lean 值发送。
+      var lean = 0;
+      try { lean = window.__SX_MOVE && window.__SX_MOVE.state ? (window.__SX_MOVE.state().lean || 0) : 0; } catch (e) {}
+      if (lean > 0.35) b |= B.LEAN_R;
+      else if (lean < -0.35) b |= B.LEAN_L;
       if (G.weapon && G.weapon.state === "reloading") b |= B.RELOAD;
       return b;
     }

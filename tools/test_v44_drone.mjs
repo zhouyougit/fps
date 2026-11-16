@@ -2,13 +2,16 @@
 /* V44 · 自杀无人机（drone）自爆伤害回归
    验证：config 的 enemies.suicideDrone.explodeDamage = 44；
    实际近身自爆对满血玩家的伤害显著低于旧值 62（旧≈20，新≈14–16）。 */
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
-import { PW_ARGS } from './pwargs.mjs';
+import { PW_ARGS, findChrome, ROOT } from './pwargs.mjs';
 
-const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', args: PW_ARGS });
+const GAME = pathToFileURL(path.join(ROOT, 'game.html')).href;
+const browser = await chromium.launch({ headless: true, executablePath: findChrome(), args: PW_ARGS });
 const page = await browser.newPage({ viewport: { width: 900, height: 520 } });
 const errs = []; page.on('pageerror', e => errs.push(String(e && e.message || e)));
-await page.goto('file://' + process.cwd() + '/game.html?q=low&novisual=1&noaudio=1&autostart=1&dt=0.1', { waitUntil: 'load', timeout: 240000 });
+await page.goto(GAME + '?q=low&novisual=1&noaudio=1&autostart=1&dt=0.1', { waitUntil: 'load', timeout: 240000 });
 await page.waitForFunction(() => (window.__ready === true && window.__SX) || window.__fatal, null, { timeout: 300000 });
 const out = await page.evaluate(async () => {
   const G = window.__G, T = G.THREE;

@@ -1,4 +1,4 @@
-# ARCHITECTURE.md · 几猫 · SALTLINE（V52）
+# ARCHITECTURE.md · 几猫 · SALTLINE（V53）
 
 单文件 3D FPS 的源码结构与维护边界。目标：改一个系统时知道该动哪些文件、哪些文件不能碰。
 
@@ -15,6 +15,7 @@
 6. profile 对应的 feature 模块（`ext_lights`、`mp_avatar`、`ext_lod` 等）。
 
 构建必须显式给 target 和 profile；不允许无参数覆盖 `game.html`。`src/game.js` 已删除，不要再生成单文件。
+V53 起 `versions/` 下已存在的快照默认拒绝覆盖（必须显式 `--force`），产物 `__BUILD__` 记录 `commit` 与 three.js 版本。
 
 ## 2. 源码地图
 
@@ -35,7 +36,9 @@
 
 ## 3. 运行时关键链路
 
-- **固定步 60Hz**：`core_loop` 的 `step/hash` 是测试/回放根契约；`mp.js` 的预测也按 tick 回放。
+- **固定步 60Hz**：`core_loop` 的 `step/hash` 是测试/回放根契约；`mp.js` 的预测也按 tick 回放。V53 的 hash 还包含 BOSS/移动/时钟/手雷，低帧率丢时会计入 `stats.droppedMs`。
+- **服务器模拟**：`server.cjs` 通过 `packages/sim/movement.stepPlayer` 与客户端共享移动；模拟时间用 `tick × STEP_MS`，墙钟只用于网络/HTTP。
+- **错误诊断**：空 catch 统一走 `SXErrors.soft(tag,e)`（按标签只记一条），`__SX_LOOP` 的持续错误也按此限频。
 - **渲染**：`10_render` 先算自适应分辨率，再相机 → 世界/视图层 → post；灯数恒定避免 `NUM_POINT_LIGHTS` 重编译。
 - **切图**：`MapKit.load` 隐藏 harbor/旧图，build 新图，trim 到 2 张非 harbor；`map:loaded` 通知 ext_visual / ext_lights / ext_lod。
 - **联机**：`mp.js` 接收二进制快照 → 插值 → 远端模型；客户端命令队列 ≥90 时背压，避免服务端 `queue_full`。

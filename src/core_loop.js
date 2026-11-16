@@ -17,10 +17,22 @@
   var booted = false;
   var frameCount = 0;
   var stepsThisFrame = 0;
-  var stats = { steps: 0, frames: 0, simMs: 0, maxSteps: 0, lastSteps: 0, alpha: 0, dt: 0 };
+  // ARCH-3：droppedMs/dropEvents 记录低帧率时被丢弃的模拟时间（<~12fps），
+  // 以前是静默慢动作，没有计数。
+  var stats = {
+    steps: 0, frames: 0, simMs: 0, maxSteps: 0, lastSteps: 0, alpha: 0, dt: 0,
+    droppedMs: 0, dropEvents: 0, lastDropMs: 0, slowFrames: 0
+  };
   var _look = { dx: 0, dy: 0 };
 
   function fail(e, where) {
+    // ARCH-2：同一位置的持续错误只记一条诊断，避免每秒刷 60 次。
+    try {
+      if (window.SXErrors && typeof window.SXErrors.soft === "function") {
+        window.SXErrors.soft("loop:" + where, e);
+        return;
+      }
+    } catch (_) {}
     try {
       if (window.__errors) window.__errors.push("[loop:" + where + "] " + ((e && e.stack) || e));
     } catch (_) {}
@@ -134,6 +146,7 @@
     raf = requestAnimationFrame(frame);
     var realDt = Math.min(Math.max(0, (now - last) / 1000), 0.25);
     last = now;
+    if (realDt > 1 / 12) stats.slowFrames++;
     var dtParam = G.params && G.params.dt != null && G.params.dt !== "" ? +G.params.dt : null;
     if (!(dtParam > 0)) dtParam = null;
     var dt = dtParam != null ? dtParam : realDt;
@@ -166,7 +179,14 @@
         try { G.input.endFrame(); } catch (_) {}
       }
     }
-    if (n >= cap && acc > STEP) acc = 0;
+    if (n >= cap && acc > STEP) {
+      // 追帧上限用完仍有剩余时间：丢弃并记账（cap=5 时相当于低于 12fps）。
+      var dropped = acc;
+      acc = 0;
+      stats.droppedMs += dropped * 1000;
+      stats.dropEvents++;
+      stats.lastDropMs = dropped * 1000;
+    }
     if (n === 0) applyLookToCamera(look);
     stepsThisFrame = n;
     stats.lastSteps = n;
@@ -207,6 +227,70 @@
     return (h >>> 0).toString(16);
   }
 
+  /* --- ARCH-3：额外哈希片段。全部来自可复现的固定步状态，且逐项 try/catch，
+     任一来源缺失/抛错都不会让 hash() 失败（同状态仍然可复现）。 --- */
+  function hashBoss(parts, q) {
+    try {
+      var B = window.__SX_BOSS;
+      if (!B || typeof B.logicState !== "function") return;
+      var b = B.logicState();
+      if (!b) return;
+      parts.push("b", b.active ? 1 : 0, b.phase | 0, b.final ? 1 : 0,
+        b.hp | 0, b.maxHp | 0, b.move || "-", b.stage || "-",
+        q(b.clock || 0), q(b.globalCd || 0), b.queue || "-",
+        b.timers | 0, b.summons | 0, b.echoes | 0);
+      var cds = b.cooldowns || {};
+      var keys = Object.keys(cds).sort();
+      for (var i = 0; i < keys.length; i++) {
+        parts.push("bc", keys[i], q(cds[keys[i]] || 0));
+      }
+    } catch (e) { fail(e, "hash.boss"); }
+  }
+
+  function hashMove(parts, q) {
+    try {
+      var M = window.__SX_MOVE;
+      if (!M || typeof M.state !== "function") return;
+      var m = M.state() || {};
+      parts.push("mv", m.sliding ? 1 : 0, m.vaulting ? 1 : 0, q(m.lean || 0),
+        q(m.cooldown || 0), q(m.slideT || 0), q(m.vaultT || 0));
+    } catch (e) { fail(e, "hash.move"); }
+  }
+
+  function hashClock(parts, q) {
+    try {
+      var C = window.SX_CLOCK;
+      if (C && typeof C.now === "number" && isFinite(C.now)) parts.push("ck", q(C.now));
+    } catch (e) { fail(e, "hash.clock"); }
+  }
+
+  function hashItems(parts) {
+    try {
+      var sx = window.__SX;
+      if (!sx || typeof sx.state !== "function") return;
+      var st = sx.state();
+      if (!st) return;
+      parts.push("it", st.grenades | 0, st.pickups | 0);
+    } catch (e) { fail(e, "hash.items"); }
+  }
+
+  // RNG 状态：packages/sim 的流当前没有挂到 window；一旦有模块发布
+  // __SX_RNG/SX_RNG（或 __MP.rng）就自动并入哈希。
+  function hashRng(parts) {
+    try {
+      var r = window.__SX_RNG || window.SX_RNG || null;
+      if (!r) {
+        var mp = window.__MP;
+        r = mp && mp.rng ? mp.rng : null;
+      }
+      if (!r) return;
+      var seed = typeof r.seed === "number" ? r.seed
+        : (typeof r.state === "number" ? r.state : null);
+      if (seed == null || !isFinite(seed)) return;
+      parts.push("rng", seed >>> 0);
+    } catch (e) { fail(e, "hash.rng"); }
+  }
+
   function stateHash() {
     var parts = [];
     var q = function (v) { return Math.round(v * 1000) / 1000; };
@@ -238,6 +322,11 @@
         parts.push("rl", ri, rl.cut ? 1 : 0, q(rl.t || 0));
       }
     } catch (_) {}
+    hashBoss(parts, q);
+    hashMove(parts, q);
+    hashClock(parts, q);
+    hashItems(parts);
+    hashRng(parts);
     return hashStr(parts.join(","));
   }
 
@@ -276,7 +365,17 @@
       step: stepN,
       tick: function () { return tick; },
       hash: stateHash,
-      stats: function () { return { tick: tick, steps: stats.steps, frames: stats.frames, simMs: +stats.simMs.toFixed(1), maxSteps: stats.maxSteps, alpha: +stats.alpha.toFixed(3), dt: stats.dt }; },
+      stats: function () {
+        return {
+          tick: tick, steps: stats.steps, frames: stats.frames,
+          simMs: +stats.simMs.toFixed(1), maxSteps: stats.maxSteps,
+          alpha: +stats.alpha.toFixed(3), dt: stats.dt,
+          droppedMs: +stats.droppedMs.toFixed(1),
+          dropEvents: stats.dropEvents,
+          lastDropMs: +stats.lastDropMs.toFixed(1),
+          slowFrames: stats.slowFrames
+        };
+      },
       resetAcc: function () { acc = 0; },
       get stepSize() { return STEP; }
     };

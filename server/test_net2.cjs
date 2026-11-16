@@ -601,6 +601,62 @@ async function testProtocolAndInput(server) {
 }
 
 // ---------------------------------------------------------------------------
+// SRV-8 模拟时钟
+// ---------------------------------------------------------------------------
+async function testSimClock(server) {
+  const h1 = await httpJson(server.port, '/healthz');
+  await sleep(260);
+  const h2 = await httpJson(server.port, '/healthz');
+  const tickRate = h1 && h1.json && h1.json.tickRate;
+  const dTick = h2 && h1 ? h2.json.tick - h1.json.tick : -1;
+  const dSim = h2 && h1 ? h2.json.simTimeMs - h1.json.simTimeMs : -1;
+  ok(
+    'SRV-8 模拟时钟 = tick × (1000/tickRate)，且随 tick 递进',
+    !!h1 && !!h2 && tickRate === 60 && dTick > 0 &&
+      Math.abs(dSim - dTick * (1000 / tickRate)) < 0.05 &&
+      Math.abs(h2.json.simTimeMs - h2.json.tick * (1000 / tickRate)) < 0.05,
+    h1 && h2 && { dTick, dSim, simTime: h2.json.simTimeMs, tick: h2.json.tick }
+  );
+  ok(
+    'SRV-8 真实世界时钟保留 Date.now（simTimeMs 不是 epoch 毫秒）',
+    !!h2 && h2.json.realTimeMs > 1.5e12 && h2.json.simTimeMs < h2.json.realTimeMs,
+    h2 && { real: h2.json.realTimeMs, sim: h2.json.simTimeMs }
+  );
+
+  // 负载下仍能完成换弹并再次开火：模拟时钟逐步推进，射速/换弹不会挤在同一时间戳。
+  const pair = await combatPair(server, 'simclock');
+  try {
+    const aim = aimFrom(eyeAt({ x: pair.ax, y: 0, z: pair.az }), { x: pair.bx, y: 0.85, z: pair.bz });
+    pair.A.send({ t: 'input', seq: ++pair.A.seq, move: { x: 0, y: 0 }, yaw: aim.yaw, pitch: aim.pitch });
+    await sleep(120);
+    pair.A.send({ t: 'fire', wpn: 'pac9', dir: aim.dir });
+    const first = await pair.A.waitType('fire', { from: 0, timeout: 1200 }).catch(() => null);
+    // 120 条命令（15 条消息 × 8）制造有界追赶负载。
+    for (let m = 0; m < 15; m++) {
+      const cmds = [];
+      for (let k = 0; k < 8; k++) {
+        cmds.push({ seq: ++pair.A.seq, move: { x: 0, y: 0 }, yaw: aim.yaw, pitch: aim.pitch, buttons: 0 });
+      }
+      pair.A.send({ t: 'input', cmds });
+      await sleep(2);
+    }
+    pair.A.send({ t: 'reload' });
+    const done = await pair.A.waitType('reloadDone', { from: 0, timeout: 4500 }).catch(() => null);
+    ok(
+      'SRV-8 追赶负载下换弹按模拟时钟完成（不因 Date.now 混用丢失）',
+      !!first && !!done && done.mag === 30 && done.wpn === 'pac9',
+      { first: !!first, done: done && { mag: done.mag, wpn: done.wpn } }
+    );
+    pair.A.clear();
+    pair.A.send({ t: 'fire', wpn: 'pac9', dir: aim.dir });
+    const again = await pair.A.waitType('fire', { from: 0, timeout: 1500 }).catch(() => null);
+    ok('SRV-8 负载后再次开火被放行（射速计时随模拟时钟前进）', !!again, again && { ammo: again.ammo });
+  } finally {
+    closePair(pair);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 权威战斗
 // ---------------------------------------------------------------------------
 async function testCombat(server, profileToken) {
@@ -814,7 +870,10 @@ async function testCombat(server, profileToken) {
   if (oldPos) {
     const aim = aimFrom(eyeAt({ x: pair.ax, y: 0, z: pair.az }), { x: oldPos.x, y: 0.9, z: oldPos.z });
     pair.A.clear();
-    pair.A.send({ t: 'input', seq: ++pair.A.seq, move: { x: 0, y: 0 }, yaw: aim.yaw, pitch: aim.pitch, buttons: 1 });
+    // V53 NET-1：人控命令里的 FIRE 位不再开火；先让视角命令被消费，再走显式 t:'fire'。
+    pair.A.send({ t: 'input', seq: ++pair.A.seq, move: { x: 0, y: 0 }, yaw: aim.yaw, pitch: aim.pitch, buttons: 0 });
+    await sleep(30);
+    pair.A.send({ t: 'fire', wpn: 'dmr', dir: aim.dir, shotSeq: 1 });
     lagHit = await pair.A.waitFor((m) => m.t === 'hit' && m.by === pair.wa.id, { timeout: 1500 }).catch(() => null);
   }
   ok(
@@ -829,6 +888,103 @@ async function testCombat(server, profileToken) {
     healthLag && healthLag.json.metrics
   );
   closePair(pair);
+}
+
+// ---------------------------------------------------------------------------
+// V53 NET-1：按住开火不再被处理两次（命令 FIRE 只给人控当“按着”状态，权威开火走显式 fire）
+// ---------------------------------------------------------------------------
+async function testHoldFire(server) {
+  const room = 'holdfire-' + Date.now().toString(36);
+  const c = await Client.connect(server.port, { tag: 'holdfire' });
+  const w = await c.join({ name: '按住猫', room, team: 0, token: DEV, loadout: { primary: 'pac9' } });
+  c.send({ t: 'dev', cmd: 'tp', token: DEV, x: -10, z: -9 });
+  await sleep(220);
+
+  const yaw = -Math.PI / 2;
+  const dir = { x: -Math.sin(yaw), y: 0, z: -Math.cos(yaw) };
+  let seq = 0;
+
+  // 旧客户端行为：命令里带 FIRE 位。V53 后服务端对人控只把它当输入状态，不再开火。
+  c.clear();
+  for (let i = 0; i < 30; i++) {
+    c.send({ t: 'input', seq: ++seq, move: { x: 0, y: 0 }, yaw, pitch: 0, buttons: 1 });
+    await sleep(16);
+  }
+  await sleep(220);
+  const cmdOnlyFires = c.msgs.filter((m) => m.t === 'fire' && m.by === w.id);
+  ok(
+    'NET-1 人控命令 FIRE 位不再产生开火（按住状态不再双路径结算）',
+    cmdOnlyFires.length === 0,
+    { fires: cmdOnlyFires.length }
+  );
+
+  // 按住开火 2 秒：60Hz 命令流（带旧 FIRE 位）+ 720rpm 显式 fire 流。
+  c.clear();
+  const t0 = Date.now();
+  let lastShotAt = 0;
+  let sentShots = 0;
+  while (Date.now() - t0 < 2000) {
+    c.send({ t: 'input', seq: ++seq, move: { x: 0, y: 0 }, yaw, pitch: 0, buttons: 1 });
+    const now = Date.now();
+    if (now - lastShotAt >= 90) {
+      lastShotAt = now;
+      sentShots++;
+      c.send({ t: 'fire', wpn: 'pac9', dir, shotSeq: sentShots });
+    }
+    await sleep(16);
+  }
+  await sleep(350);
+
+  const fires = c.msgs.filter((m) => m.t === 'fire' && m.by === w.id);
+  const rateRej = c.msgs.filter((m) => m.t === 'shotRejected' && m.reason === 'rate');
+  const otherRej = c.msgs.filter((m) => m.t === 'shotRejected' && m.reason !== 'rate');
+  const accepted = fires.length;
+  ok(
+    'NET-1 按住 2 秒：显式 fire 基本全放行（>=20 发，rate 拒绝 <=2）',
+    accepted >= 20 && accepted <= 24 && rateRej.length <= 2,
+    { sentShots, accepted, rateRej: rateRej.length, otherRej: otherRej.length }
+  );
+  const ammoSeq = fires.map((m) => m.ammo);
+  const strictlyOnce = ammoSeq.length === accepted &&
+    ammoSeq.every((v, i) => v === 30 - (i + 1));
+  ok(
+    'NET-1 每发只扣一次弹药（fire.ammo 严格 29,28,27...）',
+    strictlyOnce,
+    { ammoSeq: ammoSeq.slice(0, 8), accepted }
+  );
+  ok(
+    'NET-1 开火事件数与显式 fire 条数一致（没有命令路径的额外枪）',
+    accepted + rateRej.length + otherRej.length === sentShots,
+    { accepted, rateRej: rateRej.length, otherRej: otherRej.length, sentShots }
+  );
+  const lastSnap = c.snaps[c.snaps.length - 1];
+  const selfSnap = lastSnap && lastSnap.players.find((p) => p.id === w.id);
+  console.log(
+    '[NET-1] hold-fire 2s: sent=' + sentShots + ' accepted=' + accepted +
+    ' rateRejected=' + rateRej.length + ' otherRejected=' + otherRej.length +
+    ' finalMag=' + (selfSnap && selfSnap.mag) + ' ammoSeq=' + JSON.stringify(ammoSeq.slice(0, 5))
+  );
+  ok(
+    'NET-1 客户端权威弹匣 = 30 - 放行发数（无双重扣减）',
+    !!selfSnap && selfSnap.mag === 30 - accepted,
+    selfSnap && { mag: selfSnap.mag, accepted }
+  );
+
+  // 拒绝消息契约：shotSeq + 当前 mag/reserve/wpn/slot。
+  c.clear();
+  const burst = [1001, 1002, 1003, 1004];
+  for (const s of burst) c.send({ t: 'fire', wpn: 'pac9', dir, shotSeq: s });
+  await sleep(260);
+  const burstRej = c.msgs.filter((m) => m.t === 'shotRejected');
+  ok(
+    'NET-1 shotRejected 回带 shotSeq 与权威 mag/reserve/wpn/slot',
+    burstRej.length >= 2 &&
+      burstRej.every((m) => Number.isFinite(m.shotSeq) && burst.includes(m.shotSeq) &&
+        Number.isFinite(m.mag) && Number.isFinite(m.reserve) &&
+        typeof m.wpn === 'string' && Number.isFinite(m.slot)),
+    burstRej.map((m) => ({ reason: m.reason, shotSeq: m.shotSeq, mag: m.mag, reserve: m.reserve }))
+  );
+  c.close();
 }
 
 // ---------------------------------------------------------------------------
@@ -936,6 +1092,90 @@ async function testRealtimeV37(server) {
     respawnMsg && { slot: respawnMsg.slot, wpn: respawnMsg.wpn, mag: respawnMsg.mag, reserve: respawnMsg.reserve, slots: respawnMsg.slots }
   );
   closePair(killPair);
+}
+
+// ---------------------------------------------------------------------------
+// V53 NET-3：慢速漂移（0.0019rad/帧）不能连续 2 秒不更新
+// ---------------------------------------------------------------------------
+function angleDiff(a, b) {
+  let d = (Number(a) || 0) - (Number(b) || 0);
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
+async function testSlowDrift(server) {
+  const room = 'drift-' + Date.now().toString(36);
+  const actor = await Client.connect(server.port, { tag: 'drift-actor' });
+  const wa = await actor.join({ name: '慢漂猫', room, team: 0, token: DEV, loadout: { primary: 'pac9' } });
+  const obs = await Client.connect(server.port, { tag: 'drift-bin' });
+  const wObs = await obs.join({ name: '慢看猫', room, team: 1, token: DEV, caps: ['bin'] });
+  const actorInfo = (wObs.players || []).find((p) => p.id === wa.id);
+  const actorNid = actorInfo && actorInfo.nid;
+  actor.send({ t: 'dev', cmd: 'tp', token: DEV, x: -10, z: -9 });
+  await sleep(350);
+
+  const forcedBefore = await metricValue(server.port, 'saltline_snap_forced_players');
+  const from = obs.frames.length;
+  const startAt = Date.now();
+  let seq = 0;
+  let yaw = 0;
+  for (let i = 0; i < 60; i++) {
+    yaw += 0.0019; // 每快照帧 < 协议 0.002rad 阈值，旧实现会被永久跳过
+    actor.send({ t: 'input', seq: ++seq, move: { x: 0, y: 0 }, yaw, pitch: 0, buttons: 0 });
+    await sleep(33);
+  }
+  const loopEnd = Date.now();
+  await sleep(250);
+
+  // 更新间隔按“任意包含该玩家的帧”计算（全量帧也是一次有效更新），
+  // 但另外要求至少 2 个增量帧，证明不是只靠 2 秒一次的全量兜底。
+  const actorFrames = obs.frames.slice(from).filter(
+    (f) => actorNid != null && f.at <= loopEnd && f.players.some((q) => q.id === actorNid)
+  );
+  const deltaFrames = actorFrames.filter((f) => f.baseline > 0);
+  const times = actorFrames.map((f) => f.at);
+  let maxGap = 0;
+  let prev = startAt;
+  for (const t of times) {
+    if (Number.isFinite(t) && t - prev > maxGap) maxGap = t - prev;
+    if (Number.isFinite(t)) prev = t;
+  }
+  if (loopEnd - prev > maxGap) maxGap = loopEnd - prev;
+  const final = obs.lastSnapPlayer(wa.id);
+  const forcedAfter = await metricValue(server.port, 'saltline_snap_forced_players');
+  console.log(
+    '[NET-3] actorFrames=' + actorFrames.length + ' deltaFrames=' + deltaFrames.length +
+    ' maxGapMs=' + Math.round(maxGap) + ' timesMs=' + JSON.stringify(times.map((t) => t - startAt)) +
+    ' forced=' + forcedBefore + '->' + forcedAfter
+  );
+
+  ok(
+    'NET-3 慢速旋转在 2 秒窗口内至少收到 2 个增量帧（不是只等 2 秒全量帧）',
+    !!actorNid && deltaFrames.length >= 2,
+    {
+      actorNid,
+      deltaFrames: deltaFrames.length,
+      frames: obs.frames.slice(from).slice(-6).map((f) => ({ b: f.baseline, hasActor: f.players.some((q) => q.id === actorNid) })),
+    }
+  );
+  ok(
+    'NET-3 运动期间相邻两次更新间隔 <= 600ms（不会 2 秒不更新）',
+    deltaFrames.length >= 2 && maxGap > 0 && maxGap <= 600,
+    { maxGap, times: times.map((t) => t - startAt) }
+  );
+  ok(
+    'NET-3 慢速旋转最终被客户端看到（yaw 变化 >= 0.03rad）',
+    !!final && Math.abs(angleDiff(final.yaw, 0)) >= 0.03,
+    final && { yaw: final.yaw, expected: 0.114 }
+  );
+  ok(
+    'NET-3 强制包含计数增加（每接收者上次发送位姿跟踪生效）',
+    Number.isFinite(forcedBefore) && Number.isFinite(forcedAfter) && forcedAfter > forcedBefore,
+    { forcedBefore, forcedAfter }
+  );
+  actor.close();
+  obs.close();
 }
 
 // ---------------------------------------------------------------------------
@@ -1050,6 +1290,21 @@ async function testWarmupAndBots(server) {
   );
   const botHit = await A.waitFor((m) => m.t === 'hit' && m.bot === true, { timeout: 3000 }).catch(() => null);
   ok('机器人射击产生权威命中', !!botHit && !!botHit.victim, botHit && { victim: botHit.victim, dmg: botHit.dmg });
+
+  // V53 NET-1：机器人仍用命令 FIRE 开火（botFire 已断言）；人控命令 FIRE 不再产生枪。
+  A.send({ t: 'dev', cmd: 'tp', token: DEV, x: 19, z: 20.56 });
+  const cmdFrom = A.msgs.length;
+  for (let i = 0; i < 30; i++) {
+    A.send({ t: 'input', seq: ++A.seq, move: { x: 0, y: 0 }, yaw: 0, pitch: 0, buttons: 1 });
+    await sleep(16);
+  }
+  await sleep(250);
+  const humanCmdFires = A.msgs.slice(cmdFrom).filter((m) => m.t === 'fire' && m.by === wa.id);
+  ok(
+    'NET-1 同一房间内：人控命令 FIRE 位 0 开火，机器人命令 FIRE 仍能开火',
+    humanCmdFires.length === 0 && !!botFire,
+    { humanCmdFires: humanCmdFires.length, botFire: !!botFire }
+  );
   A.close();
 }
 
@@ -1334,6 +1589,125 @@ async function testOps() {
 }
 
 // ---------------------------------------------------------------------------
+// V53 SRV-4：掉海走正常死亡流程，不再免费回满
+// ---------------------------------------------------------------------------
+async function testSeaDeath() {
+  const seaServer = await startServer({
+    RESPAWN_MS: '1500',
+    WARMUP_SECONDS: '0',
+    ROUND_SECONDS: '300',
+    SCORE_LIMIT: '50',
+    BOTS: '0',
+  });
+  let c = null;
+  try {
+    c = await Client.connect(seaServer.port);
+    const w = await c.join({ name: '落水猫', room: 'sea-' + Date.now().toString(36), map: 'harbor', loadout: { primary: 'pac9' } });
+    const seaY = w.map.seaY;
+    const x = w.map.bounds.max.x - 2;
+    c.clear();
+    const from = c.msgs.length;
+    c.send({ t: 'dev', cmd: 'tp', token: DEV, x, z: 0, y: seaY - 8 });
+    const kill = await c.waitType('kill', { from, timeout: 3000 }).catch(() => null);
+    const killAt = Date.now();
+    ok(
+      'SRV-4 掉到 seaY 以下广播 kill{victim=self, reason:sea}，而不是静默 respawn',
+      !!kill && kill.victim === w.id && kill.by === null && kill.reason === 'sea' && kill.warmup === false,
+      kill && { victim: kill.victim, by: kill.by, reason: kill.reason, warmup: kill.warmup }
+    );
+    await sleep(260);
+    const lastSnap = c.snaps[c.snaps.length - 1];
+    const deadSelf = lastSnap && lastSnap.players.find((p) => p.id === w.id);
+    ok(
+      'SRV-4 死亡等待期内保持死亡（alive=false / hp=0）且死亡数 +1',
+      !!deadSelf && deadSelf.alive === false && deadSelf.hp === 0 && deadSelf.deaths >= 1,
+      deadSelf && { alive: deadSelf.alive, hp: deadSelf.hp, deaths: deadSelf.deaths }
+    );
+    // 忽略 dev tp 自带的 {dev:true} respawn 回执，等真正的复活事件。
+    const resp = await c.waitFor((m) => m.t === 'respawn' && m.id === w.id && !m.dev, { from, timeout: 3500 }).catch(() => null);
+    const respAt = Date.now();
+    console.log('[SRV-4] killReason=' + (kill && kill.reason) + ' respawnWaitedMs=' + (respAt - killAt) +
+      ' respawnHp=' + (resp && resp.hp) + ' respawnMag=' + (resp && resp.mag));
+    ok(
+      'SRV-4 等待 RESPAWN_MS(1500) 后广播 respawn 并回满血量/弹药',
+      !!resp && resp.id === w.id && resp.hp === 100 && resp.mag === 30 && respAt - killAt >= 1200,
+      resp && { id: resp.id, hp: resp.hp, mag: resp.mag, waited: respAt - killAt }
+    );
+    await sleep(200);
+    const aliveSnap = c.snaps[c.snaps.length - 1];
+    const aliveSelf = aliveSnap && aliveSnap.players.find((p) => p.id === w.id);
+    ok(
+      'SRV-4 复活后位置回到出生点且死亡数保留（没有清零）',
+      !!aliveSelf && aliveSelf.alive === true && aliveSelf.hp === 100 && aliveSelf.deaths >= 1 &&
+        aliveSelf.y > seaY - 2.2,
+      aliveSelf && { alive: aliveSelf.alive, hp: aliveSelf.hp, deaths: aliveSelf.deaths, y: aliveSelf.y }
+    );
+  } finally {
+    if (c) c.close();
+    await stopServer(seaServer);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// V53 SRV-9：输入队列有界追赶，持续负载下不无界增长
+// ---------------------------------------------------------------------------
+async function testQueueCatchup() {
+  const qServer = await startServer({
+    WARMUP_SECONDS: '0',
+    ROUND_SECONDS: '300',
+    BOTS: '0',
+    MAX_CMD_QUEUE: '120',
+    MAX_CMD_RATE: '240',
+  });
+  let c = null;
+  try {
+    c = await Client.connect(qServer.port);
+    const w = await c.join({ name: '加压猫', room: 'cq-' + Date.now().toString(36), loadout: { primary: 'pac9' } });
+    c.send({ t: 'dev', cmd: 'tp', token: DEV, x: -10, z: -9 });
+    await sleep(200);
+    c.clear();
+    let seq = 0;
+    const t0 = Date.now();
+    while (Date.now() - t0 < 1500) {
+      const cmds = [];
+      for (let k = 0; k < 8; k++) cmds.push({ seq: ++seq, move: { x: 0, y: 0 }, yaw: 0, pitch: 0 });
+      c.send({ t: 'input', cmds });
+      await sleep(66);
+    }
+    const sent = seq;
+    await sleep(700);
+    const peak = await metricValue(qServer.port, 'saltline_command_queue_peak');
+    const catchup = await metricValue(qServer.port, 'saltline_command_catchup');
+    const queueLen = await metricValue(qServer.port, 'saltline_command_queue_len');
+    const queueFull = await metricValue(qServer.port, 'saltline_command_queue_full');
+    const lastSnap = c.snaps[c.snaps.length - 1];
+    const self = lastSnap && lastSnap.players.find((p) => p.id === w.id);
+    console.log(
+      '[SRV-9] sent=' + sent + ' peak=' + peak + ' catchup=' + catchup +
+      ' queueLenAfterDrain=' + queueLen + ' queueFull=' + queueFull + ' ack=' + (self && self.ack)
+    );
+    ok(
+      'SRV-9 持续 ~120 命令/秒 1.5 秒：队列峰值有界（<30；旧实现会积到 ~90+）',
+      Number.isFinite(peak) && peak < 30,
+      { peak, sent }
+    );
+    ok(
+      'SRV-9 有界追赶发生（catchup > 0）且停止负载后队列排空',
+      Number.isFinite(catchup) && catchup > 0 && queueLen === 0,
+      { catchup, queueLen }
+    );
+    ok(
+      'SRV-9 全程无 queue_full，ack 追平最后一条命令',
+      Number.isFinite(queueFull) && queueFull === 0 && !!self && self.ack >= sent,
+      { queueFull, ack: self && self.ack, sent }
+    );
+  } finally {
+    if (c) c.close();
+    await stopServer(qServer);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 旧回归（31 项）串行跑一次，确保 V36 修改没有破坏 WP32 止血用例
 // ---------------------------------------------------------------------------
 function runLegacyRound() {
@@ -1360,6 +1734,30 @@ function runLegacyRound() {
   });
 }
 
+// V53：坏档/备份恢复、锁心跳、cmds 上限与审计限频、__proto__ join、地图回退。
+function runProfilesSuite() {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [path.join(__dirname, 'test_profiles.cjs')], {
+      cwd: __dirname,
+      env: Object.assign({}, process.env),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let out = '';
+    let err = '';
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (d) => (out += d));
+    child.stderr.on('data', (d) => (err += d));
+    const timer = setTimeout(() => {
+      try { child.kill('SIGKILL'); } catch { /* noop */ }
+    }, 120000);
+    child.on('exit', (code) => {
+      clearTimeout(timer);
+      resolve({ code, out, err });
+    });
+  });
+}
+
 // ---------------------------------------------------------------------------
 // 汇总
 // ---------------------------------------------------------------------------
@@ -1368,14 +1766,30 @@ async function main() {
   let bots = null;
   let security = null;
   let legacy = null;
+  let profilesSuite = null;
   try {
+    // V53 数据安全/健壮性先跑：托管多个短命服务器，避免与长连接用例互相干扰。
+    profilesSuite = await runProfilesSuite();
+    ok(
+      'V53 test_profiles.cjs 全部通过（坏档/备份/锁心跳/cmds/__proto__/地图回退）',
+      profilesSuite.code === 0 && /全部通过（\d+ 项）/.test(profilesSuite.out),
+      {
+        code: profilesSuite.code,
+        tail: profilesSuite.out.split('\n').slice(-4).join(' | '),
+        err: profilesSuite.err.slice(-400),
+      }
+    );
+
     // 旧回归先跑：避免并行子进程/客户端定时器造成 test_round 的 dev tp 与快照竞态。
     legacy = await runLegacyRound();
     core = await startServer({});
     await testProtocolAndInput(core);
+    await testSimClock(core);
     const profileToken = await testProfiles(core);
     await testCombat(core, profileToken);
+    await testHoldFire(core);
     await testRealtimeV37(core);
+    await testSlowDrift(core);
     await testDomination(core);
     const health = await httpJson(core.port, '/healthz');
     ok(
@@ -1414,6 +1828,8 @@ async function main() {
     await testSecurity(security);
 
     await testOps();
+    await testSeaDeath();
+    await testQueueCatchup();
 
     const legacyPass = /全部通过（31 项）/.test(legacy.out);
     ok(
@@ -1426,6 +1842,11 @@ async function main() {
     console.error('FAIL · 测试异常：' + (e && e.stack ? e.stack : e));
   } finally {
     for (const c of Array.from(clients)) c.close();
+    if (fail && profilesSuite) {
+      console.error('--- V53 test_profiles output ---');
+      console.error(profilesSuite.out.slice(-2000));
+      console.error(profilesSuite.err.slice(-1000));
+    }
     if (fail && core) {
       console.error('--- core server log ---');
       console.error(core.log().split('\n').slice(-60).join('\n'));

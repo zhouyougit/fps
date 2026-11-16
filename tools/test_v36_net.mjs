@@ -602,8 +602,10 @@ try {
   }));
   ok('比赛状态机 + 据点 HUD（A/B/C）', /进行中|live/.test(ui.state || '') && /据点/.test(ui.mode || '') && ui.caps === 3 && ui.capTeam >= 1 && /\d+ : \d+/.test(ui.score || ''), ui);
 
-  const capEvt = await pageA.evaluate(() => {
+  const capEvt = await pageA.evaluate(async () => {
     window.__MP.net2.testMsg({ t: 'pointCaptured', id: 'A', owner: 1, teams: [3, 5] });
+    // score 文本按 100ms 节流，等一个刷新窗口再读。
+    await new Promise((r) => setTimeout(r, 180));
     const el = document.querySelector('.x-mp-cap[data-cap="A"]');
     return { cls: el.className, label: el.querySelector('span').textContent, score: document.querySelector('[data-mp-score]').textContent };
   });
@@ -671,11 +673,14 @@ try {
     aNet.acks > 10 && aNet.ackFrameDropped > 0 && aNet.ackDropped >= aNet.ackFrameDropped,
     { acks: aNet.acks, frameDropped: aNet.ackFrameDropped, ackDropped: aNet.ackDropped });
 
+  // B 刚被 A 击杀，等服务器复活后再开火；否则 testFire 会被 dead 拒绝。
+  await pageB.waitForFunction(() => window.__G && window.__G.player.alive === true, null, { timeout: 6000 }).catch(() => {});
+  await new Promise((r) => setTimeout(r, 300));
   const aimBA = await aimAt(pageB);
-  if (aimBA) await pageB.evaluate(([d]) => window.__MP.testFire(d), [aimBA.dir]);
-  await new Promise(r => setTimeout(r, 500));
+  const bShot = aimBA ? await pageB.evaluate(([d]) => { window.__MP.testFire(d); return window.__SX_NET.state().netStats; }, [aimBA.dir]) : null;
+  await new Promise(r => setTimeout(r, 700));
   const remoteShots = await pageA.evaluate(() => window.__SX_NET.state().netStats.remoteShots);
-  ok('远端开火事件（曳光/枪口焰/枪声入口）', remoteShots >= 1, { remoteShots });
+  ok('远端开火事件（曳光/枪口焰/枪声入口）', remoteShots >= 1, { remoteShots, aimBA, bShot });
 
   await pageA.keyboard.press('Tab');
   await new Promise(r => setTimeout(r, 500));
@@ -743,13 +748,18 @@ function waitHealth(port, timeout) {
 }
 
 let serverProc = null;
+let serverLog = '';
 try {
   const port = await freePort();
   serverProc = spawn(process.execPath, [path.join(ROOT, 'server', 'server.cjs')], {
     cwd: ROOT,
     env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', MP_DEV_TOKEN: 'v37test', ROUND_SECONDS: '300' },
-    stdio: ['ignore', 'ignore', 'ignore']
+    stdio: ['ignore', 'pipe', 'pipe']
   });
+  for (const stream of [serverProc.stdout, serverProc.stderr]) {
+    stream.setEncoding('utf8');
+    stream.on('data', (d) => { serverLog += d; if (serverLog.length > 40000) serverLog = serverLog.slice(-20000); });
+  }
   await waitHealth(port, 15000);
   const jsonUrl = 'ws://127.0.0.1:' + port;
   const pa = await newPage();
@@ -785,6 +795,15 @@ try {
   const sa = await waitActive(pa, 2, 25000);
   const sb = await waitActive(pb, 2, 25000);
   const st = await pa.evaluate(() => window.__SX_NET.state());
+  const dbg = await pa.evaluate(() => ({
+    mp: window.__MP && window.__MP.state ? window.__MP.state() : null,
+    net: window.__SX_NET && window.__SX_NET.state ? window.__SX_NET.state() : null,
+    ws: window.__MP && window.__MP.debug ? window.__MP.debug() : null
+  }));
+  if (!(!!sa && !!sb && st.bin === false && st.snapStats.json > 5 && st.snapStats.binary === 0 && st.netStats.commands > 0)) {
+    console.log('[legacy-debug]', JSON.stringify(dbg).slice(0, 2000));
+    console.log('[legacy-server] log tail:\n' + serverLog.slice(-4000));
+  }
   ok('旧服务器 JSON 快照回退（客户端不声明 bin → 不启用二进制）',
     !!sa && !!sb && st.bin === false && st.snapStats.json > 5 && st.snapStats.binary === 0 && st.netStats.commands > 0,
     { active: !!sa, bin: st.bin, json: st.snapStats.json, binary: st.snapStats.binary, commands: st.netStats.commands });
@@ -802,8 +821,12 @@ try {
     const me = window.__G.player.pos;
     const dx = h.pos[0] - me.x, dy = (h.pos[1] + 1.1) - (me.y + 1.6), dz = h.pos[2] - me.z;
     const L = Math.hypot(dx, dy, dz) || 1;
+    // 服务器会校验 dir 与玩家当前 yaw/pitch 的偏差；JSON 测试直接设置视线。
+    window.__G.player.yaw = Math.atan2(-dx, -dz);
+    window.__G.player.pitch = Math.atan2(dy, Math.hypot(dx, dz));
     return { x: dx / L, y: dy / L, z: dz / L };
   });
+  await new Promise((r) => setTimeout(r, 250));
   for (let i = 0; i < 12 && aim; i++) {
     await pa.evaluate(([d]) => window.__MP.testFire(d), [aim]);
     await new Promise(r => setTimeout(r, 150));
@@ -818,6 +841,7 @@ try {
   const errs = await pa.evaluate(() => (window.__errors || []).slice());
   ok('旧服务器：无 pageerror / window.__errors 为空', ea.length === 0 && eb.length === 0 && errs.length === 0, { a: ea.slice(0, 2), b: eb.slice(0, 2), wa: errs.slice(0, 2) });
 } catch (e) {
+  console.log('[legacy-server] log tail:\n' + serverLog.slice(-4000));
   skip('浏览器 · 旧 JSON 服务器兼容', e);
 } finally {
   if (serverProc) { try { serverProc.kill('SIGTERM'); } catch (e) {} }

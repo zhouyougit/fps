@@ -14,7 +14,7 @@ const { execSync } = require('child_process');
 const root = path.join(__dirname, '..');
 const pkg = require(path.join(root, 'package.json'));
 
-const PROFILES = ['v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'v42', 'v43', 'v44', 'v45', 'v46', 'v47', 'v48', 'v49', 'v50', 'v51', 'v52', 'dev'];
+const PROFILES = ['v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'v42', 'v43', 'v44', 'v45', 'v46', 'v47', 'v48', 'v49', 'v50', 'v51', 'v52', 'v53', 'dev'];
 const LABELS = {
   v32: 'V32 · 地基',
   v33: 'V33 · 手感',
@@ -36,7 +36,8 @@ const LABELS = {
   v49: 'V49 · 视距',
   v50: 'V50 · 设置',
   v51: 'V51 · 可读',
-  v52: 'V52 · 收口'
+  v52: 'V52 · 收口',
+  v53: 'V53 · 改进'
 };
 // V40 地图深化：用户明确允许放宽单文件体积，先完成地图细节，后续再统一优化。
 // 当前约 3.54MB；预算临时放宽到 6MB，仅作为失控保护，不是质量目标。
@@ -47,8 +48,9 @@ function usage(msg) {
   console.error('用法: node tools/build.cjs <target.html> <profile>');
   console.error('  target  : 输出文件（相对仓库根目录或绝对路径），例：versions/几猫_V32.html');
   console.error('  profile : ' + PROFILES.join(' | '));
-  console.error('  示例    : node tools/build.cjs "versions/几猫_V32.html" v32');
-  console.error('  示例    : node tools/build.cjs game.html v36');
+  console.error('  示例    : node tools/build.cjs "versions/几猫_V53.html" v53');
+  console.error('  示例    : node tools/build.cjs game.html v53');
+  console.error('  --force : 允许覆盖 versions/ 下已存在的快照（默认拒绝）');
   console.error('  不再提供默认 target/profile（旧默认会把 game.html 覆盖成 v32）。');
   process.exit(1);
 }
@@ -58,8 +60,16 @@ const targetArg = process.argv[2];
 const profile = process.argv[3];
 if (!targetArg || !profile) usage('必须显式指定 target 与 profile');
 if (PROFILES.indexOf(profile) < 0) usage('未知 profile: ' + profile);
+const force = process.argv.indexOf('--force') >= 0;
 const target = path.isAbsolute(targetArg) ? targetArg : path.resolve(root, targetArg);
 const version = process.env.SX_VERSION || pkg.version || '0.38.0';
+// ENG-2：历史快照只读。versions/ 下已存在的产物默认拒绝覆盖，必须显式 --force。
+const versionsDir = path.join(root, 'versions') + path.sep;
+if (!force && target.indexOf(versionsDir) === 0 && fs.existsSync(target)) {
+  console.error('[build] 拒绝覆盖历史快照：' + path.relative(root, target));
+  console.error('[build] 如确需重建，请显式追加 --force。');
+  process.exit(1);
+}
 
 function readIf(p) {
   try { return fs.readFileSync(p, 'utf8'); } catch (e) { return null; }
@@ -185,8 +195,8 @@ const FEATURE_SETS = {
   v50: V41_FEATURES,
   v51: V41_FEATURES,
   v52: V41_FEATURES,
+  v53: V41_FEATURES,
 };
-if (!Object.prototype.hasOwnProperty.call(FEATURE_SETS, profile)) throw new Error('[build] FEATURE_SETS 缺少 profile: ' + profile);
 let features = '';
 if (profile === 'dev') {
   // dev：包含所有 ext_*.js
@@ -196,6 +206,7 @@ if (profile === 'dev') {
   if (!files.length) throw new Error('[build] dev profile 未找到任何 ext_*.js');
   for (const f of files) features += '\n/* src/' + f + ' */\n' + must('src/' + f, 'dev feature');
 } else {
+  if (!Object.prototype.hasOwnProperty.call(FEATURE_SETS, profile)) throw new Error('[build] FEATURE_SETS 缺少 profile: ' + profile);
   for (const f of FEATURE_SETS[profile]) {
     features += '\n/* src/' + f + ' */\n' + must('src/' + f, 'FEATURE_SETS.' + profile);
   }
@@ -209,6 +220,8 @@ const buildInfo = {
   version: version,
   profile: profile,
   target: path.basename(target),
+  // ENG-7：引擎是无上游源码的 vendor 片段；至少把 three.js 版本写进产物。
+  three: 'r180',
   commit: (function () {
     try {
       return execSync('git rev-parse --short HEAD', { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();

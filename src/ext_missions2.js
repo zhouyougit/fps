@@ -820,7 +820,8 @@
     exposeAPI();
     // 档案页是低频界面：独立轮询一次 continue 入口，避免错过 openMissions 的下一帧
     try {
-      setInterval(function () { if (booted) { try { syncScreen(); } catch (e) {} } }, 500);
+      // PERF-4：页面不可见时不轮询档案页 DOM。
+      setInterval(function () { if (booted && !document.hidden) { try { syncScreen(); } catch (e) {} } }, 500);
     } catch (e) {}
     try {
       cpCache = loadCP();

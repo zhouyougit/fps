@@ -26,6 +26,9 @@
   var guardStates = Object.create(null);
   var disabledListeners = [];
   var adopted = false;
+  // ARCH-2：被吞掉的软错误按标签计数，每个标签只记一条诊断，避免日志刷屏。
+  var softCounts = Object.create(null);
+  var softSeen = Object.create(null);
 
   function win() {
     try { return typeof window !== "undefined" ? window : null; }
@@ -110,6 +113,16 @@
       } catch (e) { /* 只读 / 被冻结的 window.__errors：内部环形缓冲仍然生效 */ }
     }
     return entry;
+  }
+
+  function soft(tag, e) {
+    var key = String(tag == null ? "soft" : tag);
+    softCounts[key] = (softCounts[key] || 0) + 1;
+    if (!softSeen[key]) {
+      softSeen[key] = true;
+      try { report(e, { system: "soft", phase: key }); } catch (err) { /* 诊断失败不能影响调用方 */ }
+    }
+    return undefined;
   }
 
   function guardState(system) {
@@ -284,6 +297,7 @@
       commandCapacity: COMMAND_CAP,
       bySystem: byS,
       byPhase: byP,
+      bySoft: Object.assign({}, softCounts),
       disabled: disabled
     };
   }
@@ -337,6 +351,8 @@
     lifetime = 0;
     bySystem = {};
     byPhase = {};
+    softCounts = Object.create(null);
+    softSeen = Object.create(null);
     adopted = true;
     var w = win();
     if (w && Array.isArray(w.__errors)) w.__errors.length = 0;
@@ -351,6 +367,7 @@
     DISABLE_AFTER: DISABLE_AFTER,
     REPORT_EVERY: REPORT_EVERY,
     report: report,
+    soft: soft,
     guard: guard,
     isDisabled: isDisabled,
     enable: enable,

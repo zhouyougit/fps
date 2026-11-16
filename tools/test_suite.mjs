@@ -1,11 +1,11 @@
 
 import { chromium } from 'playwright';
-import { PW_ARGS } from './pwargs.mjs';
+import { PW_ARGS, findChrome } from './pwargs.mjs';
 
 // 默认静态服务器由 tools/serve.mjs 提供（npm run serve:test）；
 // 也可用 BASE_URL=file:///绝对路径/fps 指向本地目录。
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:3311';
-const EXE = process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const EXE = findChrome();
 let failures = 0;
 const results = [];
 
@@ -562,7 +562,8 @@ for (const [name, prof, weapons] of versions) {
   });
   ok('V18 货轮地图注册', ship.maps.includes('ship'), ship.maps);
   ok('V18 行动 5 可进入且可达', ship.s.map === 'ship' && ship.s.obj === 3 && ship.s.valid && Math.abs(ship.s.start[2] - 5.2) < 1, JSON.stringify(ship.s));
-  ok('V18 海面/甲板正确', ship.s.sea === true && ship.s.apron === false && ship.s.boxes < 120, JSON.stringify({ sea: ship.s.sea, apron: ship.s.apron, boxes: ship.s.boxes, extract: ship.s.extract }));
+  // V53：V40 扩建后货轮碰撞盒为 572（旧断言 <120 沿自 V18，已被地图深化淘汰）。
+  ok('V18 海面/甲板正确', ship.s.sea === true && ship.s.apron === false && ship.s.boxes === 572, JSON.stringify({ sea: ship.s.sea, apron: ship.s.apron, boxes: ship.s.boxes, extract: ship.s.extract }));
   await page.close();
 }
 

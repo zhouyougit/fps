@@ -45,13 +45,16 @@
   function saveFeedback() {
     try { localStorage.setItem(HIT_KEY, JSON.stringify({ numbers: !!state.numbers, arcs: !!state.arcs })); } catch (e) {}
   }
-  function reduceMotion() {
+  // PERF-4：reduce-motion 只按 100ms 轮询刷新，避免低血量路径每帧 JSON.parse(localStorage)。
+  var reduceMotionCached = false;
+  function readReduceMotion() {
     try {
       if (document.body && document.body.classList.contains("reduce-motion")) return true;
       var raw = JSON.parse(localStorage.getItem(ACCESS_KEY) || "null");
       return !!(raw && raw.reduceMotion);
     } catch (e) { return false; }
   }
+  function reduceMotion() { return reduceMotionCached; }
   function mpActive() {
     try { return !!(window.__MP && window.__MP.state && window.__MP.state().active); } catch (e) { return false; }
   }
@@ -606,22 +609,18 @@
     try { G.events.on("sx:armor-absorb", onArmor); } catch (e) {}
     try { G.events.on("sx:streak", onStreak); } catch (e) {}
     addEventListener("keydown", onKey, true);
-    // 周期刷新低血量与敌人探针
+    // 周期刷新低血量与敌人探针（PERF-4：去掉与 100ms 定时器重复的常驻 rAF）
+    reduceMotionCached = readReduceMotion();
     var tick = 0;
     var iv = setInterval(function () {
       tick++;
+      reduceMotionCached = readReduceMotion();
       try { updateLowHealth(); } catch (e) {}
       if (tick % 20 === 0) installProbe();
       if (!G || !G.hud || !G.hud.root) {
         clearInterval(iv);
       }
     }, 100);
-    // 独立 RAF：只做极轻量的状态同步
-    var raf = function () {
-      try { updateLowHealth(); } catch (e) {}
-      requestAnimationFrame(raf);
-    };
-    try { requestAnimationFrame(raf); } catch (e) {}
     booted = true;
     window.__SX_FEEDBACK = {
       state: publicState,

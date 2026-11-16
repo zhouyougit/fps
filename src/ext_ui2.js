@@ -322,43 +322,47 @@
     if (!pane) return;
     var box = document.createElement("div");
     box.className = "sx-u2-block";
+    /* 文案只用 key：初始内容按当前语言取词，data-i18n 负责切语言后重绘 */
+    function lab(key, tag, attrs) {
+      return "<" + (tag || "label") + " " + (attrs || "") + ' data-i18n="' + key + '">' + t(key) + "</" + (tag || "label") + ">";
+    }
     box.innerHTML =
-      '<h3 data-i18n="ui2.settings.access.title">辅助</h3>' +
-      '<div class="row sx-lang-row"><label data-i18n="ui2.settings.language">语言</label>' +
-        '<div class="seg" role="group" aria-label="Language">' +
-          '<button type="button" data-sx-lang="zh-CN">中文</button>' +
-          '<button type="button" data-sx-lang="en">English</button>' +
+      lab("ui2.settings.access.title", "h3") +
+      '<div class="row sx-lang-row">' + lab("ui2.settings.language") +
+        '<div class="seg" role="group" data-i18n-attr="aria-label:ui2.settings.language">' +
+          '<button type="button" data-sx-lang="zh-CN" data-i18n="ui2.settings.lang.zh">' + t("ui2.settings.lang.zh") + '</button>' +
+          '<button type="button" data-sx-lang="en" data-i18n="ui2.settings.lang.en">' + t("ui2.settings.lang.en") + '</button>' +
         '</div>' +
-        '<p class="sx-hint" data-i18n="ui2.settings.language.hint"></p></div>' +
-      '<div class="row"><label data-i18n="ui2.settings.colorblind">色盲主题</label>' +
+        '<p class="sx-hint" data-i18n="ui2.settings.language.hint">' + t("ui2.settings.language.hint") + '</p></div>' +
+      '<div class="row">' + lab("ui2.settings.colorblind") +
         '<div class="seg" role="group" data-sx-cb>' +
-          '<button type="button" data-v="none" data-i18n="ui2.settings.colorblind.none"></button>' +
-          '<button type="button" data-v="rg" data-i18n="ui2.settings.colorblind.rg"></button>' +
-          '<button type="button" data-v="by" data-i18n="ui2.settings.colorblind.by"></button>' +
-        '</div><p class="sx-hint" data-i18n="ui2.settings.colorblind.hint"></p></div>' +
-      '<div class="row"><label for="sx-sub-bg" data-i18n="ui2.settings.subBg">字幕背景</label>' +
+          '<button type="button" data-v="none" data-i18n="ui2.settings.colorblind.none">' + t("ui2.settings.colorblind.none") + '</button>' +
+          '<button type="button" data-v="rg" data-i18n="ui2.settings.colorblind.rg">' + t("ui2.settings.colorblind.rg") + '</button>' +
+          '<button type="button" data-v="by" data-i18n="ui2.settings.colorblind.by">' + t("ui2.settings.colorblind.by") + '</button>' +
+        '</div><p class="sx-hint" data-i18n="ui2.settings.colorblind.hint">' + t("ui2.settings.colorblind.hint") + '</p></div>' +
+      '<div class="row">' + lab("ui2.settings.subBg", "label", 'for="sx-sub-bg"') +
         '<div class="slider"><input id="sx-sub-bg" type="range" min="0" max="100" step="5"><output data-sx-o="subBg"></output></div>' +
-        '<p class="sx-hint" data-i18n="ui2.settings.subBg.hint"></p></div>' +
-      '<div class="row"><label for="sx-safe" data-i18n="ui2.settings.safeArea">安全区边距</label>' +
+        '<p class="sx-hint" data-i18n="ui2.settings.subBg.hint">' + t("ui2.settings.subBg.hint") + '</p></div>' +
+      '<div class="row">' + lab("ui2.settings.safeArea", "label", 'for="sx-safe"') +
         '<div class="slider"><input id="sx-safe" type="range" min="0" max="48" step="4"><output data-sx-o="safe"></output></div></div>' +
-      '<div class="row"><label data-i18n="ui2.settings.textSize">文字大小</label>' +
+      '<div class="row">' + lab("ui2.settings.textSize") +
         '<div class="seg" role="group" data-sx-text>' +
-          '<button type="button" data-v="s" data-i18n="ui2.settings.textSize.s"></button>' +
-          '<button type="button" data-v="m" data-i18n="ui2.settings.textSize.m"></button>' +
-          '<button type="button" data-v="l" data-i18n="ui2.settings.textSize.l"></button>' +
+          '<button type="button" data-v="s" data-i18n="ui2.settings.textSize.s">' + t("ui2.settings.textSize.s") + '</button>' +
+          '<button type="button" data-v="m" data-i18n="ui2.settings.textSize.m">' + t("ui2.settings.textSize.m") + '</button>' +
+          '<button type="button" data-v="l" data-i18n="ui2.settings.textSize.l">' + t("ui2.settings.textSize.l") + '</button>' +
         '</div></div>' +
-      '<div class="row"><label for="sx-hud-op" data-i18n="ui2.settings.hudOpacity">HUD 不透明度</label>' +
+      '<div class="row">' + lab("ui2.settings.hudOpacity", "label", 'for="sx-hud-op"') +
         '<div class="slider"><input id="sx-hud-op" type="range" min="55" max="100" step="5"><output data-sx-o="hudOpacity"></output></div></div>' +
-      '<div class="row"><label data-i18n="ui2.settings.hud">HUD 元素</label>' +
+      '<div class="row">' + lab("ui2.settings.hud") +
         '<div class="sx-u2-toggle">' +
-          '<button type="button" class="btn small" data-sx-hud="compass" data-i18n="ui2.settings.hud.compass"></button>' +
-          '<button type="button" class="btn small" data-sx-hud="objective" data-i18n="ui2.settings.hud.objective"></button>' +
-          '<button type="button" class="btn small" data-sx-hud="ammo" data-i18n="ui2.settings.hud.ammo"></button>' +
-          '<button type="button" class="btn small" data-sx-hud="health" data-i18n="ui2.settings.hud.health"></button>' +
-          '<button type="button" class="btn small" data-sx-hud="feed" data-i18n="ui2.settings.hud.feed"></button>' +
-          '<button type="button" class="btn small" data-sx-hud="cross" data-i18n="ui2.settings.hud.cross"></button>' +
+          '<button type="button" class="btn small" data-sx-hud="compass" data-i18n="ui2.settings.hud.compass">' + t("ui2.settings.hud.compass") + '</button>' +
+          '<button type="button" class="btn small" data-sx-hud="objective" data-i18n="ui2.settings.hud.objective">' + t("ui2.settings.hud.objective") + '</button>' +
+          '<button type="button" class="btn small" data-sx-hud="ammo" data-i18n="ui2.settings.hud.ammo">' + t("ui2.settings.hud.ammo") + '</button>' +
+          '<button type="button" class="btn small" data-sx-hud="health" data-i18n="ui2.settings.hud.health">' + t("ui2.settings.hud.health") + '</button>' +
+          '<button type="button" class="btn small" data-sx-hud="feed" data-i18n="ui2.settings.hud.feed">' + t("ui2.settings.hud.feed") + '</button>' +
+          '<button type="button" class="btn small" data-sx-hud="cross" data-i18n="ui2.settings.hud.cross">' + t("ui2.settings.hud.cross") + '</button>' +
         '</div></div>' +
-      '<p class="sx-keyhint" data-i18n="ui2.controls.kbHint"></p>';
+      '<p class="sx-keyhint" data-i18n="ui2.controls.kbHint">' + t("ui2.controls.kbHint") + '</p>';
     var firstRow = pane.querySelector(".row");
     if (firstRow && firstRow.parentNode === pane) pane.insertBefore(box, firstRow);
     else pane.insertBefore(box, pane.firstChild);
@@ -806,7 +810,7 @@
       var cur2 = data2 ? (window.__SX_I18N_MISSIONS || [])[data2.current] : null;
       if (cur2) {
         var dd = missionLang(cur2);
-        text(".x-br-k", dd.chapter + " · " + (I && I.getLang() === "en" ? "Op " : "行动 ") + cur2.id.slice(1) + " · " + dd.name, brief);
+        text(".x-br-k", dd.chapter + " · " + t("ui2.brief.opCode", { code: cur2.id.slice(1) }) + " · " + dd.name, brief);
         text(".x-br-h", dd.name, brief);
         text(".x-br-sub", dd.sub, brief);
         var metas = brief.querySelectorAll(".x-br-meta > div");
@@ -1005,7 +1009,7 @@
       var r = oPrompt.call(hud, label, prog);
       var pl = document.querySelector(".h-plabel");
       if (pl && label) {
-        var key = (G.input && G.input.touch) ? "交互" : (G.input && G.input.gamepad && !G.input.locked) ? "Y" : "E";
+        var key = (G.input && G.input.touch) ? t("ui2.hud.touchKey") : (G.input && G.input.gamepad && !G.input.locked) ? "Y" : "E";
         pl.textContent = t("ui2.hud.hold", { key: key, label: trText(label) });
       }
       return r;
@@ -1280,15 +1284,23 @@
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       var nEl = it.querySelector(".n"), dEl = it.querySelector(".d"), kEl = it.querySelector(".k");
+      /* V53：ext_progress 已按 key 渲染并写入 data-sx-ach-id/-tier；
+         旧构建没有属性时才回落到“中文名反查 / 原文正则”。 */
+      var attrId = it.getAttribute("data-sx-ach-id");
+      var attrTier = it.getAttribute("data-sx-ach-tier");
+      if (attrId) it.__sxAchId = attrId;
       var cur = nEl ? nEl.textContent : "";
       if (it.__sxZhName == null || (cur && cur !== it.__sxRenderedName)) {
         it.__sxZhName = cur;
-        if (ACH_BY_ZH && ACH_BY_ZH[cur]) it.__sxAchId = ACH_BY_ZH[cur];
+        if (!attrId && ACH_BY_ZH && ACH_BY_ZH[cur]) it.__sxAchId = ACH_BY_ZH[cur];
       }
       if (kEl) {
-        var ksrc = zhSource(kEl);
-        if (/大师/.test(ksrc)) it.__sxMaster = true;
-        else if (/成就解锁/.test(ksrc)) it.__sxMaster = false;
+        if (attrTier) it.__sxMaster = attrTier === "2";
+        else {
+          var ksrc = zhSource(kEl);
+          if (/大师/.test(ksrc)) it.__sxMaster = true;
+          else if (/成就解锁/.test(ksrc)) it.__sxMaster = false;
+        }
         renderZh(kEl, t(it.__sxMaster ? "ui2.ach.unlocked.master" : "ui2.ach.unlocked"));
       }
       var id = it.__sxAchId;

@@ -15,10 +15,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { PW_ARGS, GPU_MODE } from './pwargs.mjs';
+import { PW_ARGS, GPU_MODE, findChrome } from './pwargs.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = findChrome();
 const TARGET = path.resolve(ROOT, process.env.SX_TARGET || 'game.html');
 const OUT = path.join(ROOT, 'versions/screens/v43_avatar');
 fs.mkdirSync(OUT, { recursive: true });

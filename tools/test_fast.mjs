@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /* 快速套件：Metal/GPU + novisual，状态驱动、固定步、不裸 sleep；目标 < 40s */
-import { launchBrowser, openGame, waitState, step, closeBrowser, logicParams, GPU_MODE } from './testkit.mjs';
+import { launchBrowser, openGame, waitState, step, closeBrowser, logicParams, findChrome, GPU_MODE } from './testkit.mjs';
 
-const browser = await launchBrowser();
+const browser = await launchBrowser({ executablePath: findChrome() });
 const page = await openGame(browser, { params: logicParams({ autostart: '1' }) });
 let pass = 0, fail = 0;
 const ok = (n, c, d) => { if (c) { pass++; console.log('PASS · ' + n + (d !== undefined ? ' — ' + JSON.stringify(d) : '')); } else { fail++; console.log('FAIL · ' + n + (d !== undefined ? ' — ' + JSON.stringify(d) : '')); } };
@@ -35,6 +35,8 @@ try {
   const hashes = await page.evaluate(() => {
     const G = window.__G;
     const run = () => {
+      // V53：hash 现在包含 CLOCK.now，回放必须从同一时钟原点开始。
+      if (window.SX_CLOCK) window.SX_CLOCK.reset();
       window.__SX.applyMission(0); G.game.start({ skipIntro: true });
       G.enemies.clear();
       G.player.pos.set(-19, 0, 9); G.player.vel.set(0, 0, 0); G.player.yaw = 0; G.player.pitch = 0;

@@ -412,8 +412,20 @@ async function testDevToken(port) {
 
   from = a.msgs.length;
   a.send({ t: 'dev', cmd: 'tp', token, x: 2, z: 3 });
-  const snap = await a.waitType('snap', { from, timeout: 3000 });
-  const self = snap.players.find((q) => q.id === welcome.id);
+  // dev 消息与已排队的快照可能交叉；等到“反映传送后位置”的快照，避免取到传送前的旧帧。
+  let self = null;
+  try {
+    const snap = await a.waitFor(
+      (m) => m.t === 'snap' && m.players.some(
+        (q) => q.id === welcome.id && Math.abs(q.x - 2) < 0.6 && Math.abs(q.z - 3) < 0.6
+      ),
+      { from, timeout: 3000 }
+    );
+    self = snap.players.find((q) => q.id === welcome.id);
+  } catch {
+    const last = [...a.msgs].reverse().find((m) => m.t === 'snap');
+    self = last && last.players.find((q) => q.id === welcome.id);
+  }
   ok(
     '匹配 token 的 dev tp 生效（使用玩家所在房间世界）',
     !!self && Math.abs(self.x - 2) < 0.6 && Math.abs(self.z - 3) < 0.6,

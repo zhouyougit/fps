@@ -13,7 +13,7 @@
 
   var VERSION = 2;
   var OP = { SNAP: 1, INPUT: 2, WELCOME: 3, PONG: 4, ACK: 5 };
-  var BTN = { FIRE: 1, ADS: 2, JUMP: 4, SPRINT: 8, CROUCH: 16, RELOAD: 32, MELEE: 64, GRENADE: 128, INTERACT: 256, SCAN: 512 };
+  var BTN = { FIRE: 1, ADS: 2, JUMP: 4, SPRINT: 8, CROUCH: 16, RELOAD: 32, MELEE: 64, GRENADE: 128, INTERACT: 256, SCAN: 512, LEAN_L: 1024, LEAN_R: 2048 };
   var MAX_PLAYERS = 16;
 
   function clampQ(v, min, max) { v = v < min ? min : v > max ? max : v; return v; }

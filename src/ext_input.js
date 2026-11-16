@@ -11,11 +11,27 @@
     var CFG_KEY = "saltline.input2";
     var BIND_KEY = "saltline.binds";
 
+    /* i18n：静态标签走 data-i18n，动态拼接（动作名 / 键名 / 提示）在渲染时取词 */
+    function I18n() {
+      try { return window.SXI18n || null; } catch (e) { return null; }
+    }
+    function T(key, vars) {
+      var I = I18n();
+      if (I && typeof I.t === "function") return I.t(key, vars);
+      var ex = window.__SX_I18N_EXTRA;
+      var s = ex && ex.zh ? ex.zh[key] : null;
+      if (s == null) return key;
+      if (!vars) return s;
+      return String(s).replace(/\{(\w+)\}/g, function (_, name) {
+        return vars[name] == null ? "" : String(vars[name]);
+      });
+    }
+
     var AIM_LEVELS = {
-      off: { maxFrac: 0, cone: 0, label: "关" },
-      low: { maxFrac: 0.18, cone: 2, label: "低" },
-      std: { maxFrac: 0.35, cone: 3, label: "标准" },
-      high: { maxFrac: 0.35, cone: 4, label: "高" }
+      off: { maxFrac: 0, cone: 0 },
+      low: { maxFrac: 0.18, cone: 2 },
+      std: { maxFrac: 0.35, cone: 3 },
+      high: { maxFrac: 0.35, cone: 4 }
     };
 
     var cfg = {
@@ -38,17 +54,21 @@
       melee: "KeyV", scan: "KeyQ", slide: "KeyC",
       leanL: "KeyZ", leanR: "KeyN", swap: ""
     };
+    /* 动作名 / 分组只存 key，重绑浮层渲染时取词 */
     var ACTION_LABEL = {
-      forward: "前进", back: "后退", left: "左移", right: "右移",
-      fire: "射击", ads: "瞄准", reload: "换弹", grenade: "手雷",
-      melee: "近战", scan: "扫描", slide: "滑铲 / 蹲伏",
-      leanL: "左探身", leanR: "右探身", swap: "切枪"
+      forward: "input.action.forward", back: "input.action.back",
+      left: "input.action.left", right: "input.action.right",
+      fire: "input.action.fire", ads: "input.action.ads", reload: "input.action.reload",
+      grenade: "input.action.grenade", melee: "input.action.melee", scan: "input.action.scan",
+      slide: "input.action.slide", leanL: "input.action.leanL", leanR: "input.action.leanR",
+      swap: "input.action.swap"
     };
     var ACTION_GROUP = {
-      forward: "移动", back: "移动", left: "移动", right: "移动",
-      fire: "战斗", ads: "战斗", reload: "战斗", grenade: "战斗",
-      melee: "战斗", scan: "战斗", slide: "战斗",
-      leanL: "机动", leanR: "机动", swap: "机动"
+      forward: "input.group.move", back: "input.group.move", left: "input.group.move", right: "input.group.move",
+      fire: "input.group.combat", ads: "input.group.combat", reload: "input.group.combat",
+      grenade: "input.group.combat", melee: "input.group.combat", scan: "input.group.combat",
+      slide: "input.group.combat", leanL: "input.group.mobility", leanR: "input.group.mobility",
+      swap: "input.group.mobility"
     };
 
     /* 动作 → 引擎动作（引擎只认自己的动作集） */
@@ -443,17 +463,19 @@
 
     /* ------------------------------------------------------------ 按键重绑 */
     var KEY_LABEL = {
-      Space: "空格", ShiftLeft: "左Shift", ShiftRight: "右Shift", ControlLeft: "左Ctrl", ControlRight: "右Ctrl",
-      Escape: "Esc", Enter: "回车", Tab: "Tab", Backspace: "退格", CapsLock: "Caps",
-      ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←", ArrowRight: "→",
-      Mouse0: "鼠标左键", Mouse1: "鼠标中键", Mouse2: "鼠标右键"
+      Space: "input.key.space", ShiftLeft: "input.key.shiftL", ShiftRight: "input.key.shiftR",
+      ControlLeft: "input.key.ctrlL", ControlRight: "input.key.ctrlR",
+      Escape: "input.key.escape", Enter: "input.key.enter", Tab: "input.key.tab",
+      Backspace: "input.key.backspace", CapsLock: "input.key.capslock",
+      ArrowUp: "input.key.up", ArrowDown: "input.key.down", ArrowLeft: "input.key.left", ArrowRight: "input.key.right",
+      Mouse0: "input.key.mouse0", Mouse1: "input.key.mouse1", Mouse2: "input.key.mouse2"
     };
     function keyLabel(code) {
-      if (!code) return "未绑定";
-      if (KEY_LABEL[code]) return KEY_LABEL[code];
+      if (!code) return T("input.key.unbound");
+      if (KEY_LABEL[code]) return T(KEY_LABEL[code]);
       if (/^Key[A-Z]$/.test(code)) return code.slice(3);
       if (/^Digit[0-9]$/.test(code)) return code.slice(5);
-      if (/^Numpad[0-9]$/.test(code)) return "小键盘" + code.slice(6);
+      if (/^Numpad[0-9]$/.test(code)) return T("input.key.numpad", { key: code.slice(6) });
       if (/^F[0-9]{1,2}$/.test(code)) return code;
       return code;
     }
@@ -506,9 +528,11 @@
         capturing = null;
         if (code !== "Escape") {
           var r = setBind(act, code);
-          setBindNote(r && r.swapped ? "已绑定 " + keyLabel(code) + "，与「" + ACTION_LABEL[r.swapped] + "」交换" : "已绑定 " + keyLabel(code));
+          setBindNote(r && r.swapped
+            ? T("input.bind.swapped", { key: keyLabel(code), action: T(ACTION_LABEL[r.swapped]) })
+            : T("input.bind.bound", { key: keyLabel(code) }));
         } else {
-          setBindNote("已取消");
+          setBindNote(T("input.bind.cancelled"));
         }
         renderBindList();
         return;
@@ -603,7 +627,7 @@
       return true;
     }
     function navConfirm() {
-      if (overlayOpen()) { var cur = document.querySelector("#sx2-bind .x2-row.sel[data-sx2-bind]"); if (cur) { capturing = cur.dataset.sx2Bind; setBindNote("按下新的按键…（Esc 取消）"); return true; } }
+      if (overlayOpen()) { var cur = document.querySelector("#sx2-bind .x2-row.sel[data-sx2-bind]"); if (cur) { capturing = cur.dataset.sx2Bind; setBindNote(T("input.bind.press")); return true; } }
       var list = navList();
       if (!list.length) return false;
       var el = document.activeElement;
@@ -656,16 +680,17 @@
       d.className = "x2-bind";
       d.setAttribute("role", "dialog");
       d.setAttribute("aria-modal", "true");
-      d.setAttribute("aria-label", "按键重绑");
+      d.setAttribute("aria-label", T("input.bind.title"));
+      d.setAttribute("data-i18n-attr", "aria-label:input.bind.title");
       d.innerHTML =
         '<div class="x2-card" tabindex="-1">' +
-          '<h2>按键重绑</h2>' +
-          '<p class="x2-sub">点击一行，然后按下任意键完成绑定。Esc 取消；与已有按键冲突时自动交换。默认键位与引擎一致。</p>' +
+          '<h2 data-i18n="input.bind.title">' + T("input.bind.title") + '</h2>' +
+          '<p class="x2-sub" data-i18n="input.bind.help">' + T("input.bind.help") + '</p>' +
           '<div class="x2-grid" data-sx2-list></div>' +
           '<div class="x2-foot">' +
             '<p class="x2-note" data-sx2-note></p>' +
-            '<button class="x2-btn" data-sx2-reset>恢复默认</button>' +
-            '<button class="x2-btn" data-sx2-close>关闭</button>' +
+            '<button class="x2-btn" data-sx2-reset data-i18n="input.bind.reset">' + T("input.bind.reset") + '</button>' +
+            '<button class="x2-btn" data-sx2-close data-i18n="input.bind.close">' + T("input.bind.close") + '</button>' +
           '</div>' +
         '</div>';
       document.body.appendChild(d);
@@ -677,11 +702,11 @@
           capturing = row.dataset.sx2Bind;
           var rows = d.querySelectorAll(".x2-row");
           for (var i = 0; i < rows.length; i++) rows[i].classList.toggle("sel", rows[i] === row);
-          setBindNote("按下新的按键…（Esc 取消）");
+          setBindNote(T("input.bind.press"));
           try { row.focus(); } catch (er) {}
           return;
         }
-        if (e.target.closest("[data-sx2-reset]")) { resetBinds(); renderBindList(); setBindNote("已恢复默认键位"); }
+        if (e.target.closest("[data-sx2-reset]")) { resetBinds(); renderBindList(); setBindNote(T("input.bind.resetDone")); }
         if (e.target.closest("[data-sx2-close]")) closeBindOverlay();
       });
       d.addEventListener("keydown", function (e) {
@@ -706,9 +731,10 @@
       var lastGroup = "";
       for (var i = 0; i < ACTION_ORDER.length; i++) {
         var a = ACTION_ORDER[i];
-        if (ACTION_GROUP[a] !== lastGroup) { lastGroup = ACTION_GROUP[a]; html += '<div class="x2-sect">' + lastGroup + "</div>"; }
+        var group = ACTION_GROUP[a];
+        if (group !== lastGroup) { lastGroup = group; html += '<div class="x2-sect">' + T(group) + "</div>"; }
         html += '<div class="x2-row" data-sx2-bind="' + a + '" tabindex="0">' +
-          '<span>' + ACTION_LABEL[a] + "</span><b>" + keyLabel(binds[a]) + "</b></div>";
+          '<span>' + T(ACTION_LABEL[a]) + "</span><b>" + keyLabel(binds[a]) + "</b></div>";
       }
       list.innerHTML = html;
     }
@@ -738,11 +764,16 @@
       var wrap = document.createElement("div");
       wrap.setAttribute("data-sx2-ui", "1");
       wrap.innerHTML =
-        "<h3>操控</h3>" +
-        '<div class="row"><label for="sx2-dz">手柄死区</label><div class="slider"><input id="sx2-dz" type="range" min="0.02" max="0.35" step="0.01"><output data-sx2-o="dz"></output></div></div>' +
-        '<div class="row"><label for="sx2-sens">手柄灵敏度</label><div class="slider"><input id="sx2-sens" type="range" min="0.3" max="2.5" step="0.05"><output data-sx2-o="sens"></output></div></div>' +
-        '<div class="row"><label>辅助瞄准</label><div class="seg" data-sx2-aim><button data-v="off">关</button><button data-v="low">低</button><button data-v="std">标准</button><button data-v="high">高</button></div></div>' +
-        '<div class="row"><label>按键重绑</label><button class="btn small" data-sx2-bindopen>打开按键重绑</button></div>';
+        '<h3 data-i18n="input.settings.section">' + T("input.settings.section") + "</h3>" +
+        '<div class="row"><label for="sx2-dz" data-i18n="ui2.settings.pad.deadzone">' + T("ui2.settings.pad.deadzone") + '</label><div class="slider"><input id="sx2-dz" type="range" min="0.02" max="0.35" step="0.01"><output data-sx2-o="dz"></output></div></div>' +
+        '<div class="row"><label for="sx2-sens" data-i18n="ui2.settings.pad.sens">' + T("ui2.settings.pad.sens") + '</label><div class="slider"><input id="sx2-sens" type="range" min="0.3" max="2.5" step="0.05"><output data-sx2-o="sens"></output></div></div>' +
+        '<div class="row"><label data-i18n="ui2.settings.pad.aimAssist">' + T("ui2.settings.pad.aimAssist") + '</label><div class="seg" data-sx2-aim>' +
+          '<button data-v="off" data-i18n="ui2.opt.shortOff">' + T("ui2.opt.shortOff") + "</button>" +
+          '<button data-v="low" data-i18n="ui2.opt.low">' + T("ui2.opt.low") + "</button>" +
+          '<button data-v="std" data-i18n="ui2.opt.std">' + T("ui2.opt.std") + "</button>" +
+          '<button data-v="high" data-i18n="ui2.opt.high">' + T("ui2.opt.high") + "</button>" +
+        "</div></div>" +
+        '<div class="row"><label data-i18n="ui2.settings.rebind">' + T("ui2.settings.rebind") + '</label><button class="btn small" data-sx2-bindopen data-i18n="ui2.settings.rebind.open">' + T("ui2.settings.rebind.open") + "</button></div>";
       var note = pane.querySelector(".panel-note");
       var audioBlock = pane.querySelector("[data-sx2-audio-ui]");
       if (note) pane.insertBefore(wrap, note);
@@ -777,7 +808,8 @@
         var b = document.createElement("button");
         b.className = "btn";
         b.setAttribute("data-sx2-pausebind", "1");
-        b.textContent = "按键重绑";
+        b.setAttribute("data-i18n", "ui2.menu.rebind");
+        b.textContent = T("ui2.menu.rebind");
         b.addEventListener("click", function (e) { e.preventDefault(); openBindOverlay(); });
         sets[i].appendChild(b);
       }
@@ -787,7 +819,9 @@
         if (panes[j].querySelector("[data-sx2-pane-bind]")) continue;
         var row = document.createElement("div");
         row.className = "row";
-        row.innerHTML = '<label>按键重绑</label><button class="btn small" data-sx2-pane-bind="1">打开按键重绑</button>';
+        row.innerHTML = '<label data-i18n="ui2.settings.rebind">' + T("ui2.settings.rebind") +
+          '</label><button class="btn small" data-sx2-pane-bind="1" data-i18n="ui2.settings.rebind.open">' +
+          T("ui2.settings.rebind.open") + "</button>";
         row.querySelector("button").addEventListener("click", function (e) { e.preventDefault(); openBindOverlay(); });
         panes[j].appendChild(row);
       }
@@ -800,10 +834,12 @@
       function ensure() {
         if (!G.input.touch) return;
         if (ui.querySelector("[data-sx2-touch]")) return;
-        var mk = function (label, code, style) {
+        var mk = function (labelKey, code, style) {
+          var label = T(labelKey);
           var b = document.createElement("button");
           b.className = "t-btn x2-touch";
           b.setAttribute("data-sx2-touch", code);
+          b.setAttribute("data-sx2-label", labelKey);
           b.setAttribute("aria-label", label);
           b.innerHTML = "<span>" + label + "</span>";
           b.style.cssText = style;
@@ -825,11 +861,33 @@
           return b;
         };
         // 近战（V）+ 滑铲（C 语义），不覆盖已有按钮
-        mk("近战", "KeyV", "right:calc(20px + var(--sar));bottom:calc(322px + var(--sab));");
-        mk("滑铲", "KeyC", "right:calc(88px + var(--sar));bottom:calc(322px + var(--sab));");
+        mk("ui2.controls.melee", "KeyV", "right:calc(20px + var(--sar));bottom:calc(322px + var(--sab));");
+        mk("input.touch.slide", "KeyC", "right:calc(88px + var(--sar));bottom:calc(322px + var(--sab));");
       }
       ensure();
       addEventListener("touchstart", function () { setTimeout(ensure, 60); }, { passive: true, capture: true });
+    }
+
+    /* ------------------------------------------------------------ 语言切换 */
+    /* 静态标签由 data-i18n 更新；动作名 / 键名 / 触屏按钮按 key 重绘 */
+    function applyLang() {
+      try {
+        var I = I18n();
+        if (I && typeof I.applyDom === "function") I.applyDom(document);
+      } catch (e) {}
+      try { renderBindList(); } catch (e) {}
+      try {
+        var touch = document.querySelectorAll("[data-sx2-touch]");
+        for (var i = 0; i < touch.length; i++) {
+          var labelKey = touch[i].getAttribute("data-sx2-label");
+          if (!labelKey) continue;
+          var v = T(labelKey);
+          var sp = touch[i].querySelector("span");
+          if (sp && sp.textContent !== v) sp.textContent = v;
+          touch[i].setAttribute("aria-label", v);
+        }
+      } catch (e) {}
+      try { setBindNote(""); } catch (e) {}
     }
 
     /* ------------------------------------------------------------ 引擎挂接 */
@@ -864,6 +922,7 @@
       injectSettingsUI();
       addPauseBindButton();
       addTouchButtons();
+      try { if (G.events) G.events.on("sx:lang", applyLang); } catch (e) {}
       addEventListener("keydown", onKeyDown, true);
       addEventListener("keyup", onKeyUp, true);
       addEventListener("blur", releaseAll, true);

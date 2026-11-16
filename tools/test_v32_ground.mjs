@@ -45,6 +45,8 @@ ok('__SX_LOOP.step(600) 推进 600 步', stepRes.dt === 600, stepRes);
 async function runHash(steps) {
   return await page.evaluate((n) => {
     const G = window.__G, T = G.THREE;
+    // V53：hash 包含 CLOCK.now，两次回放必须重置时钟原点。
+    if (window.SX_CLOCK) window.SX_CLOCK.reset();
     window.__SX.applyMission(0); G.game.start({ skipIntro: true });
     G.enemies.clear();
     G.player.pos.set(-19, 0, 9); G.player.vel.set(0, 0, 0); G.player.yaw = 0; G.player.pitch = 0;
@@ -62,7 +64,7 @@ ok('确定性回放：两次 900 步哈希相同', d1.b === d2.b && d1.a === d2.
 // 4) 大步进与小步进等价（固定步与渲染帧率解耦）
 const two = await page.evaluate(() => {
   const G = window.__G;
-  const reset = () => { window.__SX.applyMission(0); G.game.start({ skipIntro: true }); G.enemies.clear(); G.player.pos.set(-19, 0, 9); G.player.vel.set(0, 0, 0); G.player.yaw = 0; window.__SX_LOOP.step(20); };
+  const reset = () => { if (window.SX_CLOCK) window.SX_CLOCK.reset(); window.__SX.applyMission(0); G.game.start({ skipIntro: true }); G.enemies.clear(); G.player.pos.set(-19, 0, 9); G.player.vel.set(0, 0, 0); G.player.yaw = 0; window.__SX_LOOP.step(20); };
   reset(); window.__SX_LOOP.step(120); const a = { y: +G.player.pos.y.toFixed(4), h: window.__SX_LOOP.hash() };
   reset(); for (let i = 0; i < 12; i++) window.__SX_LOOP.step(10); const b = { y: +G.player.pos.y.toFixed(4), h: window.__SX_LOOP.hash() };
   return { a, b };

@@ -11,11 +11,29 @@
   var booted = false;
   var clamp = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
   var CLOCK = null, UICLOCK = null, TEST_MODE = false;
+
+  // V53 ARCH-2：不再用空 catch 静默吞错。软错误统一走 SXErrors.soft("ext:<tag>")：
+  // 按标签计数、每个标签只记一条诊断，热路径不会刷屏；缺少诊断接口时退回 __errors。
+  function soft(tag, e) {
+    try {
+      if (typeof window !== "undefined" && window.SXErrors && typeof window.SXErrors.soft === "function") {
+        window.SXErrors.soft("ext:" + tag, e);
+        return;
+      }
+    } catch (_) { /* 诊断失败不能影响调用方 */ }
+    try {
+      if (typeof window !== "undefined" && window.__errors) {
+        window.__errors.push("[ext:" + tag + "] " + ((e && e.stack) || e));
+        while (window.__errors.length > 200) window.__errors.shift();
+      }
+    } catch (_) { /* 只读 / 被冻结的 __errors：仍然吞掉并继续 */ }
+  }
+
   function gameAfter(sec, fn, group) {
     var done = false;
-    function once() { if (done) return; done = true; try { fn(); } catch (e) {} }
+    function once() { if (done) return; done = true; try { fn(); } catch (e) { soft("timer", e); } }
     var cancel = null;
-    if (CLOCK) { try { cancel = CLOCK.after(sec, once, group || "mission"); } catch (e) {} }
+    if (CLOCK) { try { cancel = CLOCK.after(sec, once, group || "mission"); } catch (e) { soft("clock", e); } }
     // ?dt= 快进模式同时挂真实定时器：固定步测试与真实等待都能触发同一事件
     if (TEST_MODE) setTimeout(once, sec * 1000);
     return cancel || function () {};
@@ -278,6 +296,41 @@
 
   /* ------------------------------------------------------------ HUD */
   var HUD = null;
+
+  // V53 PERF-4：没有武器系统（无 w.list / w.slots）时的缓存槽位数组。
+  // 复用同一个对象、只原地改 ammo，固定步不再新建数组。
+  var SLOT_FALLBACK = [{ short: "九式", ammo: 0 }];
+
+  // 槽位 HTML：纯函数，便于单测；输出与旧实现一致（槽位 + 手雷数字/空态）。
+  function buildSlotsHtml(list, active, grenades) {
+    var html = "";
+    for (var i = 0; i < list.length; i++) {
+      var w = list[i];
+      html += '<div class="x-slot' + (i === active ? " on" : "") + '"><b>' + (i + 1) + "</b><span>" + w.short + "</span><em>" + (w.ammo | 0) + "</em></div>";
+    }
+    html += '<div class="x-gren' + (grenades > 0 ? "" : " empty") + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 8.5a5.5 5.5 0 1 0 6 0V6H9v2.5Z"/><path d="M11 6V4h2v2M13 3.2l2.6-1.1"/></svg><b>' + grenades + '</b><span class="k">G</span></div>';
+    return html;
+  }
+
+  // 槽位脏检查：只比较值，不建数组/字符串（PERF-4）。cache 由 HUD 持有。
+  function slotsChanged(cache, list, active, grenades) {
+    if (cache.n !== list.length || cache.active !== active || cache.gren !== grenades) return true;
+    for (var i = 0; i < list.length; i++) {
+      var w = list[i];
+      if (cache.shorts[i] !== w.short || cache.ammos[i] !== w.ammo) return true;
+    }
+    return false;
+  }
+  function rememberSlots(cache, list, active, grenades) {
+    var n = list.length;
+    cache.n = n; cache.active = active; cache.gren = grenades;
+    for (var i = 0; i < n; i++) {
+      cache.shorts[i] = list[i].short;
+      cache.ammos[i] = list[i].ammo;
+    }
+    if (cache.shorts.length > n) { cache.shorts.length = n; cache.ammos.length = n; }
+  }
+
   function buildHUD() {
     var root = G.hud.root;
     var armor = el("div", "x-armor", '<div class="h-k">护甲</div><div class="x-armor-row"><b class="x-armor-n">0</b><div class="x-armor-bar">' +
@@ -343,14 +396,15 @@
         this.scopeEl.classList.toggle("on", on);
         G.hud.root.classList.toggle("scoped", on);
       },
+      _slotHtml: "",
+      _slotCache: { n: -1, active: -1, gren: -1, shorts: [], ammos: [] },
       setSlots: function (list, active, grenades) {
-        var html = "";
-        for (var i = 0; i < list.length; i++) {
-          var w = list[i];
-          html += '<div class="x-slot' + (i === active ? " on" : "") + '"><b>' + (i + 1) + "</b><span>" + w.short + "</span><em>" + (w.ammo|0) + "</em></div>";
-        }
-        html += '<div class="x-gren' + (grenades > 0 ? "" : " empty") + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 8.5a5.5 5.5 0 1 0 6 0V6H9v2.5Z"/><path d="M11 6V4h2v2M13 3.2l2.6-1.1"/></svg><b>' + grenades + '</b><span class="k">G</span></div>';
+        if (!list) list = SLOT_FALLBACK;
+        // V53 PERF-4：值没变就整步跳过——不建 HTML 字符串、不写 DOM。
+        if (!slotsChanged(this._slotCache, list, active, grenades)) return;
+        var html = buildSlotsHtml(list, active, grenades);
         if (html !== this._slotHtml) { this._slotHtml = html; this.loadoutEl.innerHTML = html; }
+        rememberSlots(this._slotCache, list, active, grenades);
       }
     };
     return HUD;
@@ -491,7 +545,8 @@
   // 只有数据缺失时才回退到港区的旧硬编码点位。
   function pickupSpotsForMap() {
     var id = "harbor";
-    try { id = MapKit && MapKit.current ? MapKit.current() : "harbor"; } catch (e) {}
+    // MapKit 是可选的全局（展示模式/部分构建里尚未定义）：探测失败保持静默，回退 harbor。
+    try { id = MapKit && MapKit.current ? MapKit.current() : "harbor"; } catch (e) { /* 可选全局未就绪 */ }
     var data = window.__SX_MAPS_DATA;
     var m = data && data.maps && data.maps[id];
     if (m && m.pickups && m.pickups.length) {
@@ -550,7 +605,7 @@
     p.mesh.visible = false;
     if (HUD) HUD.toast(msg);
     G.hud.message(msg, 1.5);
-    try { G.audio.play("reload_magin", { gain: 0.5, pitch: 1.35 }); } catch (e) {}
+    try { G.audio.play("reload_magin", { gain: 0.5, pitch: 1.35 }); } catch (e) { soft("pickup-sfx", e); }
     G.events.emit("sx:pickup", { type: p.type });
     return true;
   }
@@ -592,7 +647,7 @@
     if (S.grenades <= 0 || S.throwCd > 0) return;
     S.grenades--;
     S.throwCd = 0.55;
-    try { G.events.emit("sx:grenade", {}); } catch (e) {}
+    try { G.events.emit("sx:grenade", {}); } catch (e) { soft("grenade-emit", e); }
     var T = G.THREE, P = G.player;
     var dir = P.forward.clone ? P.forward.clone() : new T.Vector3(P.forward.x, P.forward.y, P.forward.z);
     var fwd = new T.Vector3(dir.x, dir.y, dir.z).normalize();
@@ -606,19 +661,19 @@
     S.grenadeList.push({ mesh: mesh, pos: origin.clone(), vel: vel, fuse: 2.25, spin: new T.Vector3(Math.random() * 8, Math.random() * 8, Math.random() * 8), bounced: false });
     G.player.addRecoil(-0.004, 0);
     G.player.addShake(0.08);
-    try { G.audio.play("weapon:melee", { gain: 0.4 }); } catch (e) {}
+    try { G.audio.play("weapon:melee", { gain: 0.4 }); } catch (e) { soft("grenade-sfx", e); }
     G.events.emit("weapon:fire", { origin: origin, dir: fwd, muzzle: origin, ads: 0 });
   }
 
   function explodeGrenade(n) {
     var pos = n.pos;
     try { G.combat.explode(pos, 6.5, 110, "player"); } catch (e) { console.error("[ext] explode", e); }
-    try { G.fx.explosion(pos, 1.7); } catch (e) {}
-    try { G.events.emit("explosion", { pos: pos, size: 1.8 }); } catch (e) {}
+    try { G.fx.explosion(pos, 1.7); } catch (e) { soft("explode-fx", e); }
+    try { G.events.emit("explosion", { pos: pos, size: 1.8 }); } catch (e) { soft("explode-emit", e); }
     try {
       if (G.render && G.render.lightPool && G.render.lightPool.flash)
         G.render.lightPool.flash(pos, 0xffb066, 90, 16, 0.22);
-    } catch (e) {}
+    } catch (e) { soft("explode-light", e); }
     var d = dist2d(G.player.pos, pos);
     if (d < 12) G.player.addShake(clamp(1 - d / 12, 0, 1) * 0.75);
     if (n.mesh.parent) n.mesh.parent.remove(n.mesh);
@@ -646,7 +701,7 @@
         n.vel.multiplyScalar(0.62);
         n.pos.addScaledVector(hit.normal, 0.02);
         if (hit.surface === "water") n.fuse = Math.min(n.fuse, 0.15);
-        if (!n.bounced) { n.bounced = true; try { G.audio.play("shell_bounce", { pos: n.pos, gain: 0.5, pitch: 0.7 }); } catch (e) {} }
+        if (!n.bounced) { n.bounced = true; try { G.audio.play("shell_bounce", { pos: n.pos, gain: 0.5, pitch: 0.7 }); } catch (e) { soft("grenade-bounce-sfx", e); } }
       } else {
         n.pos.add(step);
       }
@@ -671,8 +726,8 @@
     var eye = new T.Vector3(P.eye.x, P.eye.y, P.eye.z);
     var fwd = new T.Vector3(P.forward.x, P.forward.y, P.forward.z).normalize();
     var hit = null;
-    try { hit = G.combat.playerShot(eye, fwd, { damage: 55, range: 2.4 }); } catch (e) {}
-    try { G.events.emit("weapon:melee", {}); } catch (e) {}
+    try { hit = G.combat.playerShot(eye, fwd, { damage: 55, range: 2.4 }); } catch (e) { soft("melee-shot", e); }
+    try { G.events.emit("weapon:melee", {}); } catch (e) { soft("melee-emit", e); }
     P.addRecoil(-0.008, (Math.random() - 0.5) * 0.004);
     P.addShake(0.1);
     if (hit && hit.surface === "enemy") HUD && HUD.toast("近战击杀", false);
@@ -723,8 +778,8 @@
       if (G.weapon.ammo !== undefined) G.weapon.ammo = Math.max(G.weapon.ammo, cp.ammo);
       if (G.weapon.reserve !== undefined) G.weapon.reserve = Math.max(G.weapon.reserve, cp.reserve);
     }
-    try { G.enemies.clear(); } catch (e) {}
-    try { G.game.run.queue.length = 0; G.game.run.waveHot = 0; } catch (e) {}
+    try { G.enemies.clear(); } catch (e) { soft("revive-clear", e); }
+    try { G.game.run.queue.length = 0; G.game.run.waveHot = 0; } catch (e) { soft("revive-run", e); }
     // 检查点复活若发生在 BOSS 战：重置并重新投放 BOSS，避免目标卡死
     if (G.game.run && G.game.run.bossAlive) {
       try {
@@ -732,12 +787,12 @@
         if (typeof bossRef !== "undefined") bossRef = null;
         if (typeof bossBar !== "undefined" && bossBar) bossBar.el.classList.remove("on");
         gameAfter(2.5, function () { if (G.game.state === "playing") startBossEncounter(); }, "mission");
-      } catch (e) {}
+      } catch (e) { soft("revive-boss", e); }
     }
     G.game.state = "playing";
     G.hud.show(true);
     G.render.post.fade = 0;
-    try { G.input.setGameplay(true); G.input.requestLock && G.input.requestLock(); } catch (e) {}
+    try { G.input.setGameplay(true); G.input.requestLock && G.input.requestLock(); } catch (e) { soft("revive-input", e); }
     hideDeadCheckpointButton();
     G.hud.message("检查点已恢复", 2.2);
     G.events.emit("game:state", { state: "playing", prev: "dead" });
@@ -751,12 +806,19 @@
   /*__TACTICS__*/
 
   /* ------------------------------------------------------- per-frame */
+  // V53 CLI-2：模拟时钟只在这些状态推进；暂停/标题/死亡/结算必须冻结。
+  function simTimeActive(state) {
+    return state === "playing" || state === "intro";
+  }
   function update(dt) {
     if (!G || !booted) return;
-    try { if (CLOCK) CLOCK.tick(dt); } catch (e) {}
-    try { if (window.SX_SYSTEMS) SX_SYSTEMS.fixedUpdate(null, dt); } catch (e) {}
-    try { updatePerf(dt); } catch (e) {}
-    try { AudioExt.update(dt); } catch (e) {}
+    var simActive = simTimeActive(G.game.state);
+    if (simActive) {
+      try { if (CLOCK) CLOCK.tick(dt); } catch (e) { soft("clock-tick", e); }
+      try { if (window.SX_SYSTEMS) SX_SYSTEMS.fixedUpdate(null, dt); } catch (e) { soft("systems-tick", e); }
+    }
+    try { updatePerf(dt); } catch (e) { soft("perf", e); }
+    try { AudioExt.update(dt); } catch (e) { soft("audio-update", e); }
     if (G.game.state !== "playing") {
       if (HUD) HUD.tick(dt);
       return;
@@ -774,7 +836,7 @@
     if (S._lastMapCheck === undefined || S._lastMapCheck <= 0) {
       S._lastMapCheck = 0.5;
       var mid = "harbor";
-      try { mid = MapKit.current(); } catch (e) {}
+      try { mid = MapKit.current(); } catch (e) { soft("map-probe", e); }
       if (mid !== S._lastMap) { S._lastMap = mid; spawnPickups(); }
     } else S._lastMapCheck -= dt;
     HUD.tick(dt);
@@ -794,10 +856,13 @@
     try { updateBoss(dt); } catch (e) { console.error("[ext] boss update", e); }
 
     // HUD loadout
+    // V53 PERF-4：直接复用武器系统持有的数组（w.list 元素自带 short/ammo），
+    // 不再每步 map 出新数组；没有 list 时用模块级缓存数组原地改 ammo。
     var w = G.weapon;
-    var slots = [{ short: "九式", ammo: w && w.ammo }];
-    if (w && w.slots && w.slots.length) slots = w.slots;
-    else if (w && w.list) slots = w.list.map(function (x) { return { short: x.short, ammo: x.ammo }; });
+    var slots = SLOT_FALLBACK;
+    if (w && w.list) slots = w.list;
+    else if (w && w.slots && w.slots.length) slots = w.slots;
+    else SLOT_FALLBACK[0].ammo = (w && w.ammo) | 0;
     HUD.setSlots(slots, w && w.activeIndex || 0, S.grenades);
     var act = w && w.list && w.list[w.activeIndex];
     HUD.setScope(!!(act && act.scope && act.ads > 0.82));
@@ -828,14 +893,14 @@
       var now = performance.now();
       if (now - shieldFxT < 90) return;
       shieldFxT = now;
-      try { G.fx.sparks(ev.point, new G.THREE.Vector3(0, 0, 1), 4); } catch (e) {}
-      try { G.audio.play("impact_metal", { pos: ev.point, gain: 0.5, pitch: 1.5 }); } catch (e) {}
+      try { G.fx.sparks(ev.point, new G.THREE.Vector3(0, 0, 1), 4); } catch (e) { soft("shield-sparks", e); }
+      try { G.audio.play("impact_metal", { pos: ev.point, gain: 0.5, pitch: 1.5 }); } catch (e) { soft("shield-sfx", e); }
     });
     G.events.on("sx:shield-break", function (ev) {
       var e = ev && ev.enemy;
       if (e && e.pos) {
-        try { G.fx.sparks(e.pos, new G.THREE.Vector3(0, 1, 0), 14); } catch (err) {}
-        try { G.audio.play("impact_metal", { pos: e.pos, gain: 1, pitch: 0.7 }); } catch (err) {}
+        try { G.fx.sparks(e.pos, new G.THREE.Vector3(0, 1, 0), 14); } catch (err) { soft("shield-break-sparks", err); }
+        try { G.audio.play("impact_metal", { pos: e.pos, gain: 1, pitch: 0.7 }); } catch (err) { soft("shield-break-sfx", err); }
       }
       G.hud.feed("<b>重装盾卫</b> 护盾破碎");
     });
@@ -845,15 +910,15 @@
   function initAudioPolish() {
     S.hbT = 0;
     G.events.on("weapon:switch", function () {
-      try { G.audio.play("reload_magout", { gain: 0.32, pitch: 1.45 }); } catch (e) {}
+      try { G.audio.play("reload_magout", { gain: 0.32, pitch: 1.45 }); } catch (e) { soft("switch-sfx", e); }
     });
     G.events.on("sx:boss-phase", function (ev) {
-      try { G.audio.play("alert", { gain: 0.85, pitch: ev && ev.phase === 2 ? 0.55 : 0.72 }); } catch (e) {}
-      try { G.audio.play("explosion", { gain: 0.25, pitch: 1.6 }); } catch (e) {}
+      try { G.audio.play("alert", { gain: 0.85, pitch: ev && ev.phase === 2 ? 0.55 : 0.72 }); } catch (e) { soft("boss-phase-sfx", e); }
+      try { G.audio.play("explosion", { gain: 0.25, pitch: 1.6 }); } catch (e) { soft("boss-phase-sfx", e); }
     });
     G.events.on("game:state", function (e) {
       if (e && (e.state === "playing" || e.state === "intro"))
-        try { G.audio.play("ui:click", { gain: 0.35 }); } catch (err) {}
+        try { G.audio.play("ui:click", { gain: 0.35 }); } catch (err) { soft("state-sfx", err); }
     });
   }
 
@@ -864,7 +929,7 @@
       S.hbT -= dt;
       if (S.hbT <= 0) {
         S.hbT = P.health < P.maxHealth * 0.2 ? 0.78 : 1.15;
-        try { G.audio.play("hurt", { gain: 0.15, pitch: 0.82 }); } catch (e) {}
+        try { G.audio.play("hurt", { gain: 0.15, pitch: 0.82 }); } catch (e) { soft("heartbeat-sfx", e); }
       }
     } else {
       S.hbT = 0;
@@ -896,7 +961,7 @@
         window.SX_SYSTEMS = SXSystems.create({ G: G, clock: CLOCK, uiClock: UICLOCK, events: G.events, THREE: G.THREE });
         window.SX_SYSTEMS.initAll();
         G.events.on("game:state", function (e) {
-          try { window.SX_SYSTEMS.onState(e.state, e.prev); } catch (err) {}
+          try { window.SX_SYSTEMS.onState(e.state, e.prev); } catch (err) { soft("systems-state", err); }
         });
       }
     } catch (e) { console.error("[ext] systems", e); }
@@ -915,7 +980,7 @@
         var changed = baseMapLoad.call(MapKit, id);
         if (changed) {
           try { spawnPickups(); } catch (e) { console.error("[ext] pickups", e); }
-          try { G.events.emit("map:loaded", { id: id }); } catch (e) {}
+          try { G.events.emit("map:loaded", { id: id }); } catch (e) { soft("map-loaded-emit", e); }
         }
         return changed;
       };
@@ -951,7 +1016,7 @@
           if (G.weapon && G.weapon.cycle) G.weapon.cycle();
         });
         ui.appendChild(sb);
-      } catch (e) {}
+      } catch (e) { soft("touch-ui", e); }
     }
 
     // 敌人 HP 缩放（战役难度）
@@ -963,12 +1028,17 @@
     };
 
     // 挂接游戏更新：在导演更新后、武器更新前
-    var baseUpdate = G.game.update;
-    G.game.update = function (dt) {
-      var r = baseUpdate.call(G.game, dt);
-      try { update(dt); } catch (e) { console.error("[ext] update", e); }
-      return r;
-    };
+    // V53 ARCH-1：防重入标记挂在宿主对象上（别人再包一层也不会让标记失效）；
+    // 重复 init 直接跳过，避免二次包覆。调用顺序保持不变：先原 update，再 ext update。
+    if (!G.game.__sxExtUpdate) {
+      var baseUpdate = G.game.update;
+      G.game.__sxExtUpdate = true;
+      G.game.update = function (dt) {
+        var r = baseUpdate.call(G.game, dt);
+        try { update(dt); } catch (e) { console.error("[ext] update", e); }
+        return r;
+      };
+    }
     G.events.on("game:state", function (e) {
       if (e && (e.state === "intro" || e.state === "title" || e.state === "dead" || e.state === "complete") && CLOCK) CLOCK.cancelGroup("mission");
     });
@@ -985,17 +1055,21 @@
     });
 
     // 任务专属无线电：覆盖引擎默认的开场/全断文案
-    var baseRadio = G.hud.radio;
-    G.hud.radio = function (text, secs) {
-      var m = G.game.currentMission;
-      if (m && typeof text === "string") {
-        if (m.intro && text.indexOf("几猫队员，这里是指挥中心") === 0)
-          return baseRadio.call(G.hud, m.intro, secs || 4.2);
-        if (m.all && text.indexOf("三处中继全部断开") === 0)
-          return baseRadio.call(G.hud, m.all, secs || 4.5);
-      }
-      return baseRadio.call(G.hud, text, secs);
-    };
+    // V53 ARCH-1：宿主对象标记，重复 init 不再二次包覆；命中任务文案时依旧只调用一次 baseRadio。
+    if (!G.hud.__sxExtRadio) {
+      var baseRadio = G.hud.radio;
+      G.hud.__sxExtRadio = true;
+      G.hud.radio = function (text, secs) {
+        var m = G.game.currentMission;
+        if (m && typeof text === "string") {
+          if (m.intro && text.indexOf("几猫队员，这里是指挥中心") === 0)
+            return baseRadio.call(G.hud, m.intro, secs || 4.2);
+          if (m.all && text.indexOf("三处中继全部断开") === 0)
+            return baseRadio.call(G.hud, m.all, secs || 4.5);
+        }
+        return baseRadio.call(G.hud, text, secs);
+      };
+    }
 
     // 首次进入战斗的操作提示
     var tipsShown = false;
@@ -1017,7 +1091,7 @@
     });
 
     addEventListener("beforeunload", function () {
-      try { if (window.SXBridge) SXBridge.flush(); } catch (e) {}
+      try { if (window.SXBridge) SXBridge.flush(); } catch (e) { soft("save-flush", e); }
     });
 
     // 调试/测试 API
@@ -1046,7 +1120,7 @@
       unlockAll: function () { camp.unlocked = MISSIONS.length; saveCamp(); renderMissionCards(); },
       launch: function (i) { camp.unlocked = Math.max(camp.unlocked, i + 1); launchMission(i); },
       launchFast: function (i) { camp.unlocked = Math.max(camp.unlocked, i + 1); applyMission(i); G.game.start({ skipIntro: true }); },
-      cutAll: function () { for (var i = 0; i < 8; i++) { try { G.game.debugCut(); } catch (e) {} } },
+      cutAll: function () { for (var i = 0; i < 8; i++) { try { G.game.debugCut(); } catch (e) { soft("debug-cut", e); } } },
       scan: function () { return triggerScan(); },
       aim: function () { return beginGrenadeAim(); },
       release: function () { releaseGrenade(); },
@@ -1056,7 +1130,7 @@
       armory: function () { return armorySel; },
       armorySet: function (wid, slot, opt) {
         // 调试/验收接口：直接装备视为已拥有，避免所有权回退把测试装备成默认件
-        try { if (window.__SX_PROGRESS && window.__SX_PROGRESS.unlock) window.__SX_PROGRESS.unlock(wid + ":" + slot + ":" + opt); } catch (e) {}
+        try { if (window.__SX_PROGRESS && window.__SX_PROGRESS.unlock) window.__SX_PROGRESS.unlock(wid + ":" + slot + ":" + opt); } catch (e) { soft("progress-unlock", e); }
         armorySel[wid][slot] = opt; saveArmory(); armoryApply(); return armoryStat(armoryWeapon(wid));
       },
       // V45：只改选择、不做所有权解锁。用于验证“锁定价配件不生效”的真实 UI/结算路径。

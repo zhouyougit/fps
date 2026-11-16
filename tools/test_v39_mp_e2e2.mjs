@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /* V39 联机 e2e：两个独立浏览器进程（避免第二标签页 SwiftShader 卡死） */
 import { chromium } from 'playwright';
-import { PW_ARGS } from './pwargs.mjs';
+import { PW_ARGS, findChrome } from './pwargs.mjs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = process.env.CHROME_EXE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = findChrome();
 const PORT = 9300 + Math.floor(Math.random() * 300);
 const TOKEN = 'v39-e2e-token';
 let pass = 0, fail = 0;
